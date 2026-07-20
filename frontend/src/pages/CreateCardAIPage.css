@@ -1,0 +1,304 @@
+/* frontend/src/pages/CreateCardAIPage.css */
+
+/* ========================================= */
+/* PHẦN 1: CSS GỐC CỦA CẬU (Đừng xóa nha!)   */
+/* ========================================= */
+.create-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.create-header {
+  text-align: center;
+  margin-bottom: clamp(30px, 5vh, 60px);
+}
+
+.create-header h1 {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  color: var(--text-dark);
+  margin-bottom: 1.5vh;
+  font-weight: 700;
+}
+
+.create-header p {
+  font-size: clamp(1rem, 1.5vw, 1.3rem);
+  color: var(--text-gray);
+}
+
+.create-page-container {
+  display: flex;
+  gap: clamp(30px, 4vw, 70px);
+  justify-content: center;
+  width: 70vw;
+  max-width: 1600px;
+}
+
+.ai-input-section {
+  flex: 1;
+  background: white;
+  padding: clamp(20px, 3vw, 40px);
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-preview-section {
+  flex: 1;
+  background: #f8fafc;
+  padding: clamp(20px, 3vw, 40px);
+  border-radius: 20px;
+  border: 2px dashed #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  /* 👉 ĐÃ SỬA: Xóa max-height và thêm align-self để 2 cột cao bằng nhau */
+  align-self: stretch;
+}
+
+.input-label {
+  display: block;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 10px;
+  font-size: clamp(1rem, 1.2vw, 1.1rem);
+}
+
+.ai-textarea {
+  width: 100%;
+  padding: 15px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  resize: vertical;
+  font-size: clamp(1rem, 1.1vw, 1.05rem);
+  font-family: inherit;
+  transition: all 0.2s;
+  box-sizing: border-box; /* Sửa lỗi tràn viền */
+}
+
+.ai-textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+}
+
+.generate-btn {
+  width: 100%;
+  padding: clamp(14px, 2vw, 18px);
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: clamp(1.05rem, 1.2vw, 1.15rem);
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: auto;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.generate-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(99, 102, 241, 0.3);
+}
+
+.generate-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.preview-cards-container {
+  overflow-y: auto;
+  padding-right: 10px;
+  flex: 1;
+}
+
+.generated-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  margin-bottom: 15px;
+  border-left: 5px solid #10b981;
+}
+
+.card-side {
+  margin-bottom: 10px;
+}
+
+.card-side strong {
+  color: #64748b;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.card-side p {
+  margin: 5px 0 0 0;
+  color: #1e293b;
+  font-size: 1.05rem;
+}
+
+.loader {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.file-upload-zone {
+  border: 2px dashed #94a3b8;
+  padding: 20px;
+  text-align: center;
+  border-radius: 12px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 20px;
+}
+
+.file-upload-zone:hover {
+  border-color: #6366f1;
+  background: #eef2ff;
+}
+
+.file-upload-zone p {
+  margin: 5px 0 0 0;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.file-input {
+  display: none;
+}
+.file-selected {
+  border-color: #10b981;
+  background: #ecfdf5;
+}
+.file-selected p {
+  color: #047857;
+  font-weight: 600;
+}
+
+/* ========================================= */
+/* PHẦN 2: CSS MỚI TỚ VIẾT THÊM CHO TÍNH NĂNG MỚI */
+/* ========================================= */
+.ai-message-box {
+  padding: 12px 16px;
+  background-color: #eff6ff;
+  color: #1e40af;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-left: 4px solid #3b82f6;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.btn-edit-cancel {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  background: #e2e8f0;
+  color: #475569;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-edit-cancel:hover {
+  background: #cbd5e1;
+}
+
+.btn-edit-save {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  background: #6366f1;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-edit-save:hover {
+  background: #4f46e5;
+}
+
+.card-action-btns {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  display: flex;
+  gap: 8px;
+}
+.btn-icon {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: transform 0.2s;
+}
+.btn-icon:hover {
+  transform: scale(1.1);
+}
+.btn-edit {
+  color: #f59e0b;
+}
+.btn-delete {
+  color: #ef4444;
+}
+
+.math-preview-box {
+  margin-top: 10px;
+  font-size: 1.1rem;
+  color: #0f172a;
+}
+.math-preview-box.back {
+  color: #059669;
+}
+
+.btn-save-deck {
+  background: #10b981;
+  margin-top: 15px;
+}
+.btn-save-deck:hover:not(:disabled) {
+  box-shadow: 0 8px 15px rgba(16, 185, 129, 0.3);
+}
+
+.edit-card-form {
+  display: flex;
+  flex-direction: column;
+}
+.edit-card-form label {
+  font-weight: bold;
+  font-size: 0.9rem;
+  color: #475569;
+}
+.edit-card-form textarea {
+  width: 100%;
+  min-height: 80px;
+  margin-bottom: 15px;
+  margin-top: 5px;
+  box-sizing: border-box;
+}

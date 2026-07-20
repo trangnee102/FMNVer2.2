@@ -1,0 +1,27 @@
+/* frontend/src/components/Cards/AIPreviewSection.css */
+
+/* Sửa lỗi dính chữ và mất xuống dòng */
+.format-text {
+  white-space: pre-wrap !important;
+  line-height: 1.8;
+  font-size: 1.1rem;
+  word-wrap: break-word;
+  color: #334155;
+  padding: 10px 0;
+}
+
+/* Giao diện khối AI tinh chỉnh thẻ */
+.ai-refine-container {
+  background: #eef2ff;
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 1px solid #c7d2fe;
+}
+
+.ai-refine-label {
+  font-weight: 600;
+  color: #4f46e5;
+  display: block;
+  margin-bottom: 8px;
+}

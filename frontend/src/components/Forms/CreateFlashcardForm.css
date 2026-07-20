@@ -1,0 +1,88 @@
+.manual-flashcard-form {
+  background-color: var(--bg-card);
+  padding: 40px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  width: 100%;
+  max-width: 800px; /* Giới hạn độ rộng để form không bị bành trướng quá */
+  margin: 0 auto; /* Căn giữa form */
+}
+
+.form-group {
+  margin-bottom: 25px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+}
+
+/* Khung nhập liệu (Câu hỏi & Trả lời) */
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 15px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-family: inherit;
+  transition: border-color 0.3s ease;
+  background-color: #fafafa;
+}
+
+.form-textarea {
+  min-height: 120px;
+  resize: vertical; /* Cho phép người dùng kéo dài ô nhập liệu theo chiều dọc */
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  background-color: #fff;
+}
+
+/* Nút bấm ở cuối form */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.btn-cancel {
+  padding: 12px 24px;
+  border: none;
+  background-color: #f1f5f9;
+  color: var(--text-gray);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-cancel:hover {
+  background-color: #e2e8f0;
+  color: var(--text-dark);
+}
+
+.btn-save {
+  padding: 12px 24px;
+  border: none;
+  background-color: var(--primary);
+  color: #fff;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-save:hover {
+  background-color: var(--primary-hover);
+  transform: translateY(-2px);
+}

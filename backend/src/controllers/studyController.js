@@ -1,0 +1,204 @@
+// backend/src/controllers/studyController.js
+const prisma = require("../services/prisma");
+const { calculateSM2 } = require("../algorithms/forgettingCurve");
+
+const reviewCard = async (req, res) => {
+  try {
+    // Xác thực Token
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Không tìm thấy thông tin xác thực!",
+      });
+    }
+    const userId = req.user.id;
+    const cardId = req.body.flashcard_id || parseInt(req.params.cardId);
+
+    // Bắt điểm đánh giá (0: Quên, 1: Khó, 2: Tốt, 3: Dễ)
+    const grade =
+      req.body.rating !== undefined ? req.body.rating : req.body.grade;
+    const durationMs = req.body.duration_ms || 12000;
+
+    if (![0, 1, 2, 3].includes(grade)) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Điểm đánh giá phải là 0, 1, 2 hoặc 3!",
+        });
+    }
+
+    const card = await prisma.flashcards.findUnique({
+      where: { id: cardId },
+      select: { deck_id: true },
+    });
+
+    if (!card) {
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message: "Thẻ này đã bay màu hoặc không tồn tại!",
+        });
+    }
+
+    // Xác minh quyền sở hữu
+    const deck = await prisma.decks.findUnique({
+      where: { id: card.deck_id },
+      select: { user_id: true },
+    });
+
+    if (!deck || deck.user_id !== userId) {
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message: "Bạn không có quyền chấm điểm thẻ này!",
+        });
+    }
+
+    // 1. Lấy tiến độ cũ
+    let progress = await prisma.studyProgress.findFirst({
+      where: { flashcard_id: cardId, user_id: userId },
+    });
+
+    if (!progress) {
+      progress = await prisma.studyProgress.create({
+        data: {
+          flashcard_id: cardId,
+          user_id: userId,
+          ease_factor: 2.5,
+          interval: 0,
+          repetitions: 0,
+        },
+      });
+    }
+
+    // 2. Tính toán SM-2
+    const { newEaseFactor, newInterval, newRepetitions } = calculateSM2(
+      grade,
+      progress.ease_factor,
+      progress.interval,
+      progress.repetitions,
+    );
+
+    // 🌟 VÁ LỖI LOGIC HỌC LẠI TẠI ĐÂY 🌟
+    let nextReviewDate = new Date(); // Lấy giờ hiện tại
+
+    if (grade === 0) {
+      // 🚨 BẤM QUÊN: Đẩy ngày học về quá khứ 1 phút để CHẮC CHẮN thẻ này sẽ phải học lại ngay
+      // Tránh việc bị đẩy sang ngày mai làm giảm số lượng thẻ cần ôn.
+      nextReviewDate.setMinutes(nextReviewDate.getMinutes() - 1);
+    } else {
+      // ✅ BẤM NHỚ (1, 2, 3): Hẹn ngày học tiếp theo đúng chuẩn SM-2
+      nextReviewDate.setDate(nextReviewDate.getDate() + newInterval);
+    }
+
+    const updatedProgress = await prisma.studyProgress.update({
+      where: { id: progress.id },
+      data: {
+        ease_factor: newEaseFactor,
+        interval: newInterval,
+        repetitions: newRepetitions,
+        next_review_date: nextReviewDate,
+      },
+    });
+
+    // 3. Ghi Log
+    await prisma.studyLogs.create({
+      data: {
+        user_id: userId,
+        flashcard_id: cardId,
+        deck_id: card.deck_id,
+        rating: grade,
+        duration_ms: durationMs,
+      },
+    });
+
+    res.json({
+      success: true,
+      message:
+        grade === 0
+          ? "Thẻ đã được ghim lại để ôn tiếp ngay bây giờ!"
+          : "Đã cập nhật chu kỳ ôn tập!",
+      data: updatedProgress,
+    });
+  } catch (error) {
+    console.error("Lỗi Review:", error);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Lỗi hệ thống chấm điểm!",
+        error: error.message,
+      });
+  }
+};
+
+const getDueCards = async (req, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Vui lòng đăng nhập lại!" });
+    }
+    const userId = req.user.id;
+    const deckId = parseInt(req.params.deckId);
+
+    const deck = await prisma.decks.findUnique({
+      where: { id: deckId },
+      select: { user_id: true },
+    });
+
+    if (!deck || deck.user_id !== userId) {
+      return res
+        .status(403)
+        .json({
+          success: false,
+          message: "Bạn không có quyền truy cập vào bộ thẻ này!",
+        });
+    }
+
+    const clientDateString = req.query.currentDate;
+    const today = clientDateString ? new Date(clientDateString) : new Date();
+    const isForceReview = req.query.force === "true";
+
+    const flashcards = await prisma.flashcards.findMany({
+      where: { deck_id: deckId },
+      include: {
+        StudyProgress: { where: { user_id: userId } },
+      },
+    });
+
+    let dueCards = flashcards;
+
+    if (!isForceReview) {
+      dueCards = flashcards.filter((card) => {
+        const prog = card.StudyProgress[0];
+        if (!prog) return true; // Thẻ mới -> Đến hạn
+
+        // 🌟 So sánh chuẩn: Nếu ngày hẹn < hôm nay -> Bắt học
+        return new Date(prog.next_review_date) <= today;
+      });
+    }
+
+    res.json({
+      success: true,
+      message: isForceReview
+        ? `Đã mở khóa toàn bộ ${dueCards.length} thẻ!`
+        : `Tìm thấy ${dueCards.length} thẻ cần ôn tập!`,
+      data: dueCards,
+    });
+  } catch (error) {
+    console.error("Lỗi getDue:", error);
+    res
+      .status(500)
+      .json({
+        success: false,
+        message: "Lỗi khi tìm thẻ ôn tập!",
+        error: error.message,
+      });
+  }
+};
+
+module.exports = { reviewCard, getDueCards };

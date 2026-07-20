@@ -1,0 +1,79 @@
+.login-page {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f8fafc; /* Phủ nền xám nhạt nhẹ để thẻ trắng nổi bật bần bật */
+}
+
+.login-card {
+  background: white;
+  padding: 80px 100px; /* 👉 Bơm mạnh padding dọc để form thon thả hơn */
+  border-radius: 24px; /* Bo góc to, hiện đại hơn */
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08); /* Bóng đổ sâu tạo cảm giác 3D */
+
+  width: 50vw;
+  max-width: 800px;
+  min-height: 65vh; /* 👉 QUY TẮC THIẾT KẾ: Ép chiều cao tối thiểu để form không bị lùn */
+
+  /* 👉 CHỈNH SỬA Ở ĐÂY: Dùng số âm để kéo khối form nhích lên trên một chút so với tâm trục dọc */
+  margin-top: -8vh;
+
+  /* Dùng Flexbox dàn đều không gian thừa ra giữa các phần tử */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  text-align: center;
+  border: 1px solid var(--border);
+}
+
+/* 👉 Tăng mạnh khoảng cách giữa các khối nhập liệu */
+.form-group {
+  text-align: left;
+  margin-bottom: 40px;
+}
+
+/* Ép font chữ của nhãn (Email, Mật khẩu) to lên */
+.form-group label {
+  font-size: 1.1rem !important;
+  margin-bottom: 12px !important;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 20px 24px; /* 👉 Ô nhập liệu siêu cao, đúng chuẩn form màn hình lớn */
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  font-size: 1.2rem; /* Chữ gõ vào to rõ ràng */
+  transition: all 0.3s ease;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: white;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+}
+
+/* 👉 Dùng !important để đè lên CSS nội tuyến (inline) trong file JSX, giúp nút to ra */
+.login-card button[type="submit"] {
+  padding: 22px !important; /* Kéo nút cao bằng ô nhập liệu */
+  font-size: 1.25rem !important; /* Chữ nút to đùng */
+  border-radius: 12px !important;
+  margin-top: 10px;
+  transition: all 0.3s ease;
+}
+
+.login-card button[type="submit"]:hover {
+  background-color: #4f46e5 !important;
+  transform: translateY(-3px); /* Hiệu ứng nảy lên khi di chuột */
+  box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+}
+
+/* Kéo cái dòng "Chưa có tài khoản?" tụt xuống dưới cùng cho thoáng */
+.login-card > div:last-child {
+  margin-top: 40px !important;
+  font-size: 1.1rem !important;
+}

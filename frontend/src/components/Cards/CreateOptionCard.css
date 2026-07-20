@@ -1,0 +1,71 @@
+/* src/components/Cards/CreateOptionCard.css */
+
+.create-option-card {
+  flex: 1;
+  background-color: var(--bg-card);
+  border-radius: var(--radius-lg);
+
+  /* 👉 Padding giãn nở theo tỷ lệ màn hình */
+  padding: 6vh 3vw;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border: 2px solid var(--border);
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.create-option-card:hover {
+  border-color: var(--card-color);
+  transform: translateY(-8px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+}
+
+.option-icon-wrapper {
+  /* 👉 Icon box tự phình to */
+  width: clamp(75px, 8vw, 130px);
+  height: clamp(75px, 8vw, 130px);
+  background-color: var(--card-color);
+  border-radius: clamp(15px, 2vw, 30px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto clamp(20px, 4vh, 40px) auto;
+}
+
+.option-icon-wrapper i {
+  /* 👉 Size icon bên trong to khổng lồ */
+  font-size: clamp(2.2rem, 3.5vw, 4rem);
+  color: #fff;
+}
+
+.create-option-card h3 {
+  /* 👉 Tiêu đề thẻ tự co bóp */
+  font-size: clamp(1.4rem, 2vw, 2rem);
+  color: var(--text-dark);
+  margin-bottom: clamp(10px, 2vh, 25px);
+  font-weight: 700;
+}
+
+.create-option-card p {
+  color: var(--text-gray);
+  font-size: clamp(0.95rem, 1.2vw, 1.2rem);
+  line-height: 1.7;
+}
+
+.badge-speed {
+  position: absolute;
+  top: clamp(20px, 3vw, 35px);
+  right: clamp(20px, 3vw, 35px);
+  background-color: var(--green-light);
+  color: var(--green);
+  padding: clamp(6px, 1vw, 12px) clamp(14px, 1.5vw, 24px);
+  border-radius: 30px;
+  font-size: clamp(0.75rem, 1vw, 1rem);
+  font-weight: 700;
+}

@@ -1,0 +1,96 @@
+const BASE_URL = "http://localhost:5000/api";
+
+const fetchWithAuth = async (endpoint, options = {}) => {
+  const token = localStorage.getItem("token");
+  const headers = { "Content-Type": "application/json", ...options.headers };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const response = await fetch(`${BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
+  return response.json();
+};
+
+export const authAPI = {
+  login: (email, password) =>
+    fetchWithAuth("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+};
+
+export const studyAPI = {
+  getDueCards: (deckId) =>
+    fetchWithAuth(`/study/deck/${deckId}/due-cards`, { method: "GET" }),
+
+  reviewCard: (cardId, grade) =>
+    fetchWithAuth(`/study/${cardId}/review`, {
+      method: "POST",
+      body: JSON.stringify({ grade }),
+    }),
+};
+
+export const statisticsAPI = {
+  getStats: (timeFilter) =>
+    fetchWithAuth(`/statistics?filter=${timeFilter}`, { method: "GET" }),
+};
+
+// =========================================
+// API CHO TÍNH NĂNG CỘNG ĐỒNG
+// =========================================
+export const communityAPI = {
+  getDiscoveryDecks: () =>
+    fetchWithAuth("/community/discovery", { method: "GET" }),
+
+  getLeaderboard: () =>
+    fetchWithAuth("/community/leaderboard", { method: "GET" }),
+
+  getContacts: () => fetchWithAuth("/community/contacts", { method: "GET" }),
+
+  getMessages: (friendId) =>
+    fetchWithAuth(`/community/messages/${friendId}`, { method: "GET" }),
+
+  sendMessage: (receiverId, content) =>
+    fetchWithAuth("/community/messages", {
+      method: "POST",
+      body: JSON.stringify({ receiver_id: receiverId, content }),
+    }),
+
+  searchUser: (email) =>
+    fetchWithAuth(`/community/search?email=${encodeURIComponent(email)}`, {
+      method: "GET",
+    }),
+
+  sendFriendRequest: (targetUserId) =>
+    fetchWithAuth("/community/friend-request", {
+      method: "POST",
+      body: JSON.stringify({ targetUserId }),
+    }),
+
+  getPendingRequests: () =>
+    fetchWithAuth("/community/friend-requests/pending", { method: "GET" }),
+
+  respondFriendRequest: (requestId, action) =>
+    fetchWithAuth("/community/friend-request/respond", {
+      method: "POST",
+      body: JSON.stringify({ requestId, action }),
+    }),
+
+  // =========================================
+  // 👉 ĐÃ THÊM LẠI: CÁC API CHO NHÓM HỌC
+  // =========================================
+  createGroup: (name, description) =>
+    fetchWithAuth("/community/groups", {
+      method: "POST",
+      body: JSON.stringify({ name, description }),
+    }),
+
+  joinGroup: (inviteCode) =>
+    fetchWithAuth("/community/groups/join", {
+      method: "POST",
+      body: JSON.stringify({ inviteCode }),
+    }),
+
+  getMyGroups: () => fetchWithAuth("/community/groups", { method: "GET" }),
+};

@@ -1,0 +1,159 @@
+.review-page-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 600px; /* Khớp với thẻ */
+  margin-bottom: 30px;
+}
+
+.btn-back {
+  background: none;
+  border: none;
+  color: #6c757d;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.progress-bar {
+  font-weight: bold;
+  color: #4361ee;
+  background: white;
+  padding: 5px 15px;
+  border-radius: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.flashcard-container {
+  width: 100%;
+  max-width: 600px; /* Kích thước chuẩn của thẻ */
+  height: 400px;
+  perspective: 1000px; /* Tạo chiều sâu 3D cho thẻ */
+  cursor: pointer;
+}
+
+/* Xoay mặt trước đi 180 độ theo trục Y */
+.flashcard-container.flipped .card-front {
+  transform: rotateY(180deg);
+}
+
+/* Xoay mặt sau về lại 0 độ để hiện ra */
+.flashcard-container.flipped .card-back {
+  transform: rotateY(0deg);
+}
+
+.card-face {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  backface-visibility: hidden;
+  transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 30px;
+  text-align: center;
+}
+
+.card-front {
+  transform: rotateY(0deg);
+}
+
+.card-back {
+  transform: rotateY(-180deg); /* Ban đầu úp mặt sau xuống */
+  justify-content: center; /* Giữa thẻ */
+}
+
+.hint-text {
+  position: absolute;
+  bottom: 20px;
+  color: #a0aec0;
+  font-size: 0.9rem;
+}
+
+.answer-text {
+  font-size: 1.3rem;
+  color: #2d3748;
+}
+
+/* 👉 KHU VỰC NÚT ĐÁNH GIÁ (NẰM DƯỚI THẺ) */
+.rating-section {
+  width: 100%;
+  max-width: 600px; /* 👉 Quan trọng: Ép rộng đúng 600px để bằng thẻ */
+  margin-top: 30px;
+  min-height: 100px;
+}
+
+.rating-title {
+  text-align: center;
+  color: #718096;
+  margin-bottom: 15px;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.rating-buttons {
+  display: flex;
+  width: 100%; /* Trải dài full 600px */
+  gap: 15px; /* Khoảng cách giữa 4 nút */
+}
+
+.btn-rating {
+  flex: 1; /* 👉 Tuyệt chiêu: Tự động co giãn chia đều 4 phần bằng nhau */
+  padding: 15px 5px;
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition:
+    opacity 0.2s,
+    transform 0.1s;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.btn-rating:hover {
+  opacity: 0.85;
+}
+
+.btn-rating:active {
+  transform: scale(0.95);
+}
+
+.btn-again {
+  background-color: #ef4444;
+}
+.btn-hard {
+  background-color: #f59e0b;
+}
+.btn-good {
+  background-color: #10b981;
+}
+.btn-easy {
+  background-color: #3b82f6;
+}
+
+.key-hint {
+  font-size: 0.75rem;
+  opacity: 0.8;
+  font-weight: normal;
+}

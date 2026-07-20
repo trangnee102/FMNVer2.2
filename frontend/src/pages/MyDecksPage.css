@@ -1,0 +1,154 @@
+/* src/pages/MyDecksPage.css */
+.my-decks-wrapper {
+  padding: 30px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.decks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.deck-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #edf2f7;
+  display: flex;
+  flex-direction: column;
+}
+
+.deck-card-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 15px;
+}
+
+.deck-card-header h3 {
+  margin: 0;
+  color: #2d3748;
+  font-size: 1.2rem;
+}
+
+.deck-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 15px;
+  border-top: 1px dashed #e2e8f0;
+}
+
+/* Giao diện Bảng Popup (Modal) */
+.cram-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.cram-modal {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  width: 90%;
+  max-width: 450px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  border-top: 5px solid #f59e0b;
+}
+
+.cram-slider-container {
+  margin: 25px 0;
+  background: #fffbeb;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #fde68a;
+}
+
+/* ========================================= */
+/* CSS MỚI CHO BẢNG QUẢN LÝ CHI TIẾT BỘ THẺ  */
+/* ========================================= */
+
+/* Nút Quản lý chi tiết ngoài màn hình chính */
+.btn-manage {
+  width: 100%;
+  padding: 10px;
+  background: #e2e8f0;
+  border: none;
+  border-radius: 6px;
+  color: #4a5568;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.btn-manage:hover {
+  background: #cbd5e1;
+}
+
+/* Bảng Popup Quản lý (Rộng hơn Cram Modal) */
+.manage-modal {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  width: 90%;
+  max-width: 650px;
+  max-height: 85vh;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  border-top: 5px solid #3182ce; /* Viền xanh dương đặc trưng cho quản trị */
+  display: flex;
+  flex-direction: column;
+}
+
+.manage-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #edf2f7;
+  padding-bottom: 15px;
+}
+
+.manage-modal-body {
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 5px;
+}
+
+/* Từng dòng thẻ (Flashcard) trong danh sách */
+.card-list-item {
+  background: #f8fafc;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 10px;
+  transition: transform 0.1s ease;
+}
+
+.card-list-item:hover {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+}
+
+.card-list-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  justify-content: flex-end;
+}

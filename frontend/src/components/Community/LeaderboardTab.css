@@ -1,0 +1,199 @@
+/* Bao bọc toàn bộ Tab */
+.leaderboard-tab {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 500px;
+}
+
+/* ============================
+   1. BỘ LỌC XẾP HẠNG
+============================ */
+.filters-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+.filter-group button {
+  padding: 8px 16px;
+  border: none;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+  font-weight: 600;
+  border-radius: 6px;
+  margin-right: 8px;
+  transition: all 0.2s ease;
+}
+.filter-group button:hover {
+  background: #e2e8f0;
+}
+.filter-group button.active {
+  background: #3b82f6;
+  color: white;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+.time-select {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: white;
+  color: #475569;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+}
+
+/* ============================
+   2. BỤC VINH DANH TOP 3
+============================ */
+.podium-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 15px;
+  margin-bottom: 40px;
+  margin-top: 20px;
+}
+.podium-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 110px;
+}
+.podium-avatar {
+  width: 65px;
+  height: 65px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 1.3rem;
+  position: relative;
+  margin-bottom: 12px;
+  border: 3px solid white;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  z-index: 2;
+}
+.crown {
+  position: absolute;
+  top: -24px;
+  font-size: 1.6rem;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.2));
+}
+.podium-name {
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 5px;
+  text-align: center;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+.podium-stats {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+/* Bệ đứng 3 bậc có hiệu ứng 3D nhẹ */
+.podium-base {
+  width: 100%;
+  color: white;
+  display: flex;
+  align-items: flex-start;
+  padding-top: 15px;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.3rem;
+  border-radius: 12px 12px 0 0;
+  box-shadow: inset 0 -10px 20px rgba(0, 0, 0, 0.1);
+}
+.rank-1 .podium-base {
+  height: 140px;
+  background: linear-gradient(135deg, #fde047, #f59e0b);
+}
+.rank-2 .podium-base {
+  height: 100px;
+  background: linear-gradient(135deg, #e2e8f0, #94a3b8);
+}
+.rank-3 .podium-base {
+  height: 75px;
+  background: linear-gradient(135deg, #fcd34d, #d97706);
+}
+
+/* ============================
+   3. DANH SÁCH CUỘN
+============================ */
+.list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 90px;
+}
+.list-item {
+  display: flex;
+  align-items: center;
+  padding: 14px 20px;
+  background: white;
+  border: 1px solid #f1f5f9;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+.list-item:hover {
+  background: #f8fafc;
+  transform: translateX(5px);
+  border-color: #e2e8f0;
+}
+.list-rank {
+  width: 45px;
+  font-weight: bold;
+  color: #94a3b8;
+  font-size: 1.1rem;
+}
+.list-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  margin-right: 15px;
+}
+.list-info {
+  flex: 1;
+}
+.list-info h4 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 1rem;
+}
+.list-score {
+  color: #64748b;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* ============================
+   4. THANH ĐỊNH VỊ (STICKY ROW)
+============================ */
+.sticky-user-row {
+  position: absolute; /* Ghim chặt vào đáy của thẻ bọc ngoài */
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  background: #fff0f2;
+  border: 2px solid #fecdd3;
+  border-radius: 12px;
+  box-shadow: 0 -4px 20px rgba(239, 68, 68, 0.15);
+  z-index: 10;
+  backdrop-filter: blur(4px);
+}

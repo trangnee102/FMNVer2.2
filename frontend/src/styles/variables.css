@@ -1,0 +1,32 @@
+/* src/styles/variables.css */
+:root {
+  /* 1. MÀU CHỦ ĐẠO (Xanh dương trí tuệ FOGETMENOT) */
+  --primary: #3b82f6; /* Xanh dương tươi sáng cho Nút và Chữ nhấn */
+  --primary-hover: #2563eb; /* Xanh đậm hơn khi di chuột vào */
+  --primary-light: #eff6ff; /* Xanh siêu nhạt dùng làm nền khối */
+
+  /* 2. MÀU CHỨC NĂNG */
+  --green: #10b981; /* Xanh lá (Tạo Flashcard, Thẻ đã thuộc) */
+  --green-light: #e6f7f0;
+  --orange: #f59e0b; /* Cam (Chế độ học cấp tốc) */
+  --orange-light: #fef5e7;
+  --red: #ef4444; /* Đỏ (Chuỗi Streak) */
+
+  /* 3. MÀU NỀN & VIỀN */
+  --bg-main: #f8f9fc; /* Nền xám cực nhạt toàn trang */
+  --bg-card: #ffffff; /* Nền trắng tinh cho Sidebar và các Khối thẻ */
+  --border: #eaedf1; /* Viền xám nhạt phân cách */
+
+  /* 4. MÀU CHỮ */
+  --text-dark: #1e293b; /* Chữ đen/xám đậm (Tiêu đề chính) */
+  --text-gray: #64748b; /* Chữ xám mờ (Chú thích phụ) */
+
+  /* 5. KHUNG & ĐỔ BÓNG */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.03);
+
+  /* 6. FONT CHỮ */
+  --font-main: "Inter", system-ui, "Segoe UI", sans-serif;
+}

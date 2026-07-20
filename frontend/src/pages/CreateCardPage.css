@@ -1,0 +1,40 @@
+/* src/pages/CreateCardPage.css */
+
+.create-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.create-header {
+  text-align: center;
+  /* 👉 Giãn nở lề dưới theo % chiều cao màn hình */
+  margin-bottom: clamp(30px, 5vh, 60px);
+}
+
+.create-header h1 {
+  /* 👉 Chữ tiêu đề nở to ra theo % chiều rộng màn hình */
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  color: var(--text-dark);
+  margin-bottom: 1.5vh;
+  font-weight: 700;
+}
+
+.create-header p {
+  /* 👉 Chữ phụ cũng co giãn */
+  font-size: clamp(1rem, 1.5vw, 1.3rem);
+  color: var(--text-gray);
+}
+
+.create-page-container {
+  display: flex;
+  gap: clamp(30px, 4vw, 70px);
+  justify-content: center;
+
+  /* 👉 CHÌA KHÓA: Khung chiếm 70% độ rộng màn hình, thẻ sẽ tự to ra */
+  width: 70vw;
+  max-width: 1600px;
+}

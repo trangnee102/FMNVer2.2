@@ -1,0 +1,169 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model Decks {
+  id           Int          @id(map: "PK__Decks__3213E83F528A4F5B") @default(autoincrement())
+  title        String       @db.NVarChar(255)
+  description  String?      @db.NVarChar(Max)
+  is_public    Boolean?     @default(false, map: "DF__Decks__is_public__3B75D760")
+  is_anonymous Boolean?     @default(false)
+  
+  clone_count  Int?         @default(0)
+
+  user_id      Int
+  Users        Users        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Decks_Users")
+  Flashcards   Flashcards[]
+  StudyLogs    StudyLogs[]  
+}
+
+model Flashcards {
+  id            Int             @id(map: "PK__Flashcar__3213E83F6C1834FB") @default(autoincrement())
+  deck_id       Int
+  question      String          @db.NVarChar(Max)
+  answer        String          @db.NVarChar(Max)
+  Decks         Decks           @relation(fields: [deck_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Flashcards_Decks")
+  StudyProgress StudyProgress[]
+  StudyLogs     StudyLogs[]     
+}
+
+model StudyProgress {
+  id               Int        @id(map: "PK__StudyPro__3213E83F44D8FFF1") @default(autoincrement())
+  flashcard_id     Int
+  user_id          Int
+  ease_factor      Float?     @default(2.5, map: "DF__StudyProg__ease___4222D4EF")
+  interval         Int?       @default(0, map: "DF__StudyProg__inter__4316F928")
+  repetitions      Int?       @default(0, map: "DF__StudyProg__repet__440B1D61")
+  next_review_date DateTime?  @default(now(), map: "DF__StudyProg__next___44FF419A") @db.DateTime
+  Flashcards       Flashcards @relation(fields: [flashcard_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_StudyProgress_Flashcards")
+  Users            Users      @relation(fields: [user_id], references: [id], onUpdate: NoAction, map: "FK_StudyProgress_Users")
+}
+
+model StudyLogs {
+  id           Int        @id @default(autoincrement())
+  user_id      Int
+  flashcard_id Int
+  deck_id      Int
+  rating       Int        
+  duration_ms  Int?       @default(0) 
+  reviewed_at  DateTime   @default(now()) @db.DateTime 
+  Users        Users      @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+  Flashcards   Flashcards @relation(fields: [flashcard_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  Decks        Decks      @relation(fields: [deck_id], references: [id], onUpdate: NoAction)
+}
+
+// =========================================
+// BẢNG TIN NHẮN 1-1 (MESSAGES)
+// =========================================
+model Messages {
+  id          Int      @id @default(autoincrement())
+  sender_id   Int
+  receiver_id Int
+  content     String?  @db.NVarChar(Max) // 👉 ĐÃ SỬA: Thêm dấu ? để cho phép gửi ảnh/file mà không cần gõ chữ
+  created_at  DateTime @default(now()) @db.DateTime
+  is_read     Boolean? @default(false)
+
+  // 👉 ĐÃ THÊM: Cột hỗ trợ gửi File/Ảnh
+  message_type String? @default("text") @db.VarChar(20) 
+  file_url     String? @db.NVarChar(Max) 
+  file_name    String? @db.NVarChar(255) 
+
+  Sender   Users @relation("SentMessages", fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Receiver Users @relation("ReceivedMessages", fields: [receiver_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+// =========================================
+// BẢNG LỜI MỜI KẾT BẠN (FRIENDSHIPS)
+// =========================================
+model Friendships {
+  id           Int      @id @default(autoincrement())
+  requester_id Int      // ID người gửi lời mời
+  addressee_id Int      // ID người nhận lời mời
+  status       String   @default("pending") @db.VarChar(20) // Các trạng thái: pending, accepted, declined
+  created_at   DateTime @default(now()) @db.DateTime
+
+  Requester    Users    @relation("SentRequests", fields: [requester_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Addressee    Users    @relation("ReceivedRequests", fields: [addressee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+// =========================================
+// BẢNG NHÓM HỌC (GROUPS)
+// =========================================
+model Groups {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.NVarChar(255)
+  description String?  @db.NVarChar(Max)
+  invite_code String?  @unique @db.VarChar(50) // Mã/Link mời vào nhóm
+  created_by  Int
+  created_at  DateTime @default(now()) @db.DateTime
+
+  Creator       Users           @relation("GroupCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  GroupMembers  GroupMembers[]
+  GroupMessages GroupMessages[]
+}
+
+// =========================================
+// BẢNG THÀNH VIÊN NHÓM (GROUP MEMBERS)
+// =========================================
+model GroupMembers {
+  id        Int      @id @default(autoincrement())
+  group_id  Int
+  user_id   Int
+  role      String   @default("member") @db.VarChar(20) // Các vai trò: admin, member
+  joined_at DateTime @default(now()) @db.DateTime
+
+  Group     Groups   @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  User      Users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+// =========================================
+// BẢNG TIN NHẮN NHÓM (GROUP MESSAGES)
+// =========================================
+model GroupMessages {
+  id         Int      @id @default(autoincrement())
+  group_id   Int
+  sender_id  Int
+  content    String?  @db.NVarChar(Max) // 👉 ĐÃ SỬA: Cho phép gửi ảnh mà không cần chữ
+  created_at DateTime @default(now()) @db.DateTime
+
+  // 👉 ĐÃ THÊM: Cột hỗ trợ gửi File/Ảnh cho Nhóm
+  message_type String? @default("text") @db.VarChar(20) 
+  file_url     String? @db.NVarChar(Max) 
+  file_name    String? @db.NVarChar(255) 
+
+  Group      Groups   @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  Sender     Users    @relation(fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model Users {
+  id            Int             @id(map: "PK__Users__3213E83F59EDBEC8") @default(autoincrement())
+  email         String          @unique(map: "UQ__Users__AB6E6164008F980D") @db.VarChar(255)
+  password_hash String          @db.VarChar(255)
+  role          String?         @default("student", map: "DF__Users__role__38996AB5") @db.VarChar(50)
+  
+  full_name     String?         @db.NVarChar(100)
+  avatar_text   String?         @db.VarChar(10)
+  avatar_color  String?         @db.VarChar(20)
+  streak_days   Int?            @default(0)
+  total_cards   Int?            @default(0)
+  total_points  Int?            @default(0)
+  is_online     Boolean?        @default(false)
+
+  Decks         Decks[]
+  StudyProgress StudyProgress[]
+  StudyLogs     StudyLogs[]     
+  
+  SentMessages     Messages[] @relation("SentMessages")
+  ReceivedMessages Messages[] @relation("ReceivedMessages")
+
+  FriendRequestsSent     Friendships[]   @relation("SentRequests")
+  FriendRequestsReceived Friendships[]   @relation("ReceivedRequests")
+  CreatedGroups          Groups[]        @relation("GroupCreator")
+  GroupMemberships       GroupMembers[]
+  GroupMessages          GroupMessages[]
+}

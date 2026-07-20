@@ -1,0 +1,254 @@
+/* frontend/src/components/Modals/ManageDeckModal.css */
+
+/* --- HEADER QUẢN LÝ --- */
+.manage-modal-subtitle {
+  color: #718096;
+  font-size: 0.85rem;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+.edit-title-group {
+  display: flex;
+  gap: 8px;
+}
+.edit-title-input {
+  padding: 8px;
+  border-radius: 6px;
+  border: 2px solid #3182ce;
+  width: 100%;
+  font-weight: bold;
+  outline: none;
+}
+.btn-save-title {
+  padding: 8px 12px;
+  background: #3182ce;
+  color: white;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+}
+.btn-cancel-title {
+  padding: 8px 12px;
+  background: #e2e8f0;
+  color: #4a5568;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+.manage-deck-title {
+  margin: 0;
+  color: #2d3748;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.btn-edit-title {
+  background: none;
+  border: none;
+  color: #3182ce;
+  cursor: pointer;
+  font-size: 1rem;
+}
+.btn-delete-deck {
+  padding: 8px 15px;
+  background: #fee2e2;
+  color: #ef4444;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+/* --- KHU VỰC CÀI ĐẶT CHIA SẺ --- */
+.share-settings-container {
+  margin-top: 15px;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+.share-settings-title {
+  margin: 0 0 10px 0;
+  color: #4a5568;
+  font-size: 0.95rem;
+}
+.share-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+.share-label.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.share-checkbox {
+  width: 16px;
+  height: 16px;
+}
+.share-text-primary {
+  font-size: 0.9rem;
+  color: #334155;
+  font-weight: bold;
+}
+.share-text-secondary {
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+/* --- DANH SÁCH THẺ CHUẨN --- */
+.manage-modal-body-content {
+  margin-top: 15px;
+}
+.card-list-title {
+  margin: 0 0 15px 0;
+  color: #4a5568;
+}
+.card-list-container {
+  display: flex;
+  flex-direction: column;
+}
+.card-item-box {
+  padding: 10px;
+  margin-bottom: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+.card-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.card-edit-input {
+  padding: 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  outline: none;
+}
+.card-edit-input:focus {
+  border-color: #3b82f6;
+}
+.card-edit-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+.btn-cancel-card {
+  padding: 6px 12px;
+  background: #e2e8f0;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.btn-save-card {
+  padding: 6px 12px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.card-front-text {
+  font-weight: bold;
+  color: #2d3748;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+}
+.card-index {
+  color: #a0aec0;
+  margin-right: 8px;
+}
+.card-back-text {
+  color: #4a5568;
+  font-size: 0.85rem;
+}
+.card-list-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+}
+.btn-edit-card {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  background: #e0e7ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #4338ca;
+  font-weight: bold;
+}
+.btn-delete-card {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #ef4444;
+  font-weight: bold;
+}
+
+/* --- FORM THÊM THẺ MỚI --- */
+.add-card-section {
+  margin-top: 15px;
+  border-top: 2px dashed #cbd5e1;
+  padding-top: 15px;
+}
+.add-card-form {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 12px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.add-card-title {
+  margin: 0 0 5px 0;
+  color: #166534;
+}
+.btn-confirm-add {
+  padding: 6px 12px;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.btn-trigger-add {
+  width: 100%;
+  padding: 10px;
+  background: #f8fafc;
+  border: 2px dashed #94a3b8;
+  border-radius: 8px;
+  color: #475569;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.btn-trigger-add:hover {
+  background: #f1f5f9;
+}
+
+/* --- NÚT ĐÓNG --- */
+.btn-close-modal {
+  margin-top: 20px;
+  padding: 10px;
+  background: #e2e8f0;
+  color: #334155;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  width: 100%;
+  transition: 0.2s;
+}
+.btn-close-modal:hover {
+  background: #cbd5e1;
+}

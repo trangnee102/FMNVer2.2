@@ -1,0 +1,125 @@
+/* GIỮ NGUYÊN CSS CŨ CỦA CẬU */
+.sidebar {
+  width: 250px;
+  height: 100vh;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  transition: width 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+.sidebar.collapsed {
+  width: 80px;
+  padding: 20px 10px;
+}
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+}
+.logo {
+  color: var(--primary);
+  font-weight: 900;
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+}
+.hamburger {
+  cursor: pointer;
+  color: var(--text-gray);
+  font-size: 1.2rem;
+}
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* =======================================
+   CSS MỚI: HIỆU ỨNG DROPDOWN MENU
+======================================= */
+.menu-group {
+  position: relative;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 12px 15px;
+  color: var(--text-gray);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: 0.2s;
+  white-space: nowrap;
+}
+.menu-item i {
+  font-size: 1.1rem;
+  width: 24px;
+  text-align: center;
+}
+.menu-item:hover,
+.menu-item.active {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* Mũi tên xổ xuống */
+.submenu-arrow {
+  margin-left: auto;
+  font-size: 0.8rem !important;
+  transition: transform 0.3s ease;
+}
+.menu-group:hover .submenu-arrow {
+  transform: rotate(180deg);
+}
+
+/* Khung Submenu mặc định bị ẩn */
+.submenu {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 5px;
+  padding-left: 35px; /* Thụt lề cho menu con */
+}
+
+/* KHI TRỎ CHUỘT VÀO: Hiện menu con lên */
+.menu-group:hover .submenu {
+  display: flex;
+}
+
+/* Item của Submenu */
+.submenu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 15px;
+  color: var(--text-gray);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+.submenu-item:hover {
+  color: var(--primary);
+  background: var(--primary-light);
+  font-weight: 600;
+}
+
+/* KHI SIDEBAR BỊ THU NHỎ (COLLAPSED): Menu con nổi ra bên ngoài */
+.sidebar.collapsed .submenu {
+  position: absolute;
+  left: 70px;
+  top: 0;
+  background: white;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  border-radius: 8px;
+  width: max-content;
+  z-index: 100;
+  border: 1px solid #e2e8f0;
+  padding-left: 10px; /* Bỏ thụt lề khi trôi nổi */
+}
