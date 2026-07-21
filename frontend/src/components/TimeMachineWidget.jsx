@@ -1,9 +1,63 @@
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 
 const TimeMachineWidget = () => {
   const [mockDate, setMockDate] = useState(
     localStorage.getItem("TIME_MACHINE") || "",
   );
+
+  const [position, setPosition] = useState(() => {
+  const saved = localStorage.getItem("TIME_MACHINE_POSITION");
+  return saved
+    ? JSON.parse(saved)
+    : {
+        x: window.innerWidth - 280,
+        y: window.innerHeight - 180,
+      };
+});
+
+const [dragging, setDragging] = useState(false);
+const [offset, setOffset] = useState({ x: 0, y: 0 });
+
+useEffect(() => {
+  localStorage.setItem(
+    "TIME_MACHINE_POSITION",
+    JSON.stringify(position)
+  );
+}, [position]);
+
+useEffect(() => {
+  const handleMouseMove = (e) => {
+    if (!dragging) return;
+
+    setPosition({
+      x: e.clientX - offset.x,
+      y: e.clientY - offset.y,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setDragging(false);
+  };
+
+  window.addEventListener("mousemove", handleMouseMove);
+  window.addEventListener("mouseup", handleMouseUp);
+
+  return () => {
+    window.removeEventListener("mousemove", handleMouseMove);
+    window.removeEventListener("mouseup", handleMouseUp);
+  };
+}, [dragging, offset]);
+
+const handleMouseDown = (e) => {
+  setDragging(true);
+
+  setOffset({
+    x: e.clientX - position.x,
+    y: e.clientY - position.y,
+  });
+};
+
+
 
   const handleDateChange = (e) => {
     const val = e.target.value;
@@ -19,10 +73,13 @@ const TimeMachineWidget = () => {
 
   return (
     <div
+      onMouseDown={handleMouseDown}
       style={{
         position: "fixed",
-        bottom: "20px",
-        right: "20px",
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        cursor: dragging ? "grabbing" : "grab",
+        userSelect: "none",
         background: "#1e293b",
         color: "white",
         padding: "10px 15px",
