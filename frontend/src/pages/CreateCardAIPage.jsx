@@ -150,14 +150,23 @@ const CreateCardAIPage = ({ onNavigate }) => {
       <main className="dashboard-content">
         <div className="create-content-wrapper">
           <header className="create-header">
-            <h1>✨ Tạo thẻ thông minh AI</h1>
+            <h1>Tạo thẻ thông minh AI</h1>
             <p>
               Tải tài liệu PDF/Word lên, AI sẽ tự động trích xuất ý chính và vẽ
               công thức Toán học thành Flashcard
             </p>
           </header>
 
-          <div className="create-page-container">
+          <div 
+            className="create-page-container"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "30px",
+              width: "100%",
+              maxWidth: "900px",
+              margin: "0 auto",
+            }}>
             <AIInputSection
               topic={topic}
               setTopic={setTopic}
