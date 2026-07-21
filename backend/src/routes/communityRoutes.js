@@ -66,5 +66,21 @@ router.post("/decks/:id/clone", verifyToken, communityController.cloneDeck);
 router.post("/groups", verifyToken, communityController.createGroup);
 router.post("/groups/join", verifyToken, communityController.joinGroup);
 router.get("/groups", verifyToken, communityController.getMyGroups);
+router.get(
+  "/groups/:groupId/messages",
+  verifyToken,
+  communityController.getGroupMessages,
+);
+router.post(
+  "/groups/:groupId/messages",
+  verifyToken,
+  upload.single("file"),
+  communityController.sendGroupMessage,
+);
+router.post(
+  "/groups/:groupId/leave",
+  verifyToken,
+  communityController.leaveGroup,
+);
 
 module.exports = router;

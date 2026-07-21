@@ -249,6 +249,47 @@
 .chat-options-btn:hover {
   color: #1e293b;
 }
+.chat-options-container {
+  position: relative;
+}
+.chat-options-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 220px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  z-index: 20;
+  padding: 8px 0;
+}
+.chat-options-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: #334155;
+  font-size: 0.95rem;
+  text-align: left;
+  cursor: pointer;
+}
+.chat-options-item:hover {
+  background: #f8fafc;
+}
+.chat-options-item i {
+  width: 18px;
+  text-align: center;
+  color: #64748b;
+}
+.chat-options-divider {
+  height: 1px;
+  margin: 6px 0;
+  background: #e2e8f0;
+}
 
 /* Chat Messages */
 .chat-messages {

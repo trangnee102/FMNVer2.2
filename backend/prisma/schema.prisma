@@ -89,6 +89,8 @@ model Friendships {
 
   Requester    Users    @relation("SentRequests", fields: [requester_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Addressee    Users    @relation("ReceivedRequests", fields: [addressee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([requester_id, addressee_id])
 }
 
 // =========================================

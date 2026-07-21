@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "../components/Layout/Sidebar";
 import DiscoveryTab from "../components/Community/DiscoveryTab";
 import LeaderboardTab from "../components/Community/LeaderboardTab";

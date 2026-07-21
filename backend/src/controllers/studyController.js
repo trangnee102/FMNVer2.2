@@ -1,7 +1,6 @@
 const prisma = require("../services/prisma");
 const { calculateSM2 } = require("../algorithms/forgettingCurve");
 const jwt = require("jsonwebtoken");
-const jwt = require("jsonwebtoken");
 
 const extractUserId = (req) => {
   let userId = req.user?.id || req.userId || req.user?.userId;
@@ -45,17 +44,11 @@ const reviewCard = async (req, res) => {
     }
 
     // Chuyển đổi chuẩn điểm từ (1,2,3,4) của giao diện sang (0,1,2,3) của thuật toán SM2
-    let normalizedGrade = grade;
-    if (grade === 1) normalizedGrade = 0; // Quên
-    else if (grade === 2) normalizedGrade = 1; // Khó
-    else if (grade === 3) normalizedGrade = 2; // Tốt
-    else if (grade === 4) normalizedGrade = 3; // Dễ
-
-    // 🌟 QUY ĐỔI ĐIỂM SỐ: Ép về chuẩn (0, 1, 2, 3) để đưa vào thuật toán SM-2
-    const grade = frontendRating - 1;
+    const normalizedGrade =
+      grade === 1 ? 0 : grade === 2 ? 1 : grade === 3 ? 2 : grade === 4 ? 3 : grade;
 
     // 🚀 TỐI ƯU TỐC ĐỘ (1): Cho 2 hàm tìm kiếm độc lập này chạy SONG SONG thay vì chờ nhau
-    const [card, progress] = await Promise.all([
+    const [card, existingProgress] = await Promise.all([
       prisma.flashcards.findUnique({
         where: { id: cardId },
         select: { deck_id: true },
