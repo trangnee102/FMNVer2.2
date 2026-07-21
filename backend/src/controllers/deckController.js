@@ -3,7 +3,6 @@ const prisma = require("../services/prisma");
 // 1. LẤY DANH SÁCH BỘ THẺ CỦA NGƯỜI DÙNG
 const getMyDecks = async (req, res) => {
   try {
-    // 👉 VÁ LỖI: Ép kiểu an toàn đề phòng ID bị truyền dạng String
     const userId = parseInt(req.user.id) || req.user.id;
 
     const decks = await prisma.decks.findMany({
@@ -21,10 +20,9 @@ const getMyDecks = async (req, res) => {
   }
 };
 
-// 2. TẠO BỘ THẺ MỚI
+// 2. TẠO BỘ THẺ MỚI (Tạo riêng lẻ không có thẻ)
 const createDeck = async (req, res) => {
   try {
-    // 👉 ĐÃ THÊM: Nhận thêm cờ is_anonymous
     const { title, description, is_public, is_anonymous } = req.body;
     const userId = parseInt(req.user.id) || req.user.id;
 
@@ -39,7 +37,7 @@ const createDeck = async (req, res) => {
         title: title,
         description: description || null,
         is_public: is_public || false,
-        is_anonymous: is_anonymous || false, // 👉 ĐÃ THÊM: Lưu trạng thái ẩn danh
+        is_anonymous: is_anonymous || false,
         user_id: userId,
       },
     });
@@ -58,11 +56,77 @@ const createDeck = async (req, res) => {
   }
 };
 
+// =========================================
+// 👉 ĐÃ THÊM: HÀM MỚI - TẠO BỘ THẺ KÈM NHIỀU THẺ CÙNG LÚC
+// =========================================
+const createDeckWithCards = async (req, res) => {
+  try {
+    const { title, description, is_public, is_anonymous, cards } = req.body;
+    const userId = parseInt(req.user.id) || req.user.id;
+
+    if (!title) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Tên bộ thẻ không được để trống!" });
+    }
+
+    // Kiểm tra xem user có gửi mảng thẻ (cards) lên không
+    if (!Array.isArray(cards) || cards.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Vui lòng nhập ít nhất 1 thẻ!" });
+    }
+
+    // Lọc bỏ những thẻ bị bỏ trống cả 2 mặt để chống rác Database
+    const validCards = cards.filter(
+      (c) => c.question?.trim() !== "" && c.answer?.trim() !== "",
+    );
+
+    if (validCards.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Các thẻ đều trống nội dung, vui lòng nhập chữ!",
+      });
+    }
+
+    // 🚀 LƯU 1 PHÁT ĂN NGAY CẢ DECK LẪN FLASHCARDS
+    const newDeck = await prisma.decks.create({
+      data: {
+        title: title,
+        description: description || null,
+        is_public: is_public || false,
+        is_anonymous: is_anonymous || false,
+        user_id: userId,
+        Flashcards: {
+          create: validCards.map((card) => ({
+            question: card.question,
+            answer: card.answer,
+          })),
+        },
+      },
+      include: {
+        Flashcards: true, // Trả về kết quả kèm luôn danh sách thẻ để Frontend biết
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Tạo bộ thẻ thành công cùng với ${validCards.length} thẻ!`,
+      data: newDeck,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Lỗi hệ thống khi lưu nguyên bộ thẻ!",
+      error: error.message,
+    });
+  }
+};
+
 // 3. CẬP NHẬT/SỬA TÊN BỘ THẺ
 const updateDeck = async (req, res) => {
   try {
     const deckId = parseInt(req.params.id);
-    // 👉 ĐÃ THÊM: Nhận cờ is_anonymous từ Frontend gửi xuống
     const { title, description, is_public, is_anonymous } = req.body;
     const userId = parseInt(req.user.id) || req.user.id;
 
@@ -84,7 +148,6 @@ const updateDeck = async (req, res) => {
         description:
           description !== undefined ? description : existingDeck.description,
         is_public: is_public !== undefined ? is_public : existingDeck.is_public,
-        // 👉 ĐÃ THÊM: Cập nhật trạng thái ẩn danh vào CSDL
         is_anonymous:
           is_anonymous !== undefined ? is_anonymous : existingDeck.is_anonymous,
       },
@@ -135,4 +198,10 @@ const deleteDeck = async (req, res) => {
   }
 };
 
-module.exports = { getMyDecks, createDeck, updateDeck, deleteDeck };
+module.exports = {
+  getMyDecks,
+  createDeck,
+  createDeckWithCards, // 👉 ĐÃ THÊM: Export hàm mới để Routes gọi được
+  updateDeck,
+  deleteDeck,
+};

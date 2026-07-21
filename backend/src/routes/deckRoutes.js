@@ -1,10 +1,11 @@
 const express = require("express");
 const router = express.Router();
 
-// LỖI LÀ Ở DÒNG NÀY NÈ: Phải liệt kê đủ cả 4 hàm ra thì nó mới nhận diện được
+// 👉 ĐÃ SỬA: Khai báo thêm hàm createDeckWithCards
 const {
   getMyDecks,
   createDeck,
+  createDeckWithCards, // 👉 Mới thêm vào đội hình
   updateDeck,
   deleteDeck,
 } = require("../controllers/deckController");
@@ -15,7 +16,8 @@ router.use(verifyToken);
 
 // Các đường dẫn API
 router.get("/", getMyDecks);
-router.post("/", createDeck);
+router.post("/", createDeck); // API cũ: Chỉ tạo vỏ bộ thẻ
+router.post("/bulk", createDeckWithCards); // 👉 ĐÃ THÊM API MỚI: Tạo vỏ + ruột (nhiều thẻ) cùng lúc
 router.put("/:id", updateDeck); // PUT dùng để Sửa
 router.delete("/:id", deleteDeck); // DELETE dùng để Xóa
 

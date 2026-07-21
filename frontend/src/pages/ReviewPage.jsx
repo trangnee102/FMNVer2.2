@@ -20,15 +20,30 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
   useEffect(() => {
     const fetchDueCards = async () => {
       try {
-        const token = localStorage.getItem("token") || "";
+        const token = localStorage.getItem("token");
+
+        // KIỂM TRA CHẶT: Phải có Token mới cho gọi API
+        if (!token) {
+          setErrorMsg(
+            "Không tìm thấy thẻ bài (Token). Cậu vui lòng Đăng xuất và Đăng nhập lại nhé!",
+          );
+          setIsLoading(false);
+          return;
+        }
+
         const todayString = new Date().toISOString();
 
+        // 👉 ĐÃ SỬA: Đổi URL cho khớp với chuẩn Backend (/study/deck/.../due-cards)
         const url = forceReview
-          ? `http://localhost:5000/api/study/due/${deckId}?force=true&currentDate=${encodeURIComponent(todayString)}`
-          : `http://localhost:5000/api/study/due/${deckId}?currentDate=${encodeURIComponent(todayString)}`;
+          ? `http://localhost:5000/api/study/deck/${deckId}/due-cards?force=true&currentDate=${encodeURIComponent(todayString)}`
+          : `http://localhost:5000/api/study/deck/${deckId}/due-cards?currentDate=${encodeURIComponent(todayString)}`;
 
         const response = await fetch(url, {
-          headers: { Authorization: `Bearer ${token}` },
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
         });
 
         if (response.ok) {
@@ -36,9 +51,16 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
           setCards(data.data || []);
         } else {
           const errData = await response.json().catch(() => ({}));
-          setErrorMsg(
-            `Bị Backend chặn lại! Lỗi ${response.status}: ${errData.message || response.statusText}`,
-          );
+          // Bắt riêng lỗi 401 để báo cho người dùng
+          if (response.status === 401) {
+            setErrorMsg(
+              "Phiên đăng nhập đã hết hạn hoặc cậu không có quyền truy cập bộ thẻ này. Hãy thử Đăng nhập lại!",
+            );
+          } else {
+            setErrorMsg(
+              `Bị Backend chặn lại! Lỗi ${response.status}: ${errData.message || response.statusText}`,
+            );
+          }
         }
       } catch (error) {
         console.error("Lỗi khi tải thẻ ôn tập:", error);
@@ -48,8 +70,12 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
       }
     };
 
-    if (deckId) fetchDueCards();
-    else setErrorMsg("Không nhận được ID của môn học (deckId bị rỗng).");
+    if (deckId) {
+      fetchDueCards();
+    } else {
+      setErrorMsg("Không nhận được ID của môn học (deckId bị rỗng).");
+      setIsLoading(false);
+    }
   }, [deckId, forceReview]);
 
   // Tự động lưu số thứ tự vào bộ nhớ
@@ -67,7 +93,7 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
 
   const handleRating = async (rating) => {
     const currentCard = cards[currentIndex];
-    const token = localStorage.getItem("token") || "";
+    const token = localStorage.getItem("token");
     const durationMs = Date.now() - startTime;
 
     try {

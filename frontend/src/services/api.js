@@ -2,8 +2,14 @@ const BASE_URL = "http://localhost:5000/api";
 
 const fetchWithAuth = async (endpoint, options = {}) => {
   const token = localStorage.getItem("token");
-  const headers = { "Content-Type": "application/json", ...options.headers };
+  const headers = { ...options.headers };
+
   if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  // Xử lý thông minh - Nếu dữ liệu không phải là file (FormData) thì mới ép kiểu JSON
+  if (options.body && !(options.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
 
   const response = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
@@ -17,6 +23,18 @@ export const authAPI = {
     fetchWithAuth("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
+    }),
+};
+
+// =========================================
+// 👉 ĐÃ THÊM: API CHO QUẢN LÝ BỘ THẺ (DECKS)
+// =========================================
+export const deckAPI = {
+  // Gọi API tạo bộ thẻ và lưu hàng loạt Flashcard cùng lúc
+  createDeckWithCards: (deckData) =>
+    fetchWithAuth("/decks/bulk", {
+      method: "POST",
+      body: JSON.stringify(deckData),
     }),
 };
 
@@ -51,10 +69,10 @@ export const communityAPI = {
   getMessages: (friendId) =>
     fetchWithAuth(`/community/messages/${friendId}`, { method: "GET" }),
 
-  sendMessage: (receiverId, content) =>
+  sendMessage: (formData) =>
     fetchWithAuth("/community/messages", {
       method: "POST",
-      body: JSON.stringify({ receiver_id: receiverId, content }),
+      body: formData,
     }),
 
   searchUser: (email) =>
@@ -77,9 +95,6 @@ export const communityAPI = {
       body: JSON.stringify({ requestId, action }),
     }),
 
-  // =========================================
-  // 👉 ĐÃ THÊM LẠI: CÁC API CHO NHÓM HỌC
-  // =========================================
   createGroup: (name, description) =>
     fetchWithAuth("/community/groups", {
       method: "POST",

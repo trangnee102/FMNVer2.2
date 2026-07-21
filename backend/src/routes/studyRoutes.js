@@ -2,12 +2,13 @@ const express = require("express");
 const router = express.Router();
 
 const { reviewCard, getDueCards } = require("../controllers/studyController");
-// Tạm thời vô hiệu hóa anh bảo vệ khắt khe để test cho mượt
-// const { verifyToken } = require("../middlewares/authMiddleware");
-// router.use(verifyToken);
+const { verifyToken } = require("../middlewares/authMiddleware");
 
-// 1. CỔNG LỌC THẺ
-router.get("/due/:deckId", getDueCards);
+// Bật lại bảo vệ nhé, vì Controller của cậu đã được bọc thép rồi!
+router.use(verifyToken);
+
+// 1. CỔNG LỌC THẺ (👉 ĐÃ SỬA: Cho khớp 100% với link Frontend)
+router.get("/deck/:deckId/due-cards", getDueCards);
 
 // 2. CỔNG ĐÁNH GIÁ
 router.post("/review", reviewCard);

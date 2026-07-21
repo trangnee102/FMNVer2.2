@@ -1,17 +1,38 @@
 // backend/src/controllers/studyController.js
 const prisma = require("../services/prisma");
 const { calculateSM2 } = require("../algorithms/forgettingCurve");
+const jwt = require("jsonwebtoken"); // 👉 THÊM BẢO BỐI DỊCH TOKEN
+
+// 🌟 HÀM CỨU CÁNH: Tự động lấy User ID kể cả khi Route quên gắn Middleware
+const extractUserId = (req) => {
+  // 1. Lấy từ Middleware (nếu có)
+  let userId = req.user?.id || req.userId || req.user?.userId;
+
+  // 2. Nếu không có, tự động bắt Token từ Header và dịch ra ID
+  if (!userId && req.headers.authorization?.startsWith("Bearer ")) {
+    try {
+      const token = req.headers.authorization.split(" ")[1];
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      userId = decoded.id || decoded.userId;
+    } catch (error) {
+      console.error("Lỗi dịch token dự phòng:", error.message);
+    }
+  }
+  return userId;
+};
 
 const reviewCard = async (req, res) => {
   try {
-    // Xác thực Token
-    if (!req.user || !req.user.id) {
+    // 👉 GỌI HÀM CỨU CÁNH THAY VÌ DÙNG req.user.id
+    const userId = extractUserId(req);
+
+    if (!userId) {
       return res.status(401).json({
         success: false,
-        message: "Không tìm thấy thông tin xác thực!",
+        message: "Không tìm thấy thông tin xác thực hoặc Token đã hết hạn!",
       });
     }
-    const userId = req.user.id;
+
     const cardId = req.body.flashcard_id || parseInt(req.params.cardId);
 
     // Bắt điểm đánh giá (0: Quên, 1: Khó, 2: Tốt, 3: Dễ)
@@ -20,12 +41,10 @@ const reviewCard = async (req, res) => {
     const durationMs = req.body.duration_ms || 12000;
 
     if (![0, 1, 2, 3].includes(grade)) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Điểm đánh giá phải là 0, 1, 2 hoặc 3!",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Điểm đánh giá phải là 0, 1, 2 hoặc 3!",
+      });
     }
 
     const card = await prisma.flashcards.findUnique({
@@ -34,12 +53,10 @@ const reviewCard = async (req, res) => {
     });
 
     if (!card) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Thẻ này đã bay màu hoặc không tồn tại!",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Thẻ này đã bay màu hoặc không tồn tại!",
+      });
     }
 
     // Xác minh quyền sở hữu
@@ -49,12 +66,10 @@ const reviewCard = async (req, res) => {
     });
 
     if (!deck || deck.user_id !== userId) {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          message: "Bạn không có quyền chấm điểm thẻ này!",
-        });
+      return res.status(403).json({
+        success: false,
+        message: "Bạn không có quyền chấm điểm thẻ này!",
+      });
     }
 
     // 1. Lấy tiến độ cũ
@@ -87,7 +102,6 @@ const reviewCard = async (req, res) => {
 
     if (grade === 0) {
       // 🚨 BẤM QUÊN: Đẩy ngày học về quá khứ 1 phút để CHẮC CHẮN thẻ này sẽ phải học lại ngay
-      // Tránh việc bị đẩy sang ngày mai làm giảm số lượng thẻ cần ôn.
       nextReviewDate.setMinutes(nextReviewDate.getMinutes() - 1);
     } else {
       // ✅ BẤM NHỚ (1, 2, 3): Hẹn ngày học tiếp theo đúng chuẩn SM-2
@@ -125,24 +139,26 @@ const reviewCard = async (req, res) => {
     });
   } catch (error) {
     console.error("Lỗi Review:", error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Lỗi hệ thống chấm điểm!",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Lỗi hệ thống chấm điểm!",
+      error: error.message,
+    });
   }
 };
 
 const getDueCards = async (req, res) => {
   try {
-    if (!req.user || !req.user.id) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Vui lòng đăng nhập lại!" });
+    // 👉 GỌI HÀM CỨU CÁNH THAY VÌ DÙNG req.user.id
+    const userId = extractUserId(req);
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Vui lòng đăng nhập lại (Không tìm thấy thông tin user)!",
+      });
     }
-    const userId = req.user.id;
+
     const deckId = parseInt(req.params.deckId);
 
     const deck = await prisma.decks.findUnique({
@@ -151,12 +167,10 @@ const getDueCards = async (req, res) => {
     });
 
     if (!deck || deck.user_id !== userId) {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          message: "Bạn không có quyền truy cập vào bộ thẻ này!",
-        });
+      return res.status(403).json({
+        success: false,
+        message: "Bạn không có quyền truy cập vào bộ thẻ này!",
+      });
     }
 
     const clientDateString = req.query.currentDate;
@@ -191,13 +205,11 @@ const getDueCards = async (req, res) => {
     });
   } catch (error) {
     console.error("Lỗi getDue:", error);
-    res
-      .status(500)
-      .json({
-        success: false,
-        message: "Lỗi khi tìm thẻ ôn tập!",
-        error: error.message,
-      });
+    res.status(500).json({
+      success: false,
+      message: "Lỗi khi tìm thẻ ôn tập!",
+      error: error.message,
+    });
   }
 };
 

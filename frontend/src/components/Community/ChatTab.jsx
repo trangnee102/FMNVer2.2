@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import "./ChatTab.css";
 import { communityAPI } from "../../services/api";
 
@@ -10,40 +10,37 @@ const ChatTab = () => {
   const [contacts, setContacts] = useState([]);
   const [messages, setMessages] = useState([]);
 
-  // Các state phục vụ tính năng tìm kiếm
+  // State Tìm kiếm & Lời mời
   const [searchEmail, setSearchEmail] = useState("");
   const [searchResult, setSearchResult] = useState(null);
   const [searchError, setSearchError] = useState("");
   const [isSearching, setIsSearching] = useState(false);
-
-  // State chứa danh sách lời mời kết bạn đang chờ duyệt
   const [pendingRequests, setPendingRequests] = useState([]);
 
-  // 👉 ĐÃ THÊM: Các state phục vụ tính năng Nhóm Học
+  // State Nhóm Học
   const [groups, setGroups] = useState([]);
-  const [showGroupAction, setShowGroupAction] = useState(null); // 'create' | 'join' | null
+  const [showGroupAction, setShowGroupAction] = useState(null);
   const [groupName, setGroupName] = useState("");
   const [groupDesc, setGroupDesc] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [groupError, setGroupError] = useState("");
 
-  // 1. Tải danh sách bạn bè, lời mời & NHÓM HỌC
+  // State File đính kèm
+  const [attachedFile, setAttachedFile] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const BACKEND_URL = "http://localhost:5000";
+
+  // --- (CÁC HÀM XỬ LÝ LOGIC API VẪN GIỮ NGUYÊN) ---
   useEffect(() => {
     const fetchData = async () => {
       try {
         const contactsData = await communityAPI.getContacts();
         setContacts(contactsData);
-
         const requestsRes = await communityAPI.getPendingRequests();
-        if (requestsRes.success) {
-          setPendingRequests(requestsRes.data);
-        }
-
-        // 👉 Tải danh sách Nhóm học
+        if (requestsRes.success) setPendingRequests(requestsRes.data);
         const groupsRes = await communityAPI.getMyGroups();
-        if (groupsRes.success) {
-          setGroups(groupsRes.data);
-        }
+        if (groupsRes.success) setGroups(groupsRes.data);
       } catch (error) {
         console.error("Lỗi tải dữ liệu:", error);
       }
@@ -51,9 +48,8 @@ const ChatTab = () => {
     fetchData();
   }, [chatType]);
 
-  // 2. Tải lịch sử tin nhắn (Chỉ gọi API nếu là chat Bạn bè)
   useEffect(() => {
-    if (!selectedChat || selectedChat.isGroup) return; // Nếu là Nhóm thì bỏ qua
+    if (!selectedChat || selectedChat.isGroup) return;
     const fetchMessages = async () => {
       try {
         const data = await communityAPI.getMessages(selectedChat.id);
@@ -65,35 +61,40 @@ const ChatTab = () => {
     fetchMessages();
   }, [selectedChat]);
 
-  // 3. Gửi tin nhắn
   const handleSendMessage = async () => {
-    if (!message.trim() || !selectedChat || selectedChat.isGroup) return;
+    if (!selectedChat || selectedChat.isGroup) return;
+    if (!message.trim() && !attachedFile) return;
+
+    const formData = new FormData();
+    formData.append("receiver_id", selectedChat.id);
+    if (message.trim()) formData.append("content", message);
+    if (attachedFile) formData.append("file", attachedFile);
+
     try {
-      const sentMsg = await communityAPI.sendMessage(selectedChat.id, message);
+      const sentMsg = await communityAPI.sendMessage(formData);
       setMessages((prev) => [...prev, sentMsg]);
       setMessage("");
+      setAttachedFile(null);
     } catch (error) {
       console.error("Lỗi gửi tin nhắn:", error);
     }
   };
 
-  // 4. Xử lý tìm kiếm bạn bè
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) setAttachedFile(file);
+  };
+
   const handleSearchFriend = async () => {
-    if (!searchEmail.trim()) {
-      setSearchError("Vui lòng nhập Email để tìm kiếm!");
-      return;
-    }
+    if (!searchEmail.trim())
+      return setSearchError("Vui lòng nhập Email để tìm kiếm!");
     setIsSearching(true);
     setSearchError("");
     setSearchResult(null);
-
     try {
       const response = await communityAPI.searchUser(searchEmail);
-      if (response.success && response.data) {
-        setSearchResult(response.data);
-      } else {
-        setSearchError(response.message || "Không tìm thấy người dùng này!");
-      }
+      if (response.success && response.data) setSearchResult(response.data);
+      else setSearchError(response.message || "Không tìm thấy người dùng này!");
     } catch (error) {
       setSearchError("Lỗi kết nối khi tìm kiếm.");
     } finally {
@@ -101,23 +102,19 @@ const ChatTab = () => {
     }
   };
 
-  // Hàm Gửi lời mời kết bạn
   const handleSendFriendRequest = async () => {
     if (!searchResult) return;
     try {
       const response = await communityAPI.sendFriendRequest(searchResult.id);
       if (response.success) {
-        alert("Đã gửi lời mời kết bạn thành công!");
+        alert("Đã gửi lời mời!");
         setSearchResult((prev) => ({ ...prev, friendship_status: "pending" }));
-      } else {
-        setSearchError(response.message);
-      }
+      } else setSearchError(response.message);
     } catch (error) {
       setSearchError("Lỗi khi gửi lời mời!");
     }
   };
 
-  // Hàm Phản hồi lời mời
   const handleRespondRequest = async (requestId, action) => {
     try {
       const response = await communityAPI.respondFriendRequest(
@@ -134,11 +131,10 @@ const ChatTab = () => {
         }
       }
     } catch (error) {
-      console.error("Lỗi khi phản hồi lời mời:", error);
+      console.error("Lỗi khi phản hồi:", error);
     }
   };
 
-  // Hàm chuyển sang chat
   const handleChatWithFriend = () => {
     if (!searchResult) return;
     const exists = contacts.find((c) => c.id === searchResult.id);
@@ -150,9 +146,6 @@ const ChatTab = () => {
     }
   };
 
-  // =========================================
-  // 👉 ĐÃ THÊM: CÁC HÀM XỬ LÝ GIAO DIỆN NHÓM
-  // =========================================
   const handleCreateGroup = async () => {
     if (!groupName.trim())
       return setGroupError("Tên nhóm không được bỏ trống!");
@@ -160,15 +153,13 @@ const ChatTab = () => {
     try {
       const res = await communityAPI.createGroup(groupName, groupDesc);
       if (res.success) {
-        alert("🎉 Đã tạo nhóm thành công!");
+        alert("🎉 Đã tạo nhóm!");
         const groupsRes = await communityAPI.getMyGroups();
         if (groupsRes.success) setGroups(groupsRes.data);
         setShowGroupAction(null);
         setGroupName("");
         setGroupDesc("");
-      } else {
-        setGroupError(res.message);
-      }
+      } else setGroupError(res.message);
     } catch (e) {
       setGroupError("Lỗi hệ thống khi tạo nhóm.");
     }
@@ -180,24 +171,23 @@ const ChatTab = () => {
     try {
       const res = await communityAPI.joinGroup(inviteCode);
       if (res.success) {
-        alert("🎉 Đã tham gia nhóm thành công!");
+        alert("🎉 Đã tham gia nhóm!");
         const groupsRes = await communityAPI.getMyGroups();
         if (groupsRes.success) setGroups(groupsRes.data);
         setShowGroupAction(null);
         setInviteCode("");
-      } else {
-        setGroupError(res.message);
-      }
+      } else setGroupError(res.message);
     } catch (e) {
       setGroupError("Lỗi hệ thống khi tham gia nhóm.");
     }
   };
 
+  // --- GIAO DIỆN (JSX) ĐÃ ĐƯỢC LÀM SẠCH ---
   return (
     <div className="chat-tab-container">
       {/* SIDEBAR BÊN TRÁI */}
       <div className="chat-sidebar">
-        {/* THANH TÌM KIẾM / HÀNH ĐỘNG */}
+        {/* HEADER CỦA SIDEBAR (Tìm kiếm / Nhóm) */}
         <div
           className="chat-sidebar-header"
           style={{
@@ -207,7 +197,6 @@ const ChatTab = () => {
           }}
         >
           {chatType === "friends" ? (
-            // GIAO DIỆN TÌM BẠN BÈ
             <>
               <div
                 className="chat-search"
@@ -219,25 +208,12 @@ const ChatTab = () => {
                   value={searchEmail}
                   onChange={(e) => setSearchEmail(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSearchFriend()}
-                  style={{
-                    flex: 1,
-                    padding: "8px",
-                    border: "1px solid #cbd5e1",
-                    borderRadius: "8px 0 0 8px",
-                    outline: "none",
-                  }}
                 />
                 <button
+                  className="send-btn"
+                  style={{ borderRadius: "0 8px 8px 0" }}
                   onClick={handleSearchFriend}
                   disabled={isSearching}
-                  style={{
-                    padding: "8px 12px",
-                    background: "#3b82f6",
-                    color: "white",
-                    border: "none",
-                    borderRadius: "0 8px 8px 0",
-                    cursor: "pointer",
-                  }}
                 >
                   {isSearching ? (
                     <i className="fa-solid fa-spinner fa-spin"></i>
@@ -247,116 +223,43 @@ const ChatTab = () => {
                 </button>
               </div>
 
-              {searchError && (
-                <p
-                  style={{ color: "#ef4444", fontSize: "0.8rem", margin: "0" }}
-                >
-                  {searchError}
-                </p>
-              )}
+              {searchError && <p className="search-error">{searchError}</p>}
 
               {searchResult && (
-                <div
-                  style={{
-                    background: "#f0fdf4",
-                    border: "1px solid #bbf7d0",
-                    padding: "10px",
-                    borderRadius: "8px",
-                    marginTop: "5px",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      marginBottom: "8px",
-                    }}
-                  >
+                <div className="search-result-card">
+                  <div className="search-user-info">
                     <div
+                      className="search-avatar"
                       style={{
-                        width: "32px",
-                        height: "32px",
-                        borderRadius: "50%",
-                        background: searchResult.avatar_color || "#10b981",
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        color: "white",
-                        fontWeight: "bold",
+                        backgroundColor: searchResult.avatar_color || "#10b981",
                       }}
                     >
                       {searchResult.avatar_text || "U"}
                     </div>
                     <div>
-                      <h4
-                        style={{
-                          margin: 0,
-                          fontSize: "0.9rem",
-                          color: "#166534",
-                        }}
-                      >
+                      <h4 className="search-name">
                         {searchResult.full_name ||
                           searchResult.email ||
                           "Người dùng"}
                       </h4>
-                      <p
-                        style={{
-                          margin: 0,
-                          fontSize: "0.75rem",
-                          color: "#64748b",
-                        }}
-                      >
-                        {searchResult.email}
-                      </p>
+                      <p className="search-email">{searchResult.email}</p>
                     </div>
                   </div>
-
                   {searchResult.friendship_status === "accepted" ? (
                     <button
+                      className="action-btn btn-primary"
                       onClick={handleChatWithFriend}
-                      style={{
-                        width: "100%",
-                        padding: "6px",
-                        background: "#3b82f6",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "4px",
-                        fontSize: "0.85rem",
-                        cursor: "pointer",
-                      }}
                     >
                       Nhắn tin
                     </button>
                   ) : searchResult.friendship_status === "pending" ? (
-                    <button
-                      disabled
-                      style={{
-                        width: "100%",
-                        padding: "6px",
-                        background: "#cbd5e1",
-                        color: "#475569",
-                        border: "none",
-                        borderRadius: "4px",
-                        fontSize: "0.85rem",
-                        cursor: "not-allowed",
-                      }}
-                    >
+                    <button className="action-btn btn-disabled" disabled>
                       Đang chờ xác nhận...
                     </button>
                   ) : (
                     <button
+                      className="action-btn btn-success"
                       onClick={handleSendFriendRequest}
-                      style={{
-                        width: "100%",
-                        padding: "6px",
-                        background: "#10b981",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "4px",
-                        fontSize: "0.85rem",
-                        cursor: "pointer",
-                      }}
                     >
                       Gửi lời mời kết bạn
                     </button>
@@ -365,47 +268,26 @@ const ChatTab = () => {
               )}
             </>
           ) : (
-            // 👉 ĐÃ THÊM: GIAO DIỆN THAO TÁC NHÓM
             <>
-              <div style={{ display: "flex", gap: "8px" }}>
+              <div className="group-action-row">
                 <button
+                  className={`group-toggle-btn ${showGroupAction === "join" ? "active join" : "inactive"}`}
                   onClick={() => {
                     setShowGroupAction(
                       showGroupAction === "join" ? null : "join",
                     );
                     setGroupError("");
                   }}
-                  style={{
-                    flex: 1,
-                    padding: "8px",
-                    background:
-                      showGroupAction === "join" ? "#3b82f6" : "#e2e8f0",
-                    color: showGroupAction === "join" ? "white" : "#475569",
-                    border: "none",
-                    borderRadius: "6px",
-                    fontWeight: "bold",
-                    cursor: "pointer",
-                  }}
                 >
                   <i className="fa-solid fa-right-to-bracket"></i> Vào nhóm
                 </button>
                 <button
+                  className={`group-toggle-btn ${showGroupAction === "create" ? "active create" : "inactive"}`}
                   onClick={() => {
                     setShowGroupAction(
                       showGroupAction === "create" ? null : "create",
                     );
                     setGroupError("");
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: "8px",
-                    background:
-                      showGroupAction === "create" ? "#10b981" : "#e2e8f0",
-                    color: showGroupAction === "create" ? "white" : "#475569",
-                    border: "none",
-                    borderRadius: "6px",
-                    fontWeight: "bold",
-                    cursor: "pointer",
                   }}
                 >
                   <i className="fa-solid fa-plus"></i> Tạo nhóm
@@ -413,40 +295,17 @@ const ChatTab = () => {
               </div>
 
               {showGroupAction === "join" && (
-                <div
-                  style={{
-                    background: "#eff6ff",
-                    padding: "10px",
-                    borderRadius: "8px",
-                    border: "1px solid #bfdbfe",
-                  }}
-                >
+                <div className="group-form-box join">
                   <input
+                    className="group-input"
                     type="text"
                     placeholder="Nhập mã Invite (VD: GRP-ABC...)"
                     value={inviteCode}
                     onChange={(e) => setInviteCode(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px",
-                      marginBottom: "8px",
-                      borderRadius: "4px",
-                      border: "1px solid #93c5fd",
-                      outline: "none",
-                    }}
                   />
                   <button
+                    className="action-btn btn-primary"
                     onClick={handleJoinGroup}
-                    style={{
-                      width: "100%",
-                      padding: "8px",
-                      background: "#3b82f6",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                    }}
                   >
                     Tham gia ngay
                   </button>
@@ -454,71 +313,35 @@ const ChatTab = () => {
               )}
 
               {showGroupAction === "create" && (
-                <div
-                  style={{
-                    background: "#f0fdf4",
-                    padding: "10px",
-                    borderRadius: "8px",
-                    border: "1px solid #bbf7d0",
-                  }}
-                >
+                <div className="group-form-box create">
                   <input
+                    className="group-input"
                     type="text"
                     placeholder="Tên nhóm học..."
                     value={groupName}
                     onChange={(e) => setGroupName(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px",
-                      marginBottom: "8px",
-                      borderRadius: "4px",
-                      border: "1px solid #86efac",
-                      outline: "none",
-                    }}
                   />
                   <input
+                    className="group-input"
                     type="text"
                     placeholder="Mô tả ngắn..."
                     value={groupDesc}
                     onChange={(e) => setGroupDesc(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "8px",
-                      marginBottom: "8px",
-                      borderRadius: "4px",
-                      border: "1px solid #86efac",
-                      outline: "none",
-                    }}
                   />
                   <button
+                    className="action-btn btn-success"
                     onClick={handleCreateGroup}
-                    style={{
-                      width: "100%",
-                      padding: "8px",
-                      background: "#10b981",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                    }}
                   >
                     Hoàn tất tạo
                   </button>
                 </div>
               )}
-              {groupError && (
-                <p
-                  style={{ color: "#ef4444", fontSize: "0.8rem", margin: "0" }}
-                >
-                  {groupError}
-                </p>
-              )}
+              {groupError && <p className="search-error">{groupError}</p>}
             </>
           )}
         </div>
 
-        {/* CÁC TAB CHUYỂN ĐỔI */}
+        {/* TABS (Bạn bè / Nhóm học) */}
         <div className="chat-tabs">
           <button
             className={chatType === "friends" ? "active" : ""}
@@ -541,58 +364,23 @@ const ChatTab = () => {
           </button>
         </div>
 
-        {/* DANH SÁCH BÊN TRÁI */}
+        {/* DANH SÁCH LIÊN HỆ */}
         <div className="contact-list">
           {chatType === "friends" ? (
             <>
-              {/* Lời mời kết bạn */}
               {pendingRequests.length > 0 && (
-                <div
-                  style={{
-                    background: "#fffbeb",
-                    padding: "10px",
-                    borderBottom: "1px solid #fde68a",
-                  }}
-                >
-                  <h4
-                    style={{
-                      fontSize: "0.85rem",
-                      color: "#b45309",
-                      margin: "0 0 10px 0",
-                    }}
-                  >
+                <div className="pending-requests-box">
+                  <h4 className="pending-title">
                     Lời mời kết bạn ({pendingRequests.length})
                   </h4>
                   {pendingRequests.map((req) => (
-                    <div
-                      key={req.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: "0.85rem",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                        }}
-                      >
+                    <div className="request-item" key={req.id}>
+                      <div className="request-info">
                         <div
+                          className="request-avatar"
                           style={{
-                            width: "24px",
-                            height: "24px",
-                            borderRadius: "50%",
-                            background: req.Requester.avatar_color || "#3b82f6",
-                            color: "#fff",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: "0.7rem",
-                            fontWeight: "bold",
+                            backgroundColor:
+                              req.Requester.avatar_color || "#3b82f6",
                           }}
                         >
                           {req.Requester.avatar_text}
@@ -603,36 +391,20 @@ const ChatTab = () => {
                             "Người dùng"}
                         </b>
                       </div>
-                      <div style={{ display: "flex", gap: "5px" }}>
+                      <div className="request-actions">
                         <button
+                          className="request-btn btn-success"
                           onClick={() =>
                             handleRespondRequest(req.id, "accepted")
                           }
-                          style={{
-                            background: "#10b981",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
-                            padding: "4px 8px",
-                            cursor: "pointer",
-                            fontSize: "0.75rem",
-                          }}
                         >
                           Chấp nhận
                         </button>
                         <button
+                          className="request-btn btn-danger"
                           onClick={() =>
                             handleRespondRequest(req.id, "declined")
                           }
-                          style={{
-                            background: "#ef4444",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "4px",
-                            padding: "4px 8px",
-                            cursor: "pointer",
-                            fontSize: "0.75rem",
-                          }}
                         >
                           Từ chối
                         </button>
@@ -641,8 +413,6 @@ const ChatTab = () => {
                   ))}
                 </div>
               )}
-
-              {/* Danh sách Bạn bè */}
               {contacts.map((contact) => (
                 <div
                   key={contact.id}
@@ -667,21 +437,8 @@ const ChatTab = () => {
                   </div>
                 </div>
               ))}
-              {contacts.length === 0 && pendingRequests.length === 0 && (
-                <p
-                  style={{
-                    textAlign: "center",
-                    color: "#94a3b8",
-                    fontSize: "0.9rem",
-                    marginTop: "20px",
-                  }}
-                >
-                  Chưa có bạn bè nào.
-                </p>
-              )}
             </>
           ) : (
-            // 👉 ĐÃ THÊM: DANH SÁCH NHÓM HỌC
             <>
               {groups.map((group) => (
                 <div
@@ -722,18 +479,6 @@ const ChatTab = () => {
                   </div>
                 </div>
               ))}
-              {groups.length === 0 && (
-                <p
-                  style={{
-                    textAlign: "center",
-                    color: "#94a3b8",
-                    fontSize: "0.9rem",
-                    marginTop: "20px",
-                  }}
-                >
-                  Cậu chưa tham gia nhóm nào.
-                </p>
-              )}
             </>
           )}
         </div>
@@ -753,34 +498,8 @@ const ChatTab = () => {
             </p>
           </div>
         ) : selectedChat.isGroup ? (
-          // 👉 ĐÃ THÊM: MÀN HÌNH QUẢN LÝ NHÓM
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              height: "100%",
-              background: "#f8fafc",
-              padding: "20px",
-              textAlign: "center",
-            }}
-          >
-            <div
-              style={{
-                width: "80px",
-                height: "80px",
-                borderRadius: "16px",
-                background: "#8b5cf6",
-                color: "white",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "2rem",
-                marginBottom: "20px",
-                boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-              }}
-            >
+          <div className="group-manage-screen">
+            <div className="group-icon-large">
               <i className="fa-solid fa-users"></i>
             </div>
             <h2 style={{ color: "#1e293b", marginBottom: "10px" }}>
@@ -793,20 +512,9 @@ const ChatTab = () => {
                 marginBottom: "20px",
               }}
             >
-              {selectedChat.description ||
-                "Nhóm học tập cộng đồng trên FOGETMENOT"}
+              {selectedChat.description || "Nhóm học tập cộng đồng"}
             </p>
-
-            <div
-              style={{
-                background: "white",
-                padding: "20px",
-                borderRadius: "12px",
-                border: "1px dashed #cbd5e1",
-                width: "100%",
-                maxWidth: "400px",
-              }}
-            >
+            <div className="invite-box">
               <p
                 style={{
                   margin: "0 0 10px 0",
@@ -816,37 +524,15 @@ const ChatTab = () => {
               >
                 Mã Invite để mời bạn bè tham gia:
               </p>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "10px",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "1.5rem",
-                    fontWeight: "900",
-                    letterSpacing: "2px",
-                    color: "#4f46e5",
-                  }}
-                >
+              <div className="invite-code-row">
+                <span className="invite-code-text">
                   {selectedChat.invite_code}
                 </span>
                 <button
+                  className="copy-btn"
                   onClick={() => {
                     navigator.clipboard.writeText(selectedChat.invite_code);
                     alert("Đã copy mã Invite!");
-                  }}
-                  style={{
-                    background: "#e2e8f0",
-                    border: "none",
-                    width: "32px",
-                    height: "32px",
-                    borderRadius: "50%",
-                    cursor: "pointer",
-                    color: "#475569",
                   }}
                   title="Copy mã"
                 >
@@ -854,27 +540,8 @@ const ChatTab = () => {
                 </button>
               </div>
             </div>
-
-            <div
-              style={{
-                marginTop: "40px",
-                padding: "15px",
-                background: "#eff6ff",
-                borderRadius: "8px",
-                color: "#1e40af",
-                fontSize: "0.9rem",
-              }}
-            >
-              <i
-                className="fa-solid fa-tools"
-                style={{ marginRight: "8px" }}
-              ></i>
-              Tính năng <b>Nhắn tin & Chia sẻ Flashcard trong Nhóm</b> sẽ được
-              cập nhật ở phiên bản tiếp theo!
-            </div>
           </div>
         ) : (
-          // GIAO DIỆN CHAT 1-1 VỚI BẠN BÈ (GIỮ NGUYÊN)
           <>
             <div className="chat-header">
               <div className="chat-header-info">
@@ -909,7 +576,41 @@ const ChatTab = () => {
                   className={`message-wrapper ${msg.isMine ? "mine" : "theirs"}`}
                 >
                   <div className="message-bubble">
-                    {msg.content}
+                    {msg.message_type === "image" && msg.file_url && (
+                      <img
+                        className="msg-image"
+                        src={`${BACKEND_URL}${msg.file_url}`}
+                        alt="Đính kèm"
+                        onClick={() =>
+                          window.open(`${BACKEND_URL}${msg.file_url}`, "_blank")
+                        }
+                      />
+                    )}
+
+                    {msg.message_type === "file" && msg.file_url && (
+                      <a
+                        className="msg-file-link"
+                        href={`${BACKEND_URL}${msg.file_url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <i
+                          className="fa-solid fa-file-lines"
+                          style={{ fontSize: "1.5rem" }}
+                        ></i>
+                        <span
+                          style={{ fontWeight: "bold", wordBreak: "break-all" }}
+                        >
+                          {msg.file_name}
+                        </span>
+                        <i
+                          className="fa-solid fa-download"
+                          style={{ marginLeft: "auto" }}
+                        ></i>
+                      </a>
+                    )}
+
+                    {msg.content && <div>{msg.content}</div>}
                     <span className="message-time">
                       {new Date(msg.created_at).toLocaleTimeString([], {
                         hour: "2-digit",
@@ -921,20 +622,63 @@ const ChatTab = () => {
               ))}
             </div>
 
-            <div className="chat-input-area">
-              <button className="share-deck-btn" title="Chia sẻ bộ thẻ">
-                <i className="fa-solid fa-layer-group"></i>
-              </button>
-              <input
-                type="text"
-                placeholder="Nhập tin nhắn..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-              />
-              <button className="send-btn" onClick={handleSendMessage}>
-                <i className="fa-solid fa-paper-plane"></i>
-              </button>
+            <div className="chat-input-container">
+              {attachedFile && (
+                <div className="file-preview-box">
+                  {attachedFile.type.startsWith("image/") ? (
+                    <img
+                      className="file-preview-img"
+                      src={URL.createObjectURL(attachedFile)}
+                      alt="Preview"
+                    />
+                  ) : (
+                    <i
+                      className="fa-solid fa-file-zipper"
+                      style={{ fontSize: "1.5rem", color: "#64748b" }}
+                    ></i>
+                  )}
+                  <div className="file-preview-info">
+                    <b>{attachedFile.name}</b>
+                  </div>
+                  <button
+                    className="remove-file-btn"
+                    onClick={() => setAttachedFile(null)}
+                  >
+                    <i
+                      className="fa-solid fa-circle-xmark"
+                      style={{ fontSize: "1.2rem" }}
+                    ></i>
+                  </button>
+                </div>
+              )}
+
+              <div className="chat-input-row">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  style={{ display: "none" }}
+                />
+                <button
+                  className="attach-btn"
+                  onClick={() => fileInputRef.current.click()}
+                  style={{ color: attachedFile ? "#3b82f6" : "#64748b" }}
+                >
+                  <i className="fa-solid fa-paperclip"></i>
+                </button>
+                <input
+                  type="text"
+                  placeholder={
+                    attachedFile ? "Thêm lời nhắn..." : "Nhập tin nhắn..."
+                  }
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                />
+                <button className="send-btn" onClick={handleSendMessage}>
+                  <i className="fa-solid fa-paper-plane"></i>
+                </button>
+              </div>
             </div>
           </>
         )}

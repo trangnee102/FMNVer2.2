@@ -347,3 +347,324 @@
   background: #2563eb;
   transform: scale(1.05);
 }
+/* ==========================================
+   BỔ SUNG CSS CHO KẾT BẠN, NHÓM HỌC & ĐÍNH KÈM
+   ========================================== */
+
+/* 1. Phần Tìm kiếm & Lời mời */
+.search-error {
+  color: #ef4444;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.search-result-card {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 10px;
+  border-radius: 8px;
+  margin-top: 5px;
+}
+.search-user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.search-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-weight: bold;
+}
+.search-name {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #166534;
+}
+.search-email {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.action-btn {
+  width: 100%;
+  padding: 6px;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.btn-primary {
+  background: #3b82f6;
+  color: white;
+}
+.btn-success {
+  background: #10b981;
+  color: white;
+}
+.btn-disabled {
+  background: #cbd5e1;
+  color: #475569;
+  cursor: not-allowed;
+}
+
+.pending-requests-box {
+  background: #fffbeb;
+  padding: 10px;
+  border-bottom: 1px solid #fde68a;
+}
+.pending-title {
+  font-size: 0.85rem;
+  color: #b45309;
+  margin: 0 0 10px 0;
+}
+.request-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.request-info {
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.request-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+.request-actions {
+  display: flex;
+  gap: 5px;
+}
+.request-btn {
+  border: none;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: white;
+}
+.btn-danger {
+  background: #ef4444;
+  color: white;
+}
+
+/* 2. Phần Nhóm học */
+.group-action-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.group-toggle-btn {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.group-toggle-btn.active.join {
+  background: #3b82f6;
+  color: white;
+}
+.group-toggle-btn.active.create {
+  background: #10b981;
+  color: white;
+}
+.group-toggle-btn.inactive {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.group-form-box {
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.group-form-box.join {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+.group-form-box.create {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+.group-input {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  outline: none;
+  border: 1px solid #cbd5e1;
+}
+
+.group-manage-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: #f8fafc;
+  padding: 20px;
+  text-align: center;
+}
+.group-icon-large {
+  width: 80px;
+  height: 80px;
+  border-radius: 16px;
+  background: #8b5cf6;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+.invite-box {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
+  width: 100%;
+  max-width: 400px;
+}
+.invite-code-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.invite-code-text {
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #4f46e5;
+}
+.copy-btn {
+  background: #e2e8f0;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #475569;
+  transition: 0.2s;
+}
+.copy-btn:hover {
+  background: #cbd5e1;
+}
+
+/* 3. Phần Input & File đính kèm */
+.chat-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 15px;
+  border-top: 1px solid #e2e8f0;
+  background: #fff;
+}
+.file-preview-box {
+  background: #f1f5f9;
+  padding: 8px 12px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #cbd5e1;
+  width: fit-content;
+  max-width: 100%;
+}
+.file-preview-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+.file-preview-info {
+  flex: 1;
+  font-size: 0.85rem;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.remove-file-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.chat-input-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+}
+.attach-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 8px;
+  transition: 0.2s;
+}
+.chat-input-row input[type="text"] {
+  flex: 1;
+  padding: 10px 15px;
+  border-radius: 20px;
+  border: 1px solid #cbd5e1;
+  outline: none;
+  background: #f8fafc;
+  transition: 0.2s;
+}
+.chat-input-row input[type="text"]:focus {
+  background: #fff;
+  border-color: #3b82f6;
+}
+
+.msg-image {
+  max-width: 220px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: block;
+  margin-bottom: 5px;
+}
+.msg-file-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 5px;
+}
+.message-wrapper.mine .msg-file-link {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
+}
+.message-wrapper.theirs .msg-file-link {
+  color: #1e40af;
+  background: #dbeafe;
+}
