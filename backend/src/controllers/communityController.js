@@ -103,9 +103,10 @@ const getContacts = async (req, res) => {
       },
     });
 
-    const contacts = friendships.map((f) =>
+    const stores = friendships.map((f) =>
       f.requester_id === currentUserId ? f.Addressee : f.Requester,
     );
+    const contacts = Array.from(new Map(stores.map((item) => [item.id, item])).values());
 
     res.status(200).json(contacts);
   } catch (error) {
@@ -251,18 +252,23 @@ const searchUserByEmail = async (req, res) => {
 const sendFriendRequest = async (req, res) => {
   try {
     const currentUserId = parseInt(req.user?.id) || 1;
-    const { targetUserId } = req.body;
+    const targetUserId = parseInt(req.body.targetUserId);
 
-    if (!targetUserId)
+    if (!targetUserId || isNaN(targetUserId))
       return res
         .status(400)
         .json({ success: false, message: "Thiếu ID người nhận!" });
 
+    if (targetUserId === currentUserId)
+      return res
+        .status(400)
+        .json({ success: false, message: "Không thể gửi lời mời cho chính bạn." });
+
     const existing = await prisma.friendships.findFirst({
       where: {
         OR: [
-          { requester_id: currentUserId, addressee_id: parseInt(targetUserId) },
-          { requester_id: parseInt(targetUserId), addressee_id: currentUserId },
+          { requester_id: currentUserId, addressee_id: targetUserId },
+          { requester_id: targetUserId, addressee_id: currentUserId },
         ],
       },
     });
@@ -281,7 +287,7 @@ const sendFriendRequest = async (req, res) => {
     await prisma.friendships.create({
       data: {
         requester_id: currentUserId,
-        addressee_id: parseInt(targetUserId),
+        addressee_id: targetUserId,
         status: "pending",
       },
     });
@@ -291,6 +297,11 @@ const sendFriendRequest = async (req, res) => {
       .json({ success: true, message: "Đã gửi lời mời kết bạn thành công!" });
   } catch (error) {
     console.error("Lỗi gửi lời mời:", error);
+    if (error.code === "P2002") {
+      return res
+        .status(400)
+        .json({ success: false, message: "Đã có lời mời tương tự hoặc hai người đã là bạn." });
+    }
     res.status(500).json({ success: false, message: "Lỗi khi gửi lời mời" });
   }
 };
@@ -313,7 +324,10 @@ const getPendingRequests = async (req, res) => {
         },
       },
     });
-    res.status(200).json({ success: true, data: requests });
+    const uniqueRequests = Array.from(
+      new Map(requests.map((req) => [req.Requester.id, req])).values(),
+    );
+    res.status(200).json({ success: true, data: uniqueRequests });
   } catch (error) {
     res
       .status(500)
@@ -505,13 +519,140 @@ const getMyGroups = async (req, res) => {
     const currentUserId = parseInt(req.user?.id) || 1;
     const memberships = await prisma.groupMembers.findMany({
       where: { user_id: currentUserId },
-      include: { Group: true },
+      include: {
+        Group: {
+          include: {
+            _count: { select: { GroupMembers: true } },
+          },
+        },
+      },
       orderBy: { joined_at: "desc" },
     });
-    const groups = memberships.map((m) => ({ ...m.Group, my_role: m.role }));
+    const groups = memberships.map((m) => ({
+      ...m.Group,
+      my_role: m.role,
+      member_count: m.Group._count?.GroupMembers || 0,
+    }));
     res.status(200).json({ success: true, data: groups });
   } catch (error) {
     res.status(500).json({ success: false, message: "Lỗi server" });
+  }
+};
+
+const getGroupMessages = async (req, res) => {
+  try {
+    const currentUserId = parseInt(req.user?.id) || 1;
+    const groupId = parseInt(req.params.groupId);
+
+    const membership = await prisma.groupMembers.findFirst({
+      where: { group_id: groupId, user_id: currentUserId },
+    });
+    if (!membership)
+      return res
+        .status(403)
+        .json({ success: false, message: "Không có quyền xem nhóm này" });
+
+    const messages = await prisma.groupMessages.findMany({
+      where: { group_id: groupId },
+      orderBy: { created_at: "asc" },
+      include: {
+        Sender: {
+          select: {
+            id: true,
+            full_name: true,
+            email: true,
+            avatar_text: true,
+            avatar_color: true,
+          },
+        },
+      },
+    });
+
+    const formatted = messages.map((msg) => ({
+      ...msg,
+      isMine: msg.sender_id === currentUserId,
+    }));
+
+    res.status(200).json({ success: true, data: formatted });
+  } catch (error) {
+    console.error("Lỗi lấy tin nhắn nhóm:", error);
+    res.status(500).json({ success: false, message: "Lỗi khi tải tin nhắn nhóm" });
+  }
+};
+
+const sendGroupMessage = async (req, res) => {
+  try {
+    const currentUserId = parseInt(req.user?.id) || 1;
+    const groupId = parseInt(req.params.groupId);
+
+    const membership = await prisma.groupMembers.findFirst({
+      where: { group_id: groupId, user_id: currentUserId },
+    });
+    if (!membership)
+      return res
+        .status(403)
+        .json({ success: false, message: "Không có quyền gửi tin nhắn nhóm" });
+
+    const content = req.body.content?.trim();
+    const file = req.file;
+    if (!content && !file)
+      return res
+        .status(400)
+        .json({ success: false, message: "Tin nhắn trống!" });
+
+    const messageType = file
+      ? file.mimetype.startsWith("image/")
+        ? "image"
+        : "file"
+      : "text";
+
+    const newMessage = await prisma.groupMessages.create({
+      data: {
+        group_id: groupId,
+        sender_id: currentUserId,
+        content: content || null,
+        message_type: messageType,
+        file_url: file ? `/uploads/${file.filename}` : null,
+        file_name: file ? file.originalname : null,
+      },
+    });
+
+    const result = {
+      ...newMessage,
+      isMine: true,
+      Sender: {
+        id: currentUserId,
+        full_name: req.user.full_name || req.user.email,
+        avatar_text: req.user.avatar_text || "U",
+        avatar_color: req.user.avatar_color || "#10b981",
+      },
+    };
+
+    res.status(201).json({ success: true, data: result });
+  } catch (error) {
+    console.error("Lỗi gửi tin nhắn nhóm:", error);
+    res.status(500).json({ success: false, message: "Lỗi khi gửi tin nhắn nhóm" });
+  }
+};
+
+const leaveGroup = async (req, res) => {
+  try {
+    const currentUserId = parseInt(req.user?.id) || 1;
+    const groupId = parseInt(req.params.groupId);
+
+    const membership = await prisma.groupMembers.findFirst({
+      where: { group_id: groupId, user_id: currentUserId },
+    });
+    if (!membership)
+      return res
+        .status(404)
+        .json({ success: false, message: "Bạn không thuộc nhóm này" });
+
+    await prisma.groupMembers.delete({ where: { id: membership.id } });
+    res.status(200).json({ success: true, message: "Đã rời nhóm" });
+  } catch (error) {
+    console.error("Lỗi rời nhóm:", error);
+    res.status(500).json({ success: false, message: "Lỗi khi rời nhóm" });
   }
 };
 
@@ -530,4 +671,7 @@ module.exports = {
   createGroup,
   joinGroup,
   getMyGroups,
+  getGroupMessages,
+  sendGroupMessage,
+  leaveGroup,
 };
