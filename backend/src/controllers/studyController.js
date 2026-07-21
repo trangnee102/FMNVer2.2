@@ -2,7 +2,6 @@ const prisma = require("../services/prisma");
 const { calculateSM2 } = require("../algorithms/forgettingCurve");
 const jwt = require("jsonwebtoken");
 
-
 const extractUserId = (req) => {
   let userId = req.user?.id || req.userId || req.user?.userId;
 
@@ -19,11 +18,9 @@ const extractUserId = (req) => {
   return userId;
 };
 
-
 const reviewCard = async (req, res) => {
   try {
     const userId = extractUserId(req);
-
 
     if (!userId) {
       return res.status(401).json({
@@ -32,30 +29,22 @@ const reviewCard = async (req, res) => {
       });
     }
 
-
     const cardId = req.body.flashcard_id || parseInt(req.params.cardId);
 
-    // Bắt điểm đánh giá (0: Quên, 1: Khó, 2: Tốt, 3: Dễ)
-    const grade =
+    // Bắt điểm đánh giá từ Frontend (1: Quên, 2: Khó, 3: Tốt, 4: Dễ)
+    const frontendGrade =
       req.body.rating !== undefined ? req.body.rating : req.body.grade;
     const durationMs = req.body.duration_ms || 12000;
 
-    if (![0, 1, 2, 3].includes(grade)) {
+    if (![1, 2, 3, 4].includes(frontendGrade)) {
       return res.status(400).json({
         success: false,
         message: "Điểm đánh giá phải là 1, 2, 3 hoặc 4!",
       });
     }
 
-    // Chuyển đổi chuẩn điểm từ (1,2,3,4) của giao diện sang (0,1,2,3) của thuật toán SM2
-    let normalizedGrade = grade;
-    if (grade === 1) normalizedGrade = 0; // Quên
-    else if (grade === 2) normalizedGrade = 1; // Khó
-    else if (grade === 3) normalizedGrade = 2; // Tốt
-    else if (grade === 4) normalizedGrade = 3; // Dễ
-
     // 🌟 QUY ĐỔI ĐIỂM SỐ: Ép về chuẩn (0, 1, 2, 3) để đưa vào thuật toán SM-2
-    const grade = frontendRating - 1;
+    const normalizedGrade = frontendGrade - 1;
 
     // 🚀 TỐI ƯU TỐC ĐỘ: Cho 2 hàm tìm kiếm chạy SONG SONG
     const [card, progress] = await Promise.all([
@@ -68,7 +57,6 @@ const reviewCard = async (req, res) => {
       }),
     ]);
 
-
     if (!card) {
       return res.status(404).json({
         success: false,
@@ -76,12 +64,10 @@ const reviewCard = async (req, res) => {
       });
     }
 
-
     const deck = await prisma.decks.findUnique({
       where: { id: card.deck_id },
       select: { user_id: true },
     });
-
 
     if (!deck || deck.user_id !== userId) {
       return res.status(403).json({
@@ -90,13 +76,10 @@ const reviewCard = async (req, res) => {
       });
     }
 
-    // 1. Lấy tiến độ cũ
-    let progress = await prisma.studyProgress.findFirst({
-      where: { flashcard_id: cardId, user_id: userId },
-    });
-
-    if (!progress) {
-      progress = await prisma.studyProgress.create({
+    // 1. Khởi tạo tiến độ nếu thẻ này mới học lần đầu
+    let currentProgress = progress;
+    if (!currentProgress) {
+      currentProgress = await prisma.studyProgress.create({
         data: {
           flashcard_id: cardId,
           user_id: userId,
@@ -107,7 +90,6 @@ const reviewCard = async (req, res) => {
       });
     }
 
-
     // 2. Tính toán SM-2
     const { newEaseFactor, newInterval, newRepetitions } = calculateSM2(
       normalizedGrade,
@@ -116,50 +98,35 @@ const reviewCard = async (req, res) => {
       currentProgress.repetitions,
     );
 
-
     // 3. Tính ngày ôn tiếp theo
     let nextReviewDate = new Date();
     if (normalizedGrade === 0) {
       // 🚨 BẤM QUÊN: Lùi 1 phút để học lại ngay
       nextReviewDate.setMinutes(nextReviewDate.getMinutes() - 1);
     } else {
-      // ✅ BẤM NHỚ: Hẹn ngày tiếp theo
+      // ✅ BẤM NHỚ: Hẹn ngày tiếp theo (Mặc định reset về đầu ngày mới)
       nextReviewDate.setDate(nextReviewDate.getDate() + newInterval);
       nextReviewDate.setHours(0, 0, 0, 0);
     }
 
-    // Cập nhật hoặc tạo mới Tiến độ (StudyProgress)
-    let updatedProgress;
-    if (progress) {
-      updatedProgress = await prisma.studyProgress.update({
-        where: { id: progress.id },
-        data: {
-          ease_factor: newEaseFactor,
-          interval: newInterval,
-          repetitions: newRepetitions,
-          next_review_date: nextReviewDate,
-        },
-      });
-    } else {
-      updatedProgress = await prisma.studyProgress.create({
-        data: {
-          flashcard_id: cardId,
-          user_id: userId,
-          ease_factor: newEaseFactor,
-          interval: newInterval,
-          repetitions: newRepetitions,
-          next_review_date: nextReviewDate,
-        },
-      });
-    }
+    // Cập nhật lại Tiến độ (StudyProgress) sau khi tính toán
+    const updatedProgress = await prisma.studyProgress.update({
+      where: { id: currentProgress.id },
+      data: {
+        ease_factor: newEaseFactor,
+        interval: newInterval,
+        repetitions: newRepetitions,
+        next_review_date: nextReviewDate,
+      },
+    });
 
-    // 3. Ghi Log
+    // 4. Ghi Log quá trình học
     await prisma.studyLogs.create({
       data: {
         user_id: userId,
         flashcard_id: cardId,
         deck_id: card.deck_id,
-        rating: grade,
+        rating: frontendGrade,
         duration_ms: durationMs,
       },
     });
@@ -182,11 +149,9 @@ const reviewCard = async (req, res) => {
   }
 };
 
-
 const getDueCards = async (req, res) => {
   try {
     const userId = extractUserId(req);
-
 
     if (!userId) {
       return res.status(401).json({
@@ -195,15 +160,12 @@ const getDueCards = async (req, res) => {
       });
     }
 
-
     const deckId = parseInt(req.params.deckId);
-
 
     const deck = await prisma.decks.findUnique({
       where: { id: deckId },
       select: { user_id: true },
     });
-
 
     if (!deck || deck.user_id !== userId) {
       return res.status(403).json({
@@ -212,16 +174,13 @@ const getDueCards = async (req, res) => {
       });
     }
 
-
     const clientDateString = req.query.currentDate;
-    
+
     // Đảm bảo so sánh trong cùng một mốc cuối ngày (End of Day)
     const today = clientDateString ? new Date(clientDateString) : new Date();
     today.setHours(23, 59, 59, 999);
 
-
     const isForceReview = req.query.force === "true";
-
 
     const flashcards = await prisma.flashcards.findMany({
       where: { deck_id: deckId },
@@ -230,20 +189,17 @@ const getDueCards = async (req, res) => {
       },
     });
 
-
     let dueCards = flashcards;
-
 
     if (!isForceReview) {
       dueCards = flashcards.filter((card) => {
         const prog = card.StudyProgress[0];
         if (!prog) return true; // Thẻ mới -> Đến hạn
 
-        // 🌟 So sánh chuẩn: Nếu ngày hẹn < hôm nay -> Bắt học
+        // 🌟 So sánh chuẩn: Nếu ngày hẹn <= hôm nay -> Bắt học
         return new Date(prog.next_review_date) <= today;
       });
     }
-
 
     res.json({
       success: true,
@@ -261,6 +217,5 @@ const getDueCards = async (req, res) => {
     });
   }
 };
-
 
 module.exports = { reviewCard, getDueCards };
