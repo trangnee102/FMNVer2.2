@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./ChatTab.css";
 import { communityAPI } from "../../services/api";
 
@@ -16,6 +16,7 @@ const ChatTab = () => {
   const [searchError, setSearchError] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [isSendingRequest, setIsSendingRequest] = useState(false);
 
   // State Nhóm Học
   const [groups, setGroups] = useState([]);
@@ -32,11 +33,29 @@ const ChatTab = () => {
   const BACKEND_URL = "http://localhost:5000";
 
   // --- (CÁC HÀM XỬ LÝ LOGIC API VẪN GIỮ NGUYÊN) ---
+  // Ref giữ id tin nhắn cuối cùng để so sánh khi polling
+  const lastMsgIdRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const chatOptionsRef = useRef(null);
+
+  const [showChatOptionsMenu, setShowChatOptionsMenu] = useState(false);
+  const [isChatPinned, setIsChatPinned] = useState(false);
+  const [isChatMuted, setIsChatMuted] = useState(false);
+  const [isAutoDeleteEnabled, setIsAutoDeleteEnabled] = useState(false);
+
+  const getFullUrl = (fileUrl) => {
+    if (!fileUrl) return null;
+    if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) return fileUrl;
+    return `${BACKEND_URL}${fileUrl.startsWith("/") ? "" : "/"}${fileUrl}`;
+  };
   useEffect(() => {
     const fetchData = async () => {
       try {
         const contactsData = await communityAPI.getContacts();
-        setContacts(contactsData);
+        const uniqueContacts = Array.from(
+          new Map(contactsData.map((item) => [item.id, item])).values(),
+        );
+        setContacts(uniqueContacts);
         const requestsRes = await communityAPI.getPendingRequests();
         if (requestsRes.success) setPendingRequests(requestsRes.data);
         const groupsRes = await communityAPI.getMyGroups();
@@ -49,30 +68,159 @@ const ChatTab = () => {
   }, [chatType]);
 
   useEffect(() => {
-    if (!selectedChat || selectedChat.isGroup) return;
+    if (!selectedChat) {
+      setMessages([]);
+      lastMsgIdRef.current = null;
+      return;
+    }
+
     const fetchMessages = async () => {
       try {
-        const data = await communityAPI.getMessages(selectedChat.id);
-        setMessages(data);
+        const data = selectedChat.isGroup
+          ? await communityAPI.getGroupMessages(selectedChat.id)
+          : await communityAPI.getMessages(selectedChat.id);
+        const messagesData = data.success ? data.data : data || [];
+        setMessages(messagesData || []);
+        lastMsgIdRef.current = messagesData?.[messagesData.length - 1]?.id || null;
       } catch (error) {
         console.error("Lỗi tải tin nhắn:", error);
       }
     };
+
     fetchMessages();
   }, [selectedChat]);
 
+  // Polling nhẹ để cập nhật tin nhắn mới trong khung chat đang mở
+  useEffect(() => {
+    if (!selectedChat) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const data = selectedChat.isGroup
+          ? await communityAPI.getGroupMessages(selectedChat.id)
+          : await communityAPI.getMessages(selectedChat.id);
+        const messagesData = data.success ? data.data : data || [];
+        const latestId = messagesData?.[messagesData.length - 1]?.id || null;
+
+        if (latestId !== lastMsgIdRef.current) {
+          setMessages(messagesData || []);
+          lastMsgIdRef.current = latestId;
+        }
+      } catch (err) {
+        console.error("Lỗi polling tin nhắn:", err);
+      }
+    }, 1500);
+
+    return () => clearInterval(pollInterval);
+  }, [selectedChat]);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      try {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      } catch {
+        // Ignore scroll failures
+      }
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (!showChatOptionsMenu) return;
+    const handleClickOutside = (event) => {
+      if (chatOptionsRef.current && !chatOptionsRef.current.contains(event.target)) {
+        setShowChatOptionsMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showChatOptionsMenu]);
+
+  const toggleChatOptionsMenu = () => setShowChatOptionsMenu((prev) => !prev);
+  const handleTogglePinChat = () => {
+    setIsChatPinned((prev) => !prev);
+    setShowChatOptionsMenu(false);
+  };
+  const handleClassifyChat = () => {
+    setShowChatOptionsMenu(false);
+    alert("Tính năng phân loại đang cập nhật.");
+  };
+  const handleMarkUnread = () => {
+    setShowChatOptionsMenu(false);
+    alert("Hội thoại đã được đánh dấu chưa đọc.");
+  };
+  const handleAddToGroup = () => {
+    setShowChatOptionsMenu(false);
+    alert("Tính năng thêm vào nhóm đang cập nhật.");
+  };
+  const handleToggleMuteChat = () => {
+    setIsChatMuted((prev) => !prev);
+    setShowChatOptionsMenu(false);
+  };
+  const handleHideChat = () => {
+    setShowChatOptionsMenu(false);
+    setSelectedChat(null);
+  };
+  const handleToggleAutoDelete = () => {
+    setIsAutoDeleteEnabled((prev) => !prev);
+    setShowChatOptionsMenu(false);
+  };
+  const handleDeleteConversation = () => {
+    setShowChatOptionsMenu(false);
+    if (window.confirm("Bạn có chắc muốn xóa hội thoại này không?")) {
+      setMessages([]);
+      setSelectedChat(null);
+    }
+  };
+  const handleReportConversation = () => {
+    setShowChatOptionsMenu(false);
+    alert("Đã gửi báo cáo hội thoại.");
+  };
+
+  const handleLeaveGroup = async () => {
+    if (!selectedChat?.isGroup) return;
+    if (!window.confirm("Bạn có chắc muốn rời nhóm này?")) return;
+
+    try {
+      const response = await communityAPI.leaveGroup(selectedChat.id);
+      if (response.success) {
+        alert("Bạn đã rời nhóm.");
+        const groupsRes = await communityAPI.getMyGroups();
+        if (groupsRes.success) setGroups(groupsRes.data);
+        setSelectedChat(null);
+      } else {
+        alert(response.message || "Không thể rời nhóm.");
+      }
+    } catch (error) {
+      console.error("Lỗi rời nhóm:", error);
+      alert("Lỗi khi rời nhóm.");
+    }
+  };
+
   const handleSendMessage = async () => {
-    if (!selectedChat || selectedChat.isGroup) return;
+    if (!selectedChat) return;
     if (!message.trim() && !attachedFile) return;
 
     const formData = new FormData();
-    formData.append("receiver_id", selectedChat.id);
-    if (message.trim()) formData.append("content", message);
-    if (attachedFile) formData.append("file", attachedFile);
+    if (selectedChat.isGroup) {
+      formData.append("content", message);
+      if (attachedFile) formData.append("file", attachedFile);
+    } else {
+      formData.append("receiver_id", selectedChat.id);
+      if (message.trim()) formData.append("content", message);
+      if (attachedFile) formData.append("file", attachedFile);
+    }
 
     try {
-      const sentMsg = await communityAPI.sendMessage(formData);
-      setMessages((prev) => [...prev, sentMsg]);
+      const sentMsg = selectedChat.isGroup
+        ? await communityAPI.sendGroupMessage(selectedChat.id, formData)
+        : await communityAPI.sendMessage(formData);
+      const data = sentMsg.success ? sentMsg.data : sentMsg;
+      setMessages((prev) => {
+        const next = [...prev, data];
+        lastMsgIdRef.current = data.id || lastMsgIdRef.current;
+        return next;
+      });
       setMessage("");
       setAttachedFile(null);
     } catch (error) {
@@ -95,7 +243,7 @@ const ChatTab = () => {
       const response = await communityAPI.searchUser(searchEmail);
       if (response.success && response.data) setSearchResult(response.data);
       else setSearchError(response.message || "Không tìm thấy người dùng này!");
-    } catch (error) {
+    } catch {
       setSearchError("Lỗi kết nối khi tìm kiếm.");
     } finally {
       setIsSearching(false);
@@ -104,14 +252,22 @@ const ChatTab = () => {
 
   const handleSendFriendRequest = async () => {
     if (!searchResult) return;
+    if (isSendingRequest) return;
+    if (searchResult.friendship_status === "pending" || searchResult.friendship_status === "accepted") return;
+    setIsSendingRequest(true);
+
     try {
       const response = await communityAPI.sendFriendRequest(searchResult.id);
       if (response.success) {
         alert("Đã gửi lời mời!");
         setSearchResult((prev) => ({ ...prev, friendship_status: "pending" }));
-      } else setSearchError(response.message);
-    } catch (error) {
+      } else {
+        setSearchError(response.message);
+      }
+    } catch {
       setSearchError("Lỗi khi gửi lời mời!");
+    } finally {
+      setIsSendingRequest(false);
     }
   };
 
@@ -160,7 +316,7 @@ const ChatTab = () => {
         setGroupName("");
         setGroupDesc("");
       } else setGroupError(res.message);
-    } catch (e) {
+    } catch {
       setGroupError("Lỗi hệ thống khi tạo nhóm.");
     }
   };
@@ -177,7 +333,7 @@ const ChatTab = () => {
         setShowGroupAction(null);
         setInviteCode("");
       } else setGroupError(res.message);
-    } catch (e) {
+    } catch {
       setGroupError("Lỗi hệ thống khi tham gia nhóm.");
     }
   };
@@ -498,49 +654,166 @@ const ChatTab = () => {
             </p>
           </div>
         ) : selectedChat.isGroup ? (
-          <div className="group-manage-screen">
-            <div className="group-icon-large">
-              <i className="fa-solid fa-users"></i>
-            </div>
-            <h2 style={{ color: "#1e293b", marginBottom: "10px" }}>
-              {selectedChat.name}
-            </h2>
-            <p
-              style={{
-                color: "#475569",
-                maxWidth: "400px",
-                marginBottom: "20px",
-              }}
-            >
-              {selectedChat.description || "Nhóm học tập cộng đồng"}
-            </p>
-            <div className="invite-box">
-              <p
-                style={{
-                  margin: "0 0 10px 0",
-                  color: "#64748b",
-                  fontSize: "0.9rem",
-                }}
-              >
-                Mã Invite để mời bạn bè tham gia:
-              </p>
-              <div className="invite-code-row">
-                <span className="invite-code-text">
-                  {selectedChat.invite_code}
-                </span>
-                <button
-                  className="copy-btn"
-                  onClick={() => {
-                    navigator.clipboard.writeText(selectedChat.invite_code);
-                    alert("Đã copy mã Invite!");
-                  }}
-                  title="Copy mã"
-                >
-                  <i className="fa-regular fa-copy"></i>
+          <>
+            <div className="chat-header group-chat-header">
+              <div className="chat-header-info">
+                <div className="header-avatar" style={{ backgroundColor: "#8b5cf6" }}>
+                  <i className="fa-solid fa-users"></i>
+                </div>
+                <div>
+                  <h4>{selectedChat.name}</h4>
+                  <span className="status">
+                    {selectedChat.description || "Nhóm học tập cộng đồng"}
+                  </span>
+                  <p className="group-meta">
+                    <strong>{selectedChat.member_count || 0}</strong> thành viên • Vai trò: <strong>{selectedChat.my_role === "admin" ? "Trưởng nhóm" : "Thành viên"}</strong>
+                  </p>
+                </div>
+              </div>
+              <div className="group-header-actions">
+                <button className="leave-group-btn" onClick={handleLeaveGroup}>
+                  Rời nhóm
                 </button>
               </div>
             </div>
-          </div>
+            <div className="group-info-bar">
+              <div>
+                <p className="group-info-label">Mã Invite:</p>
+                <div className="invite-code-row">
+                  <span className="invite-code-text">{selectedChat.invite_code}</span>
+                  <button
+                    className="copy-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedChat.invite_code);
+                      alert("Đã copy mã Invite!");
+                    }}
+                    title="Copy mã"
+                  >
+                    <i className="fa-regular fa-copy"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="chat-messages" ref={messagesContainerRef}>
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`message-wrapper ${msg.isMine ? "mine" : "theirs"}`}
+                >
+                  <div className="message-bubble">
+                    {msg.message_type === "image" && msg.file_url && (
+                      <img
+                        className="msg-image"
+                        src={getFullUrl(msg.file_url)}
+                        alt="Đính kèm"
+                        onClick={() => window.open(getFullUrl(msg.file_url), "_blank")}
+                      />
+                    )}
+
+                    {msg.message_type === "file" && msg.file_url && (() => {
+                      const parts = msg.file_url.split('/');
+                      const filename = parts[parts.length - 1];
+                      const downloadUrl = `${BACKEND_URL}/api/community/download/${filename}`;
+                      return (
+                        <a
+                          className="msg-file-link"
+                          href={downloadUrl}
+                          download={msg.file_name || ''}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                            const url = downloadUrl;
+                            if (!url) e.preventDefault();
+                          }}
+                        >
+                          <i
+                            className="fa-solid fa-file-lines"
+                            style={{ fontSize: "1.5rem" }}
+                          ></i>
+                          <span
+                            style={{ fontWeight: "bold", wordBreak: "break-all" }}
+                          >
+                            {msg.file_name}
+                          </span>
+                          <i
+                            className="fa-solid fa-download"
+                            style={{ marginLeft: "auto" }}
+                          ></i>
+                        </a>
+                      );
+                    })()}
+
+                    {msg.content && <div>{msg.content}</div>}
+                    <span className="message-time">
+                      {new Date(msg.created_at).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="chat-input-container">
+              {attachedFile && (
+                <div className="file-preview-box">
+                  {attachedFile.type.startsWith("image/") ? (
+                    <img
+                      className="file-preview-img"
+                      src={URL.createObjectURL(attachedFile)}
+                      alt="Preview"
+                    />
+                  ) : (
+                    <i
+                      className="fa-solid fa-file-zipper"
+                      style={{ fontSize: "1.5rem", color: "#64748b" }}
+                    ></i>
+                  )}
+                  <div className="file-preview-info">
+                    <b>{attachedFile.name}</b>
+                  </div>
+                  <button
+                    className="remove-file-btn"
+                    onClick={() => setAttachedFile(null)}
+                  >
+                    <i
+                      className="fa-solid fa-circle-xmark"
+                      style={{ fontSize: "1.2rem" }}
+                    ></i>
+                  </button>
+                </div>
+              )}
+
+              <div className="chat-input-row">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  style={{ display: "none" }}
+                />
+                <button
+                  className="attach-btn"
+                  onClick={() => fileInputRef.current.click()}
+                  style={{ color: attachedFile ? "#3b82f6" : "#64748b" }}
+                >
+                  <i className="fa-solid fa-paperclip"></i>
+                </button>
+                <input
+                  type="text"
+                  placeholder={
+                    attachedFile ? "Thêm lời nhắn..." : "Nhập tin nhắn..."
+                  }
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+                />
+                <button className="send-btn" onClick={handleSendMessage}>
+                  <i className="fa-solid fa-paper-plane"></i>
+                </button>
+              </div>
+            </div>
+          </>
         ) : (
           <>
             <div className="chat-header">
@@ -564,12 +837,95 @@ const ChatTab = () => {
                   </span>
                 </div>
               </div>
-              <button className="chat-options-btn">
-                <i className="fa-solid fa-ellipsis-vertical"></i>
-              </button>
+              <div className="chat-options-container" ref={chatOptionsRef}>
+                <button
+                  className="chat-options-btn"
+                  onClick={toggleChatOptionsMenu}
+                  type="button"
+                >
+                  <i className="fa-solid fa-ellipsis-vertical"></i>
+                </button>
+                {showChatOptionsMenu && (
+                  <div className="chat-options-menu">
+                    <button
+                      className="chat-options-item"
+                      type="button"
+                      onClick={handleTogglePinChat}
+                    >
+                      <i className="fa-solid fa-thumbtack"></i>
+                      {isChatPinned ? "Bỏ ghim hội thoại" : "Ghim hội thoại"}
+                    </button>
+                    <button
+                      className="chat-options-item"
+                      type="button"
+                      onClick={handleClassifyChat}
+                    >
+                      <i className="fa-solid fa-tags"></i>
+                      Phân loại
+                    </button>
+                    <button
+                      className="chat-options-item"
+                      type="button"
+                      onClick={handleMarkUnread}
+                    >
+                      <i className="fa-solid fa-envelope-open-text"></i>
+                      Đánh dấu chưa đọc
+                    </button>
+                    <button
+                      className="chat-options-item"
+                      type="button"
+                      onClick={handleAddToGroup}
+                    >
+                      <i className="fa-solid fa-users"></i>
+                      Thêm vào nhóm
+                    </button>
+                    <button
+                      className="chat-options-item"
+                      type="button"
+                      onClick={handleToggleMuteChat}
+                    >
+                      <i className="fa-solid fa-bell-slash"></i>
+                      {isChatMuted ? "Bật thông báo" : "Tắt thông báo"}
+                    </button>
+                    <button
+                      className="chat-options-item"
+                      type="button"
+                      onClick={handleHideChat}
+                    >
+                      <i className="fa-solid fa-eye-slash"></i>
+                      Ẩn trò chuyện
+                    </button>
+                    <button
+                      className="chat-options-item"
+                      type="button"
+                      onClick={handleToggleAutoDelete}
+                    >
+                      <i className="fa-solid fa-hourglass-half"></i>
+                      {isAutoDeleteEnabled ? "Tắt tin nhắn tự xóa" : "Tin nhắn tự xóa"}
+                    </button>
+                    <div className="chat-options-divider" />
+                    <button
+                      className="chat-options-item"
+                      type="button"
+                      onClick={handleDeleteConversation}
+                    >
+                      <i className="fa-solid fa-trash"></i>
+                      Xóa hội thoại
+                    </button>
+                    <button
+                      className="chat-options-item"
+                      type="button"
+                      onClick={handleReportConversation}
+                    >
+                      <i className="fa-solid fa-flag"></i>
+                      Báo xấu
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="chat-messages">
+            <div className="chat-messages" ref={messagesContainerRef}>
               {messages.map((msg) => (
                 <div
                   key={msg.id}
@@ -579,36 +935,44 @@ const ChatTab = () => {
                     {msg.message_type === "image" && msg.file_url && (
                       <img
                         className="msg-image"
-                        src={`${BACKEND_URL}${msg.file_url}`}
+                        src={getFullUrl(msg.file_url)}
                         alt="Đính kèm"
-                        onClick={() =>
-                          window.open(`${BACKEND_URL}${msg.file_url}`, "_blank")
-                        }
+                        onClick={() => window.open(getFullUrl(msg.file_url), "_blank")}
                       />
                     )}
 
-                    {msg.message_type === "file" && msg.file_url && (
-                      <a
-                        className="msg-file-link"
-                        href={`${BACKEND_URL}${msg.file_url}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <i
-                          className="fa-solid fa-file-lines"
-                          style={{ fontSize: "1.5rem" }}
-                        ></i>
-                        <span
-                          style={{ fontWeight: "bold", wordBreak: "break-all" }}
+                    {msg.message_type === "file" && msg.file_url && (() => {
+                      const parts = msg.file_url.split('/');
+                      const filename = parts[parts.length - 1];
+                      const downloadUrl = `${BACKEND_URL}/api/community/download/${filename}`;
+                      return (
+                        <a
+                          className="msg-file-link"
+                          href={downloadUrl}
+                          download={msg.file_name || ''}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                            const url = downloadUrl;
+                            if (!url) e.preventDefault();
+                          }}
                         >
-                          {msg.file_name}
-                        </span>
-                        <i
-                          className="fa-solid fa-download"
-                          style={{ marginLeft: "auto" }}
-                        ></i>
-                      </a>
-                    )}
+                          <i
+                            className="fa-solid fa-file-lines"
+                            style={{ fontSize: "1.5rem" }}
+                          ></i>
+                          <span
+                            style={{ fontWeight: "bold", wordBreak: "break-all" }}
+                          >
+                            {msg.file_name}
+                          </span>
+                          <i
+                            className="fa-solid fa-download"
+                            style={{ marginLeft: "auto" }}
+                          ></i>
+                        </a>
+                      );
+                    })()}
 
                     {msg.content && <div>{msg.content}</div>}
                     <span className="message-time">

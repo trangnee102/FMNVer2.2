@@ -108,4 +108,15 @@ export const communityAPI = {
     }),
 
   getMyGroups: () => fetchWithAuth("/community/groups", { method: "GET" }),
+  getGroupMessages: (groupId) =>
+    fetchWithAuth(`/community/groups/${groupId}/messages`, { method: "GET" }),
+  sendGroupMessage: (groupId, formData) =>
+    fetchWithAuth(`/community/groups/${groupId}/messages`, {
+      method: "POST",
+      body: formData,
+    }),
+  leaveGroup: (groupId) =>
+    fetchWithAuth(`/community/groups/${groupId}/leave`, {
+      method: "POST",
+    }),
 };
