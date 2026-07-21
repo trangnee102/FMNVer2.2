@@ -120,9 +120,7 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
     setStartTime(Date.now());
   }, [currentIndex]);
 
-  const handleRating = (rating) => {
-    if (isSessionFinished) return; // Chặn bấm thêm nếu đã hoàn thành
-
+  const handleRating = async (rating) => {
     const currentCard = cards[currentIndex];
     const token = localStorage.getItem("token");
     const durationMs = Date.now() - startTime;
@@ -148,15 +146,16 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
       setSessionStats(prev => ({ ...prev, passed: prev.passed + 1 }));
     }
 
-    setIsFlipped(false);
-
-    // Kiểm tra xem còn thẻ tiếp theo hay không
     if (currentIndex < cards.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
+      setIsFlipped(false);
+      setTimeout(() => {
+        setCurrentIndex((prev) => prev + 1);
+      }, 150);
     } else {
-      // Đã là thẻ cuối cùng: Hiển thị ngay bảng tổng kết không độ trễ
       localStorage.removeItem(`review_progress_${deckId}`);
-      setIsSessionFinished(true); 
+      setIsSessionFinished(true);
+      alert("🎉 Chúc mừng! Cậu đã hoàn thành phiên ôn tập này!");
+      if (onFinish) onFinish();
     }
   };
 
@@ -190,38 +189,38 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
         <div style={{ background: "white", padding: "40px", borderRadius: "16px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", textAlign: "center", maxWidth: "500px", width: "100%" }}>
           {errorMsg ? (
-             <>
-               <h2 style={{ color: "#ef4444", fontSize: "1.5rem", marginBottom: "15px" }}>Đã xảy ra sự cố</h2>
-               <p style={{ color: "#475569", fontSize: "1rem", lineHeight: "1.5", marginBottom: "30px" }}>{errorMsg}</p>
-               <button
-                 onClick={onFinish}
-                 style={{ padding: "12px 24px", cursor: "pointer", background: "#3b82f6", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold" }}
-               >
-                 Trở về Trang chủ
-               </button>
-             </>
+              <>
+                <h2 style={{ color: "#ef4444", fontSize: "1.5rem", marginBottom: "15px" }}>Đã xảy ra sự cố</h2>
+                <p style={{ color: "#475569", fontSize: "1rem", lineHeight: "1.5", marginBottom: "30px" }}>{errorMsg}</p>
+                <button
+                  onClick={onFinish}
+                  style={{ padding: "12px 24px", cursor: "pointer", background: "#3b82f6", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold" }}
+                >
+                  Trở về Trang chủ
+                </button>
+              </>
           ) : (
-             <>
-               <div style={{ fontSize: "3rem", marginBottom: "20px" }}>🏆</div>
-               <h2 style={{ color: "#1e293b", fontSize: "1.5rem", marginBottom: "15px" }}>Đã hoàn thành mục tiêu học tập</h2>
-               <p style={{ color: "#475569", fontSize: "1rem", lineHeight: "1.5", marginBottom: "30px" }}>
-                 Hiện tại không còn thẻ nào đến hạn ôn tập trong hôm nay. Bạn có muốn tiếp tục ôn tập lại toàn bộ danh sách thẻ trong bộ này không?
-               </p>
-               <div style={{ display: "flex", gap: "15px", justifyContent: "center" }}>
-                 <button
-                   onClick={onFinish}
-                   style={{ flex: 1, padding: "12px", cursor: "pointer", background: "#f1f5f9", color: "#475569", border: "none", borderRadius: "8px", fontWeight: "bold" }}
-                 >
-                   Trở về Trang chủ
-                 </button>
-                 <button
-                   onClick={handleReviewAllAgain}
-                   style={{ flex: 1, padding: "12px", cursor: "pointer", background: "#3b82f6", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold" }}
-                 >
-                   Tiếp tục ôn tập
-                 </button>
-               </div>
-             </>
+              <>
+                <div style={{ fontSize: "3rem", marginBottom: "20px" }}>🏆</div>
+                <h2 style={{ color: "#1e293b", fontSize: "1.5rem", marginBottom: "15px" }}>Đã hoàn thành mục tiêu học tập</h2>
+                <p style={{ color: "#475569", fontSize: "1rem", lineHeight: "1.5", marginBottom: "30px" }}>
+                  Hiện tại không còn thẻ nào đến hạn ôn tập trong hôm nay. Bạn có muốn tiếp tục ôn tập lại toàn bộ danh sách thẻ trong bộ này không?
+                </p>
+                <div style={{ display: "flex", gap: "15px", justifyContent: "center" }}>
+                  <button
+                    onClick={onFinish}
+                    style={{ flex: 1, padding: "12px", cursor: "pointer", background: "#f1f5f9", color: "#475569", border: "none", borderRadius: "8px", fontWeight: "bold" }}
+                  >
+                    Trở về Trang chủ
+                  </button>
+                  <button
+                    onClick={handleReviewAllAgain}
+                    style={{ flex: 1, padding: "12px", cursor: "pointer", background: "#3b82f6", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold" }}
+                  >
+                    Tiếp tục ôn tập
+                  </button>
+                </div>
+              </>
           )}
         </div>
       </div>
