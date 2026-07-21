@@ -69,7 +69,7 @@ const CreateCardAIPage = ({ onNavigate }) => {
       formData.append("text", text);
       if (file) formData.append("file", file);
 
-      // 👉 ĐÃ PHẪU THUẬT: Lệnh tối thượng kép (Vừa ép [MATH] vừa ép JSON chuẩn)
+      // 👉 Định dạng ép [MATH] và JSON chuẩn
       const mathInstruction = `LƯU Ý TỐI QUAN TRỌNG VỀ ĐỊNH DẠNG:
 1. BẮT BUỘC trả về KẾT QUẢ DUY NHẤT là một MẢNG JSON HỢP LỆ. Tuyệt đối không chèn thêm bất kỳ văn bản chào hỏi hay giải thích nào bên ngoài mảng JSON (không dùng markdown \`\`\`json).
 2. Trong nội dung thẻ, BẮT BUỘC bọc TẤT CẢ các công thức và ký hiệu toán học vào giữa 2 thẻ [MATH] và [/MATH]. (Ví dụ: [MATH]\\cos(a-b)[/MATH]). Không dùng dấu $ hay $$.
@@ -103,12 +103,17 @@ const CreateCardAIPage = ({ onNavigate }) => {
   };
 
   const handleSaveCards = async () => {
-    if (generatedCards.length === 0) return;
+    if (generatedCards.length === 0) {
+      alert("Chưa có thẻ nào được tạo ra cả!");
+      return;
+    }
     if (isNewTopic && !topic.trim()) {
+      alert("⚠️ Cậu chưa nhập Tên bộ thẻ kìa! Điền vào ô bên trái nhé.");
       setError("Vui lòng nhập tên cho bộ thẻ mới trước khi lưu!");
       return;
     }
     if (!isNewTopic && !topic) {
+      alert("⚠️ Cậu chưa chọn Bộ thẻ nào để lưu vào cả!");
       setError("Vui lòng chọn bộ thẻ để lưu hoặc tạo bộ thẻ mới!");
       return;
     }
@@ -118,25 +123,35 @@ const CreateCardAIPage = ({ onNavigate }) => {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:5000/api/ai/save", {
+
+      // 👉 GỌI ĐÚNG API /decks/bulk VÀ ĐỔI TOPIC THÀNH TITLE
+      const response = await fetch("http://localhost:5000/api/decks/bulk", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ topic, cards: generatedCards }),
+        body: JSON.stringify({
+          title: topic,
+          description: "Tạo tự động bằng AI",
+          is_public: false,
+          cards: generatedCards,
+        }),
       });
 
       const data = await response.json();
+
       if (response.ok) {
-        alert("🎉 " + data.message);
+        alert("🎉 " + (data.message || "Lưu thẻ thành công!"));
         setGeneratedCards([]);
         setAiMessage("");
         if (onNavigate) onNavigate("my-decks");
       } else {
+        alert("🚨 Lỗi: " + (data.message || "Không lưu được thẻ!"));
         setError(data.message || "Lỗi khi lưu thẻ!");
       }
     } catch (err) {
+      alert("🚨 Đứt kết nối với Server!");
       setError("Không thể kết nối đến server khi lưu thẻ.");
     } finally {
       setIsSaving(false);
