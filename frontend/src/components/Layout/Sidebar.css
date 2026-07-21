@@ -1,4 +1,6 @@
-/* GIỮ NGUYÊN CSS CŨ CỦA CẬU */
+/* =======================================
+   CẤU TRÚC CHÍNH CỦA SIDEBAR
+======================================= */
 .sidebar {
   width: 250px;
   height: 100vh;
@@ -9,27 +11,37 @@
   flex-direction: column;
   padding: 20px;
 }
+
 .sidebar.collapsed {
   width: 80px;
   padding: 20px 10px;
 }
+
 .sidebar-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 40px;
 }
+
+/* 👉 ĐÃ THÊM: Căn giữa icon 3 gạch khi Sidebar bị đóng */
+.sidebar.collapsed .sidebar-header {
+  justify-content: center;
+}
+
 .logo {
   color: var(--primary);
   font-weight: 900;
   font-size: 1.1rem;
   letter-spacing: 1px;
 }
+
 .hamburger {
   cursor: pointer;
   color: var(--text-gray);
   font-size: 1.2rem;
 }
+
 .sidebar-menu {
   display: flex;
   flex-direction: column;
@@ -54,11 +66,13 @@
   transition: 0.2s;
   white-space: nowrap;
 }
+
 .menu-item i {
   font-size: 1.1rem;
   width: 24px;
   text-align: center;
 }
+
 .menu-item:hover,
 .menu-item.active {
   background: var(--primary-light);
@@ -72,6 +86,7 @@
   font-size: 0.8rem !important;
   transition: transform 0.3s ease;
 }
+
 .menu-group:hover .submenu-arrow {
   transform: rotate(180deg);
 }
@@ -103,6 +118,7 @@
   font-size: 0.95rem;
   white-space: nowrap;
 }
+
 .submenu-item:hover {
   color: var(--primary);
   background: var(--primary-light);

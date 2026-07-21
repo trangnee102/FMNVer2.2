@@ -2,7 +2,18 @@ import React, { useState } from "react";
 import "./Sidebar.css";
 
 const Sidebar = ({ currentView, onNavigate }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // 👉 ĐÃ SỬA: Lấy trạng thái từ localStorage để giữ nguyên khi chuyển trang
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    const savedState = localStorage.getItem("sidebar_collapsed");
+    return savedState !== null ? JSON.parse(savedState) : false; 
+  });
+
+  // 👉 ĐÃ SỬA: Hàm xử lý đóng/mở và lưu lại trạng thái vào bộ nhớ
+  const toggleSidebar = () => {
+    const newState = !isCollapsed;
+    setIsCollapsed(newState);
+    localStorage.setItem("sidebar_collapsed", JSON.stringify(newState));
+  };
 
   // 👉 ĐÃ THÊM: Mảng subItems cho Cộng đồng
   const menuItems = [
@@ -59,11 +70,20 @@ const Sidebar = ({ currentView, onNavigate }) => {
 
   return (
     <div className={`sidebar ${isCollapsed ? "collapsed" : ""}`}>
-      <div className="sidebar-header">
+      {/* 👉 ĐÃ SỬA: Thêm inline-style để căn giữa icon 3 gạch khi Sidebar thu nhỏ */}
+      <div 
+        className="sidebar-header" 
+        style={{ 
+          display: "flex", 
+          justifyContent: isCollapsed ? "center" : "space-between",
+          alignItems: "center"
+        }}
+      >
         {!isCollapsed && <span className="logo">FORGETMENOT</span>}
         <i
           className="fa-solid fa-bars hamburger"
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          onClick={toggleSidebar}
+          style={{ cursor: "pointer" }}
         ></i>
       </div>
 
