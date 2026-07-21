@@ -5,10 +5,10 @@ import DashboardStats from "../components/Dashboard/DashboardStats";
 import DashboardActions from "../components/Dashboard/DashboardActions";
 import DeckList from "../components/Dashboard/DeckList";
 import CalendarWidget from "../components/Dashboard/CalendarWidget";
+import CramModeModal from "../components/Modals/CramModeModal"; 
 import "./DashboardPage.css";
 
 const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
-  // 👉 ĐÃ SỬA: Ưu tiên lấy tên thật từ localStorage ngay khi trang vừa load
   const getInitialName = () => {
     try {
       const userStr = localStorage.getItem("user");
@@ -23,15 +23,15 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
   };
 
   const [userData, setUserData] = useState({
-    name: getInitialName(), // Gọi hàm lấy tên
+    name: getInitialName(),
     streak: 0,
   });
 
   const [decks, setDecks] = useState([]);
   const [examDates, setExamDates] = useState([]);
+  const [isCramModalOpen, setIsCramModalOpen] = useState(false);
 
   useEffect(() => {
-    // Nếu App.js đẩy tên mới vào và localStorage không có, thì cập nhật
     if (dynamicName && userData.name === "Người dùng") {
       setUserData((prev) => ({ ...prev, name: dynamicName }));
     }
@@ -47,20 +47,20 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          },
+          }
         );
 
         if (response.ok) {
           const data = await response.json();
+          
           if (data.user) {
             setUserData((prev) => ({
               ...prev,
               ...data.user,
-              // 👉 ĐÃ SỬA: Luôn ưu tiên tên mới nhất từ Database trả về
               name: data.user.full_name || data.user.name || prev.name,
+              streak: data.user.streak || 0,
             }));
 
-            // 👉 Cập nhật luôn lại vào localStorage cho chắc cốp
             const existingUserStr = localStorage.getItem("user");
             if (existingUserStr) {
               const existingUser = JSON.parse(existingUserStr);
@@ -72,10 +72,8 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
           if (data.decks) {
             const augmentedDecks = data.decks.map((deck) => {
               const savedSettings =
-                JSON.parse(localStorage.getItem(`cram_settings_${deck.id}`)) ||
-                {};
-              const activeExamDate =
-                savedSettings.examDate || deck.exam_date || null;
+                JSON.parse(localStorage.getItem(`cram_settings_${deck.id}`)) || {};
+              const activeExamDate = savedSettings.examDate || deck.exam_date || null;
 
               let daysLeft = null;
               if (activeExamDate) {
@@ -118,17 +116,11 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
     };
 
     fetchDashboardData();
-  }, [dynamicName]); // Bỏ userData.name ra khỏi mảng này để tránh loop vô hạn
+  }, [dynamicName]); 
 
   const totalDecks = decks.length;
-  const totalDueCards = decks.reduce(
-    (sum, deck) => sum + (deck.dueCards || 0),
-    0,
-  );
-  const totalMastered = decks.reduce(
-    (sum, deck) => sum + (deck.masteredCards || 0),
-    0,
-  );
+  const totalDueCards = decks.reduce((sum, deck) => sum + (deck.dueCards || 0), 0);
+  const totalMastered = decks.reduce((sum, deck) => sum + (deck.masteredCards || 0), 0);
 
   const handleStudyClick = (deckId) => {
     const targetDeck = decks.find((d) => d.id === deckId);
@@ -136,13 +128,34 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
 
     if (dueCount === 0) {
       const userWantsToForce = window.confirm(
-        "✨ Cậu đã học xong bài hôm nay rồi!\n\nCậu có muốn 'vượt rào' học trước các thẻ chưa đến hạn của bộ này không?",
+        "Bạn đã hoàn thành lịch ôn tập hôm nay cho bộ thẻ này.\n\nBạn có muốn tiếp tục ôn tập lại toàn bộ danh sách thẻ không?"
       );
       if (userWantsToForce) {
         onStudy(deckId, true);
       }
     } else {
       onStudy(deckId, false);
+    }
+  };
+
+  // 👉 HÀM TỰ ĐỘNG CHỌN BỘ THẺ KHI BẤM NÚT "BẮT ĐẦU HỌC" TO NGOÀI TRANG CHỦ
+  const handleStartGlobalStudy = () => {
+    // Ưu tiên 1: Tìm bộ thẻ có thẻ đang đến hạn
+    const deckWithDueCards = decks.find((d) => (d.dueCards || 0) > 0);
+    
+    if (deckWithDueCards) {
+      onStudy(deckWithDueCards.id, false);
+    } else if (decks.length > 0) {
+      // Nếu bộ nào cũng học xong rồi, hỏi xem có muốn học lại bộ đầu tiên trong danh sách không
+      const confirmForce = window.confirm(
+        "Hôm nay bạn đã học xong toàn bộ thẻ rồi!\n\nBạn có muốn tiếp tục ôn tập lại từ đầu bộ thẻ đầu tiên không?"
+      );
+      if (confirmForce) {
+        onStudy(decks[0].id, true);
+      }
+    } else {
+      alert("Bạn chưa có bộ thẻ nào. Hãy tạo bộ thẻ mới nhé!");
+      onNavigate("create");
     }
   };
 
@@ -157,7 +170,7 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
           <DashboardStats
             totalDueCards={totalDueCards}
             totalMastered={totalMastered}
-            streak={`${userData.streak} ngày`}
+            streak={userData.streak} 
             totalDecks={totalDecks}
           />
 
@@ -166,6 +179,8 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
               <DashboardActions
                 totalDueCards={totalDueCards}
                 onNavigate={onNavigate}
+                onStartStudy={handleStartGlobalStudy} // 👉 Truyền hàm học thông minh xuống đây
+                onOpenCramModal={() => setIsCramModalOpen(true)}
               />
               <DeckList
                 decks={decks}
@@ -180,6 +195,13 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
           </div>
         </div>
       </main>
+
+      <CramModeModal
+        isOpen={isCramModalOpen}
+        onClose={() => setIsCramModalOpen(false)}
+        decks={decks}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 };

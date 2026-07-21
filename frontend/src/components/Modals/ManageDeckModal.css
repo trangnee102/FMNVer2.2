@@ -1,254 +1,295 @@
 /* frontend/src/components/Modals/ManageDeckModal.css */
 
-/* --- HEADER QUẢN LÝ --- */
-.manage-modal-subtitle {
-  color: #718096;
-  font-size: 0.85rem;
-  font-weight: bold;
-  margin-bottom: 5px;
-}
-.edit-title-group {
+/* --- OVERLAY & MODAL CONTAINER --- */
+.cram-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 23, 42, 0.7); /* Tối hơn 1 chút để tập trung vào modal */
+  backdrop-filter: blur(4px);
   display: flex;
-  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  padding: 20px;
 }
+
+.manage-modal {
+  background: #ffffff;
+  width: 100%;
+  max-width: 750px; /* Nới rộng ra một chút để đọc chữ thoải mái hơn */
+  
+  /* ĐÂY LÀ CHÌA KHÓA FIX LỖI "BỊ XẸP LÉP" NHƯ TRONG ẢNH CỦA BẠN */
+  height: 85vh; /* Ép modal luôn cao 85% màn hình */
+  max-height: 900px; /* Tránh cao quá mức trên màn hình 4K */
+  
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden; 
+}
+
+/* --- HEADER QUẢN LÝ --- */
+.manage-modal-header {
+  padding: 20px 24px 12px; /* Thu gọn padding để tiết kiệm diện tích */
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-shrink: 0; 
+}
+.manage-modal-subtitle {
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.edit-title-group { display: flex; gap: 8px; }
 .edit-title-input {
-  padding: 8px;
-  border-radius: 6px;
-  border: 2px solid #3182ce;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 2px solid #3b82f6;
   width: 100%;
   font-weight: bold;
+  font-size: 1.1rem;
   outline: none;
 }
 .btn-save-title {
-  padding: 8px 12px;
-  background: #3182ce;
-  color: white;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  font-weight: bold;
+  padding: 8px 16px; background: #3b82f6; color: white; border-radius: 8px;
+  border: none; cursor: pointer; font-weight: bold;
 }
 .btn-cancel-title {
-  padding: 8px 12px;
-  background: #e2e8f0;
-  color: #4a5568;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
+  padding: 8px 16px; background: #f1f5f9; color: #475569; border-radius: 8px;
+  border: none; cursor: pointer; font-weight: bold;
 }
+
 .manage-deck-title {
   margin: 0;
-  color: #2d3748;
+  color: #0f172a;
+  font-size: 1.5rem;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  line-height: 1.2;
 }
 .btn-edit-title {
-  background: none;
-  border: none;
-  color: #3182ce;
-  cursor: pointer;
-  font-size: 1rem;
+  background: none; border: none; color: #94a3b8; cursor: pointer;
+  font-size: 1.1rem; transition: color 0.2s; padding: 4px;
 }
+.btn-edit-title:hover { color: #3b82f6; }
+
 .btn-delete-deck {
-  padding: 8px 15px;
-  background: #fee2e2;
-  color: #ef4444;
-  border: 1px solid #fca5a5;
-  border-radius: 6px;
+  padding: 10px 16px;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 600;
   white-space: nowrap;
+  transition: all 0.2s;
 }
+.btn-delete-deck:hover { background: #fee2e2; border-color: #fca5a5; }
 
 /* --- KHU VỰC CÀI ĐẶT CHIA SẺ --- */
 .share-settings-container {
-  margin-top: 15px;
-  padding: 12px;
+  padding: 12px 24px;
   background: #f8fafc;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
 }
-.share-settings-title {
-  margin: 0 0 10px 0;
-  color: #4a5568;
-  font-size: 0.95rem;
+.share-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px; /* Dàn hàng ngang để đỡ tốn chiều cao */
+  align-items: center;
 }
 .share-label {
   display: flex;
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  margin-bottom: 8px;
 }
-.share-label.disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-.share-checkbox {
-  width: 16px;
-  height: 16px;
-}
-.share-text-primary {
-  font-size: 0.9rem;
-  color: #334155;
-  font-weight: bold;
-}
-.share-text-secondary {
-  font-size: 0.9rem;
-  color: #334155;
+.share-label.disabled { cursor: not-allowed; opacity: 0.5; }
+.share-checkbox { width: 16px; height: 16px; accent-color: #3b82f6; cursor: inherit; }
+.share-text-primary { font-size: 0.95rem; color: #1e293b; font-weight: 600; }
+.share-text-secondary { font-size: 0.9rem; color: #475569; font-weight: 500;}
+
+/* --- KHU VỰC THÂN MODAL (CHIẾM TOÀN BỘ CHỖ TRỐNG CHÍNH GIỮA) --- */
+.manage-modal-body-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* Lấp đầy chiều cao 85vh */
+  overflow: hidden; 
+  padding: 16px 24px 0 24px;
 }
 
-/* --- DANH SÁCH THẺ CHUẨN --- */
-.manage-modal-body-content {
-  margin-top: 15px;
+.card-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-shrink: 0;
 }
 .card-list-title {
-  margin: 0 0 15px 0;
-  color: #4a5568;
+  margin: 0;
+  color: #1e293b;
+  font-size: 1.1rem;
+  font-weight: 700;
 }
+.card-list-title span {
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* --- DANH SÁCH THẺ (CHỈ XUẤT HIỆN THANH CUỘN Ở ĐÂY) --- */
 .card-list-container {
+  flex: 1; 
+  overflow-y: auto; 
+  padding-right: 12px; 
+  padding-bottom: 10px;
   display: flex;
   flex-direction: column;
+  gap: 12px;
 }
+.card-list-container::-webkit-scrollbar { width: 6px; }
+.card-list-container::-webkit-scrollbar-track { background: transparent; }
+.card-list-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+.card-list-container::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* UI THẺ (THIẾT KẾ LẠI ĐẸP, THOÁNG VÀ CHUYÊN NGHIỆP HƠN) */
 .card-item-box {
-  padding: 10px;
-  margin-bottom: 8px;
+  padding: 16px;
   background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-}
-.card-edit-form {
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  transition: all 0.2s ease;
 }
-.card-edit-input {
-  padding: 8px;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  outline: none;
+.card-item-box:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
-.card-edit-input:focus {
-  border-color: #3b82f6;
-}
-.card-edit-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-}
-.btn-cancel-card {
-  padding: 6px 12px;
-  background: #e2e8f0;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.btn-save-card {
-  padding: 6px 12px;
-  background: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-}
+
 .card-front-text {
-  font-weight: bold;
-  color: #2d3748;
-  margin-bottom: 4px;
-  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  margin-bottom: 10px;
 }
-.card-index {
-  color: #a0aec0;
-  margin-right: 8px;
-}
-.card-back-text {
-  color: #4a5568;
+.card-index { 
+  color: #3b82f6; 
+  margin-right: 10px; 
+  font-weight: 800;
+  background: #eff6ff;
+  padding: 2px 8px;
+  border-radius: 6px;
   font-size: 0.85rem;
 }
-.card-list-actions {
-  margin-top: 8px;
-  display: flex;
-  gap: 8px;
-}
-.btn-edit-card {
-  font-size: 0.75rem;
-  padding: 4px 8px;
-  background: #e0e7ff;
-  border: 1px solid #c7d2fe;
-  border-radius: 4px;
-  cursor: pointer;
-  color: #4338ca;
-  font-weight: bold;
-}
-.btn-delete-card {
-  font-size: 0.75rem;
-  padding: 4px 8px;
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  border-radius: 4px;
-  cursor: pointer;
-  color: #ef4444;
-  font-weight: bold;
+
+/* Mặt sau (đáp án) được highlight khung riêng biệt */
+.card-back-text {
+  color: #334155;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  background: #f8fafc; /* Nền xám nhạt */
+  padding: 12px 16px;
+  border-radius: 8px;
+  border-left: 4px solid #cbd5e1; /* Thanh màu bên trái */
 }
 
-/* --- FORM THÊM THẺ MỚI --- */
+.card-list-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.btn-edit-card, .btn-delete-card {
+  font-size: 0.85rem;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+}
+.btn-edit-card { background: #eff6ff; border: 1px solid #bfdbfe; color: #2563eb; }
+.btn-edit-card:hover { background: #dbeafe; }
+.btn-delete-card { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+.btn-delete-card:hover { background: #fee2e2; }
+
+/* --- FORM SỬA/THÊM THẺ --- */
+.card-edit-form { display: flex; flex-direction: column; gap: 10px; }
+.card-edit-input, .card-edit-textarea {
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  outline: none;
+  font-size: 0.95rem;
+  font-family: inherit;
+  resize: vertical; /* Cho phép kéo giãn textarea */
+}
+.card-edit-input:focus, .card-edit-textarea:focus { 
+  border-color: #3b82f6; 
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.1); 
+}
+.card-edit-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 4px;}
+.btn-cancel-card {
+  padding: 8px 16px; background: #f1f5f9; border: none; border-radius: 8px;
+  cursor: pointer; font-weight: 600; color: #475569;
+}
+.btn-save-card, .btn-confirm-add {
+  padding: 8px 16px; color: white; border: none;
+  border-radius: 8px; cursor: pointer; font-weight: 600;
+}
+.btn-save-card { background: #3b82f6; }
+.btn-save-card:hover { background: #2563eb; }
+.btn-confirm-add { background: #16a34a; }
+.btn-confirm-add:hover { background: #15803d; }
+
+
+/* --- KHU VỰC NÚT THÊM THẺ --- */
 .add-card-section {
-  margin-top: 15px;
-  border-top: 2px dashed #cbd5e1;
-  padding-top: 15px;
+  flex-shrink: 0;
+  padding: 16px 0;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 8px;
 }
 .add-card-form {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  padding: 12px;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px;
+  border-radius: 10px; display: flex; flex-direction: column; gap: 10px;
 }
-.add-card-title {
-  margin: 0 0 5px 0;
-  color: #166534;
-}
-.btn-confirm-add {
-  padding: 6px 12px;
-  background: #10b981;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-}
-.btn-trigger-add {
-  width: 100%;
-  padding: 10px;
-  background: #f8fafc;
-  border: 2px dashed #94a3b8;
-  border-radius: 8px;
-  color: #475569;
-  font-weight: bold;
-  cursor: pointer;
-  transition: 0.2s;
-}
-.btn-trigger-add:hover {
-  background: #f1f5f9;
-}
+.add-card-title { margin: 0 0 4px 0; color: #15803d; font-size: 1rem; }
 
-/* --- NÚT ĐÓNG --- */
+.btn-trigger-add {
+  width: 100%; padding: 14px; background: #f8fafc; border: 2px dashed #cbd5e1;
+  border-radius: 10px; color: #475569; font-weight: 700; cursor: pointer;
+  transition: all 0.2s; font-size: 0.95rem;
+}
+.btn-trigger-add:hover { background: #f1f5f9; border-color: #94a3b8; color: #334155; }
+
+
+/* --- NÚT ĐÓNG (FOOTER) --- */
+.manage-modal-footer {
+  padding: 16px 24px 24px;
+  background: #ffffff;
+  flex-shrink: 0;
+  border-top: 1px solid #f1f5f9; /* Đường vạch ngăn cách tinh tế */
+}
 .btn-close-modal {
-  margin-top: 20px;
-  padding: 10px;
-  background: #e2e8f0;
+  width: 100%;
+  padding: 14px;
+  background: #f1f5f9;
   color: #334155;
   border: none;
-  border-radius: 8px;
-  font-weight: bold;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1.05rem;
   cursor: pointer;
-  width: 100%;
-  transition: 0.2s;
+  transition: background 0.2s;
 }
-.btn-close-modal:hover {
-  background: #cbd5e1;
-}
+.btn-close-modal:hover { background: #e2e8f0; color: #0f172a;}

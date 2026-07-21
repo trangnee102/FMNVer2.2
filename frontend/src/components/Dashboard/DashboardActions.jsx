@@ -1,18 +1,17 @@
 import React from "react";
 import ActionCard from "../Cards/ActionCard";
 
-// 👉 ĐÃ SỬA: Nhận thêm onNavigate để có thể chuyển trang
-const DashboardActions = ({ totalDueCards, onNavigate }) => {
+const DashboardActions = ({ totalDueCards, onNavigate, onOpenCramModal, onStartStudy }) => {
   return (
     <div className="action-grid">
       <ActionCard
         title="Ôn tập ngay"
-        desc={`Bắt đầu với ${totalDueCards} thẻ cần ôn hôm nay`}
+        desc={`Bắt đầu với ${totalDueCards > 0 ? totalDueCards : 0} thẻ cần ôn hôm nay`}
         btnText="Bắt đầu học →"
         bgColor="#f5f3ff"
         btnVariant="primary"
-        // Chuyển sang Kho thẻ để chọn môn học
-        onClick={() => onNavigate("my-decks")}
+        // 👉 Gọi hàm tự động chọn bộ thẻ để học
+        onClick={onStartStudy} 
       />
 
       <ActionCard
@@ -21,7 +20,7 @@ const DashboardActions = ({ totalDueCards, onNavigate }) => {
         btnText="Tạo ngay →"
         bgColor="#ecfdf5"
         btnVariant="green"
-        // Bay thẳng sang trang Tạo thẻ
+        // 👉 Đảm bảo tên route này TRÙNG KHỚP với tên route tạo thẻ trong file Sidebar của bạn (thường là "create" hoặc "create-deck")
         onClick={() => onNavigate("create")}
       />
 
@@ -31,8 +30,8 @@ const DashboardActions = ({ totalDueCards, onNavigate }) => {
         btnText="Bật Cram Mode ⚡"
         bgColor="#fffbeb"
         btnVariant="orange"
-        // Bay sang Kho thẻ, nơi chứa các nút Bật Cram Mode
-        onClick={() => onNavigate("my-decks")}
+        // 👉 Bật Popup chọn bộ thẻ
+        onClick={onOpenCramModal}
       />
     </div>
   );
