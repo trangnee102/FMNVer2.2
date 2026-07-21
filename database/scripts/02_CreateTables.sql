@@ -1,4 +1,4 @@
--- Chạy đoạn lệnh này trong Database [FogetMeNotDB] của cậu trên SSMS 22
+-- Chạy đoạn lệnh này trong Database [ForgetMeNotDB] của cậu trên SSMS 22
 
 -- 1. Bảng Users (Quản lý tài khoản)
 CREATE TABLE Users (

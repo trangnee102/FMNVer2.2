@@ -31,10 +31,14 @@
 
 .create-page-container {
   display: flex;
-  gap: clamp(30px, 4vw, 70px);
+  flex-direction: row;
   justify-content: center;
+  align-items: stretch;
+  gap: 40px;
+
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
 
   /* 👉 CHÌA KHÓA: Khung chiếm 70% độ rộng màn hình, thẻ sẽ tự to ra */
-  width: 70vw;
-  max-width: 1600px;
-}

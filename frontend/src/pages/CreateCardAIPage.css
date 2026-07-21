@@ -31,14 +31,18 @@
 
 .create-page-container {
   display: flex;
-  gap: clamp(30px, 4vw, 70px);
+  flex-direction: row;
+  gap: 40px;
+  align-items: stretch;
   justify-content: center;
-  width: 70vw;
-  max-width: 1600px;
+
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .ai-input-section {
-  flex: 1;
+  width: 100%;;
   background: white;
   padding: clamp(20px, 3vw, 40px);
   border-radius: 20px;
@@ -49,7 +53,7 @@
 }
 
 .ai-preview-section {
-  flex: 1;
+  width: 100%;
   background: #f8fafc;
   padding: clamp(20px, 3vw, 40px);
   border-radius: 20px;

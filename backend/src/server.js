@@ -28,7 +28,7 @@ app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // API gốc (Lời chào hệ thống)
 app.get("/", (req, res) => {
-  res.json({ message: "Hệ thống FOGETMENOT đã khởi chạy!" });
+  res.json({ message: "Hệ thống FORGETMENOT đã khởi chạy!" });
 });
 
 // API TEST KẾT NỐI DATABASE

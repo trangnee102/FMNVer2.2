@@ -60,7 +60,7 @@ const Sidebar = ({ currentView, onNavigate }) => {
   return (
     <div className={`sidebar ${isCollapsed ? "collapsed" : ""}`}>
       <div className="sidebar-header">
-        {!isCollapsed && <span className="logo">FOGETMENOT</span>}
+        {!isCollapsed && <span className="logo">FORGETMENOT</span>}
         <i
           className="fa-solid fa-bars hamburger"
           onClick={() => setIsCollapsed(!isCollapsed)}
