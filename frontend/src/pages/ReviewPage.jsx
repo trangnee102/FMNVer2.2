@@ -91,46 +91,47 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
     setStartTime(Date.now());
   }, [currentIndex]);
 
-  const handleRating = async (rating) => {
+  // 🚀 ĐÃ NÂNG CẤP: Chuyển sang cơ chế Optimistic UI (Không bắt giao diện chờ đợi)
+  const handleRating = (rating) => {
     const currentCard = cards[currentIndex];
     const token = localStorage.getItem("token");
     const durationMs = Date.now() - startTime;
 
-    try {
-      await fetch("http://localhost:5000/api/study/review", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          flashcard_id: currentCard.id,
-          rating: rating,
-          duration_ms: durationMs,
-        }),
-      });
+    // 1. CẬP NHẬT GIAO DIỆN NGAY LẬP TỨC (Người dùng thấy thẻ chuyển liền tay)
+    let updatedCards = [...cards];
 
-      let updatedCards = [...cards];
-
-      if (rating === 1) {
-        updatedCards.push(currentCard);
-        setCards(updatedCards);
-      }
-
-      if (currentIndex < updatedCards.length - 1) {
-        setIsFlipped(false);
-        setTimeout(() => {
-          setCurrentIndex((prev) => prev + 1);
-        }, 150);
-      } else {
-        localStorage.removeItem(`review_progress_${deckId}`);
-        alert("🎉 Chúc mừng! Cậu đã hoàn thành phiên ôn tập này!");
-        if (onFinish) onFinish();
-      }
-    } catch (error) {
-      console.error("Lỗi khi cập nhật tiến độ học:", error);
-      alert("Lỗi khi gửi điểm! Vui lòng kiểm tra lại kết nối.");
+    // Nếu bấm Quên (1), nhét thẻ vào cuối danh sách để học lại
+    if (rating === 1) {
+      updatedCards.push(currentCard);
+      setCards(updatedCards);
     }
+
+    if (currentIndex < updatedCards.length - 1) {
+      setIsFlipped(false);
+      setTimeout(() => {
+        setCurrentIndex((prev) => prev + 1);
+      }, 150);
+    } else {
+      localStorage.removeItem(`review_progress_${deckId}`);
+      alert("🎉 Chúc mừng! Cậu đã hoàn thành phiên ôn tập này!");
+      if (onFinish) onFinish();
+    }
+
+    // 2. GỬI ĐIỂM NGẦM LÊN SERVER (Không dùng await, không Block giao diện)
+    fetch("http://localhost:5000/api/study/review", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        flashcard_id: currentCard.id,
+        rating: rating,
+        duration_ms: durationMs,
+      }),
+    }).catch((error) => {
+      console.error("Lỗi khi cập nhật tiến độ học ngầm:", error);
+    });
   };
 
   // Phím tắt bàn phím
