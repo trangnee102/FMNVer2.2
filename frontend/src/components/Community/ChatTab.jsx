@@ -32,6 +32,15 @@ const ChatTab = () => {
   const BACKEND_URL = "http://localhost:5000";
 
   // --- (CÁC HÀM XỬ LÝ LOGIC API VẪN GIỮ NGUYÊN) ---
+  // Ref giữ id tin nhắn cuối cùng để so sánh khi polling
+  const lastMsgIdRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+
+  const getFullUrl = (fileUrl) => {
+    if (!fileUrl) return null;
+    if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) return fileUrl;
+    return `${BACKEND_URL}${fileUrl.startsWith("/") ? "" : "/"}${fileUrl}`;
+  };
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -54,12 +63,66 @@ const ChatTab = () => {
       try {
         const data = await communityAPI.getMessages(selectedChat.id);
         setMessages(data);
+        lastMsgIdRef.current = data[data.length - 1]?.id || null;
       } catch (error) {
         console.error("Lỗi tải tin nhắn:", error);
       }
     };
     fetchMessages();
   }, [selectedChat]);
+
+  // Polling đơn giản: kiểm tra tin nhắn mới mỗi 2s khi đang mở cuộc trò chuyện
+  useEffect(() => {
+    if (!selectedChat || selectedChat.isGroup) return;
+    let mounted = true;
+    const pollInterval = setInterval(async () => {
+      try {
+        const data = await communityAPI.getMessages(selectedChat.id);
+        if (!mounted) return;
+
+        // If we have no messages yet, set directly
+        if (!messages || messages.length === 0) {
+          setMessages(data);
+          lastMsgIdRef.current = data[data.length - 1]?.id || null;
+          return;
+        }
+
+        // Merge new messages (append only new ones)
+        const prevLastId = lastMsgIdRef.current;
+        const newLastId = data[data.length - 1]?.id || null;
+        if (newLastId !== prevLastId) {
+          // find index of prevLastId in data
+          const prevIndex = data.findIndex((m) => m.id === prevLastId);
+          if (prevIndex === -1) {
+            // previous last not found: replace (fallback)
+            setMessages(data);
+          } else {
+            const toAppend = data.slice(prevIndex + 1);
+            if (toAppend.length > 0) {
+              setMessages((prev) => [...prev, ...toAppend]);
+            }
+          }
+          lastMsgIdRef.current = newLastId;
+        }
+      } catch (err) {
+        console.error("Lỗi polling tin nhắn:", err);
+      }
+    }, 1000);
+
+    return () => {
+      mounted = false;
+      clearInterval(pollInterval);
+    };
+  }, [selectedChat, messages]);
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      try {
+        messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+      } catch (e) {}
+    }
+  }, [messages]);
 
   const handleSendMessage = async () => {
     if (!selectedChat || selectedChat.isGroup) return;
@@ -72,7 +135,11 @@ const ChatTab = () => {
 
     try {
       const sentMsg = await communityAPI.sendMessage(formData);
-      setMessages((prev) => [...prev, sentMsg]);
+      setMessages((prev) => {
+        const next = [...prev, sentMsg];
+        lastMsgIdRef.current = sentMsg.id || lastMsgIdRef.current;
+        return next;
+      });
       setMessage("");
       setAttachedFile(null);
     } catch (error) {
@@ -569,7 +636,7 @@ const ChatTab = () => {
               </button>
             </div>
 
-            <div className="chat-messages">
+            <div className="chat-messages" ref={messagesContainerRef}>
               {messages.map((msg) => (
                 <div
                   key={msg.id}
@@ -579,36 +646,44 @@ const ChatTab = () => {
                     {msg.message_type === "image" && msg.file_url && (
                       <img
                         className="msg-image"
-                        src={`${BACKEND_URL}${msg.file_url}`}
+                        src={getFullUrl(msg.file_url)}
                         alt="Đính kèm"
-                        onClick={() =>
-                          window.open(`${BACKEND_URL}${msg.file_url}`, "_blank")
-                        }
+                        onClick={() => window.open(getFullUrl(msg.file_url), "_blank")}
                       />
                     )}
 
-                    {msg.message_type === "file" && msg.file_url && (
-                      <a
-                        className="msg-file-link"
-                        href={`${BACKEND_URL}${msg.file_url}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <i
-                          className="fa-solid fa-file-lines"
-                          style={{ fontSize: "1.5rem" }}
-                        ></i>
-                        <span
-                          style={{ fontWeight: "bold", wordBreak: "break-all" }}
+                    {msg.message_type === "file" && msg.file_url && (() => {
+                      const parts = msg.file_url.split('/');
+                      const filename = parts[parts.length - 1];
+                      const downloadUrl = `${BACKEND_URL}/api/community/download/${filename}`;
+                      return (
+                        <a
+                          className="msg-file-link"
+                          href={downloadUrl}
+                          download={msg.file_name || ''}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                            const url = downloadUrl;
+                            if (!url) e.preventDefault();
+                          }}
                         >
-                          {msg.file_name}
-                        </span>
-                        <i
-                          className="fa-solid fa-download"
-                          style={{ marginLeft: "auto" }}
-                        ></i>
-                      </a>
-                    )}
+                          <i
+                            className="fa-solid fa-file-lines"
+                            style={{ fontSize: "1.5rem" }}
+                          ></i>
+                          <span
+                            style={{ fontWeight: "bold", wordBreak: "break-all" }}
+                          >
+                            {msg.file_name}
+                          </span>
+                          <i
+                            className="fa-solid fa-download"
+                            style={{ marginLeft: "auto" }}
+                          ></i>
+                        </a>
+                      );
+                    })()}
 
                     {msg.content && <div>{msg.content}</div>}
                     <span className="message-time">
