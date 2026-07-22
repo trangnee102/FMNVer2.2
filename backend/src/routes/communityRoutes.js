@@ -1,86 +1,66 @@
 const express = require("express");
 const router = express.Router();
-const communityController = require("../controllers/communityController");
 
-// 👉 "Bóc hộp" để lấy đúng function. (Tên phổ biến nhất thường là verifyToken)
+// 👉 ĐÃ SỬA: Import 3 file controller mới từ thư mục con "community"
+const discoveryController = require("../controllers/community/discoveryController");
+const friendController = require("../controllers/community/friendController");
+const chatController = require("../controllers/community/chatController");
+
+// Lính gác bảo vệ và xử lý file
 const { verifyToken } = require("../middlewares/authMiddleware");
-
-// 👉 ĐÃ THÊM: Import lính gác Multer để xử lý file đính kèm
 const upload = require("../middlewares/uploadMiddleware");
 
-// Mở đường link API: GET /api/community/discovery
-router.get("/discovery", communityController.getDiscoveryDecks);
-
-// Mở đường link API: GET /api/community/leaderboard
-router.get("/leaderboard", communityController.getLeaderboard);
+// ==========================================
+// 1. KHÁM PHÁ & BẢNG XẾP HẠNG
+// ==========================================
+router.get("/discovery", discoveryController.getDiscoveryDecks);
+router.get("/leaderboard", discoveryController.getLeaderboard);
+router.get("/decks/:id", discoveryController.getDeckDetails);
+router.post("/decks/:id/clone", verifyToken, discoveryController.cloneDeck);
 
 // ==========================================
-// CÁC API CHO TAB CHAT & TÌM KIẾM
+// 2. TÌM KIẾM & KẾT BẠN
 // ==========================================
-router.get("/contacts", verifyToken, communityController.getContacts);
-router.get("/messages/:friendId", verifyToken, communityController.getMessages);
-
-// 👉 ĐÃ SỬA: Gắn lính gác Multer vào giữa: upload.single("file")
-// Nghĩa là: Khi Frontend gọi link này, Multer sẽ xé file ra lưu trước, rồi mới đưa data vào sendMessage
-router.post(
-  "/messages",
-  verifyToken,
-  upload.single("file"), // 👉 Chữ "file" này phải khớp với tên field bên Frontend gửi lên
-  communityController.sendMessage,
-);
-
-// Mở cổng cho API tìm kiếm bạn bè bằng Email
-router.get("/search", verifyToken, communityController.searchUserByEmail);
-
-// ==========================================
-// CÁC API CHO LỜI MỜI KẾT BẠN
-// ==========================================
-router.post(
-  "/friend-request",
-  verifyToken,
-  communityController.sendFriendRequest,
-);
+router.get("/search", verifyToken, friendController.searchUserByEmail);
+router.post("/friend-request", verifyToken, friendController.sendFriendRequest);
+router.get("/contacts", verifyToken, friendController.getContacts);
 router.get(
   "/friend-requests/pending",
   verifyToken,
-  communityController.getPendingRequests,
+  friendController.getPendingRequests,
 );
 router.post(
   "/friend-request/respond",
   verifyToken,
-  communityController.respondFriendRequest,
+  friendController.respondFriendRequest,
 );
 
 // ==========================================
-// CÁC API XEM VÀ TẢI BỘ THẺ CỘNG ĐỒNG
+// 3. HỆ SINH THÁI CHAT ZALO (CONVERSATIONS)
 // ==========================================
-// 🔓 Ai cũng xem được nội dung thẻ (Không cần lính gác)
-router.get("/decks/:id", communityController.getDeckDetails);
+// Lấy danh sách toàn bộ hộp thoại (cả bạn bè lẫn nhóm)
+router.get("/conversations", verifyToken, chatController.getMyConversations);
 
-// 🔒 NHƯNG Tải về (Clone) thì BẮT BUỘC phải đi qua lính gác
-router.post("/decks/:id/clone", verifyToken, communityController.cloneDeck);
+// Tạo nhóm mới / Nhập mã vào nhóm
+router.post("/groups", verifyToken, chatController.createGroup);
+router.post("/groups/join", verifyToken, chatController.joinGroup);
+router.post(
+  "/conversations/:groupId/leave",
+  verifyToken,
+  chatController.leaveGroup,
+);
 
-// ==========================================
-// CÁC API CHO NHÓM HỌC
-// ==========================================
-router.post("/groups", verifyToken, communityController.createGroup);
-router.post("/groups/join", verifyToken, communityController.joinGroup);
-router.get("/groups", verifyToken, communityController.getMyGroups);
+// Lấy lịch sử tin nhắn và gửi tin nhắn
 router.get(
-  "/groups/:groupId/messages",
+  "/conversations/:id/messages",
   verifyToken,
-  communityController.getGroupMessages,
+  chatController.getConversationMessages,
 );
 router.post(
-  "/groups/:groupId/messages",
+  "/conversations/messages",
   verifyToken,
-  upload.single("file"),
-  communityController.sendGroupMessage,
-);
-router.post(
-  "/groups/:groupId/leave",
-  verifyToken,
-  communityController.leaveGroup,
+  upload.single("file"), // Phải khớp với tên field formData bên React
+  chatController.sendMessage,
 );
 
 module.exports = router;

@@ -15,6 +15,8 @@ model Decks {
   is_anonymous Boolean?     @default(false)
   
   clone_count  Int?         @default(0)
+  // 👉 ĐÃ THÊM: Cột phân loại môn học (Ngoại ngữ, Lập trình...)
+  category     String?      @db.NVarChar(100) 
 
   user_id      Int
   Users        Users        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Decks_Users")
@@ -57,24 +59,50 @@ model StudyLogs {
   Decks        Decks      @relation(fields: [deck_id], references: [id], onUpdate: NoAction)
 }
 
+
 // =========================================
-// BẢNG TIN NHẮN 1-1 (MESSAGES)
+// HỆ SINH THÁI CHAT CHUẨN ZALO (GỘP CHUNG 1-1 VÀ NHÓM)
 // =========================================
-model Messages {
+
+// Bảng 1: Cuộc trò chuyện (Đại diện cho 1 Nhóm hoặc 1 đoạn chat 2 người)
+model Conversations {
   id          Int      @id @default(autoincrement())
-  sender_id   Int
-  receiver_id Int
-  content     String?  @db.NVarChar(Max) // 👉 ĐÃ SỬA: Thêm dấu ? để cho phép gửi ảnh/file mà không cần gõ chữ
+  name        String?  @db.NVarChar(255) // Nhóm thì có tên, 1-1 thì để null
+  is_group    Boolean  @default(false)   // Phân biệt nhóm và 1-1
+  invite_code String?  @unique @db.VarChar(50) // Link mời vào nhóm
   created_at  DateTime @default(now()) @db.DateTime
-  is_read     Boolean? @default(false)
 
-  // 👉 ĐÃ THÊM: Cột hỗ trợ gửi File/Ảnh
-  message_type String? @default("text") @db.VarChar(20) 
-  file_url     String? @db.NVarChar(Max) 
-  file_name    String? @db.NVarChar(255) 
+  Messages     Messages[]
+  Participants Participants[]
+}
 
-  Sender   Users @relation("SentMessages", fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Receiver Users @relation("ReceivedMessages", fields: [receiver_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+// Bảng 2: Người tham gia (Ai đang ở trong cuộc trò chuyện nào)
+model Participants {
+  id              Int      @id @default(autoincrement())
+  conversation_id Int
+  user_id         Int
+  role            String   @default("member") @db.VarChar(20) // admin, member
+  joined_at       DateTime @default(now()) @db.DateTime
+
+  Conversation    Conversations @relation(fields: [conversation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  User            Users         @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([conversation_id, user_id]) // Một người chỉ tham gia 1 lần trong 1 box chat
+}
+
+// Bảng 3: Tin nhắn (Tất cả tin nhắn 1-1 hay Nhóm đều chui vào đây)
+model Messages {
+  id              Int      @id @default(autoincrement())
+  conversation_id Int
+  sender_id       Int
+  content         String?  @db.NVarChar(Max)
+  message_type    String?  @default("text") @db.VarChar(20) // text, image, file, deck_share
+  file_url        String?  @db.NVarChar(Max)
+  file_name       String?  @db.NVarChar(255)
+  created_at      DateTime @default(now()) @db.DateTime
+
+  Conversation    Conversations @relation(fields: [conversation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  Sender          Users         @relation(fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 // =========================================
@@ -84,62 +112,13 @@ model Friendships {
   id           Int      @id @default(autoincrement())
   requester_id Int      // ID người gửi lời mời
   addressee_id Int      // ID người nhận lời mời
-  status       String   @default("pending") @db.VarChar(20) // Các trạng thái: pending, accepted, declined
+  status       String   @default("pending") @db.VarChar(20) // pending, accepted, declined
   created_at   DateTime @default(now()) @db.DateTime
 
   Requester    Users    @relation("SentRequests", fields: [requester_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Addressee    Users    @relation("ReceivedRequests", fields: [addressee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([requester_id, addressee_id])
-}
-
-// =========================================
-// BẢNG NHÓM HỌC (GROUPS)
-// =========================================
-model Groups {
-  id          Int      @id @default(autoincrement())
-  name        String   @db.NVarChar(255)
-  description String?  @db.NVarChar(Max)
-  invite_code String?  @unique @db.VarChar(50) // Mã/Link mời vào nhóm
-  created_by  Int
-  created_at  DateTime @default(now()) @db.DateTime
-
-  Creator       Users           @relation("GroupCreator", fields: [created_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  GroupMembers  GroupMembers[]
-  GroupMessages GroupMessages[]
-}
-
-// =========================================
-// BẢNG THÀNH VIÊN NHÓM (GROUP MEMBERS)
-// =========================================
-model GroupMembers {
-  id        Int      @id @default(autoincrement())
-  group_id  Int
-  user_id   Int
-  role      String   @default("member") @db.VarChar(20) // Các vai trò: admin, member
-  joined_at DateTime @default(now()) @db.DateTime
-
-  Group     Groups   @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  User      Users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-}
-
-// =========================================
-// BẢNG TIN NHẮN NHÓM (GROUP MESSAGES)
-// =========================================
-model GroupMessages {
-  id         Int      @id @default(autoincrement())
-  group_id   Int
-  sender_id  Int
-  content    String?  @db.NVarChar(Max) // 👉 ĐÃ SỬA: Cho phép gửi ảnh mà không cần chữ
-  created_at DateTime @default(now()) @db.DateTime
-
-  // 👉 ĐÃ THÊM: Cột hỗ trợ gửi File/Ảnh cho Nhóm
-  message_type String? @default("text") @db.VarChar(20) 
-  file_url     String? @db.NVarChar(Max) 
-  file_name    String? @db.NVarChar(255) 
-
-  Group      Groups   @relation(fields: [group_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  Sender     Users    @relation(fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model Users {
@@ -160,12 +139,10 @@ model Users {
   StudyProgress StudyProgress[]
   StudyLogs     StudyLogs[]     
   
-  SentMessages     Messages[] @relation("SentMessages")
-  ReceivedMessages Messages[] @relation("ReceivedMessages")
+  // Quan hệ cho hệ sinh thái Chat mới
+  Participations       Participants[]
+  MessagesSent         Messages[]
 
   FriendRequestsSent     Friendships[]   @relation("SentRequests")
   FriendRequestsReceived Friendships[]   @relation("ReceivedRequests")
-  CreatedGroups          Groups[]        @relation("GroupCreator")
-  GroupMemberships       GroupMembers[]
-  GroupMessages          GroupMessages[]
 }
