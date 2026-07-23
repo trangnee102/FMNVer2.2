@@ -6,13 +6,12 @@ import DashboardActions from "../components/Dashboard/DashboardActions";
 import DeckList from "../components/Dashboard/DeckList";
 import CalendarWidget from "../components/Dashboard/CalendarWidget";
 import CramModeModal from "../components/Modals/CramModeModal";
-import { useAuth } from "../context/AuthContext"; // 👉 ĐÃ THÊM: Chìa khóa mở Két sắt
-import api from "../services/api"; // 👉 ĐÃ THÊM: Kẻ vận chuyển ngầm Axios
+import { useAuth } from "../context/AuthContext";
+import api from "../services/api";
 import "./DashboardPage.css";
 
-// 👉 ĐÃ SỬA: Không cần nhận dynamicName nữa, ta lấy trực tiếp từ Két sắt
 const DashboardPage = ({ onNavigate, onStudy }) => {
-  const { user, loginUser } = useAuth(); // 👉 Lấy user và hàm cập nhật user từ Két sắt
+  const { user, loginUser } = useAuth();
 
   const [userData, setUserData] = useState({
     name: user?.full_name || user?.name || "Người dùng",
@@ -24,7 +23,6 @@ const DashboardPage = ({ onNavigate, onStudy }) => {
   const [isCramModalOpen, setIsCramModalOpen] = useState(false);
 
   useEffect(() => {
-    // Nếu user trong Két sắt thay đổi, tự động cập nhật lại tên hiển thị
     if (user) {
       setUserData((prev) => ({
         ...prev,
@@ -36,30 +34,39 @@ const DashboardPage = ({ onNavigate, onStudy }) => {
       try {
         const todayString = new Date().toISOString();
 
-        // 👉 ĐÃ SỬA: Gọi API bằng Axios siêu ngắn gọn, Token tự động được đính kèm!
-        const data = await api.get(
+        const res = await api.get(
           `/dashboard/summary?currentDate=${encodeURIComponent(todayString)}`,
         );
 
-        if (data.user) {
+        // 👉 ĐÃ SỬA: Bóc tách lớp vỏ data của Axios an toàn tuyệt đối
+        const payload = res.data?.data || res.data || {};
+
+        if (payload.user) {
+          const fetchedName = payload.user.full_name || payload.user.name;
+
           setUserData((prev) => ({
             ...prev,
-            ...data.user,
-            name: data.user.full_name || data.user.name || prev.name,
-            streak: data.user.streak || 0,
+            ...payload.user,
+            name: fetchedName || prev.name,
+            streak: payload.user.streak || 0,
           }));
 
-          // 👉 ĐÃ SỬA: Nếu Backend trả về tên/streak mới, ta dùng hàm của Két sắt để lưu lại cho an toàn
-          if (user) {
+          // 👉 ĐÃ SỬA (CHỐNG BUG INFINITE LOOP): Chỉ cập nhật Két sắt nếu Tên thực sự bị đổi trên Server
+          if (
+            user &&
+            fetchedName &&
+            user.full_name !== fetchedName &&
+            user.name !== fetchedName
+          ) {
             loginUser({
               ...user,
-              full_name: data.user.full_name || data.user.name,
+              full_name: fetchedName,
             });
           }
         }
 
-        if (data.decks) {
-          const augmentedDecks = data.decks.map((deck) => {
+        if (payload.decks) {
+          const augmentedDecks = payload.decks.map((deck) => {
             const savedSettings =
               JSON.parse(localStorage.getItem(`cram_settings_${deck.id}`)) ||
               {};
@@ -106,7 +113,8 @@ const DashboardPage = ({ onNavigate, onStudy }) => {
     };
 
     fetchDashboardData();
-  }, [user]); // 👉 ĐÃ SỬA: Chạy lại khi dữ liệu user có thay đổi
+    // 👉 LƯU Ý: Vẫn giữ [user] ở đây nhưng vì đã có chốt chặn "if" ở trên nên an toàn 100%!
+  }, [user]);
 
   const totalDecks = decks.length;
   const totalDueCards = decks.reduce(

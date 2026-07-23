@@ -7,12 +7,14 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
 
+  // 👉 ĐÃ THÊM: Lính gác cổng - chặn không cho hiển thị web khi chưa check xong Két
+  const [isAuthReady, setIsAuthReady] = useState(false);
+
   // Ngay khi mở web, hệ thống sẽ tự động kiểm tra xem trước đó đã đăng nhập chưa
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
-        // 👉 ĐÃ NÂNG CẤP: Bọc try-catch để chống sập web nếu JSON bị hỏng
         setUser(JSON.parse(storedUser));
       } catch (error) {
         console.error(
@@ -23,6 +25,9 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem("token");
       }
     }
+
+    // 👉 ĐÃ THÊM: Báo hiệu "Đã kiểm tra Két sắt xong, mở cổng cho web chạy đi!"
+    setIsAuthReady(true);
   }, []);
 
   // Hàm này được gọi ngay sau khi API Login báo thành công
@@ -37,6 +42,11 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
   };
+
+  // 👉 ĐÃ THÊM: Nếu lính gác báo chưa check xong, trả về màn hình trống (hoặc icon xoay xoay) để tránh nháy giao diện
+  if (!isAuthReady) {
+    return null; // Hoặc cậu có thể thay bằng: return <div>Đang tải hệ thống...</div>
+  }
 
   return (
     <AuthContext.Provider value={{ user, loginUser, logoutUser }}>

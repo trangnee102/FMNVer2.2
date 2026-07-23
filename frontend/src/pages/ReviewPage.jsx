@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import api from "../services/api"; // 👉 ĐÃ THÊM: Kẻ vận chuyển ngầm Axios
+import api from "../services/api";
 import "./ReviewPage.css";
 
 const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
@@ -20,7 +20,7 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
   const [errorMsg, setErrorMsg] = useState(null);
   const [startTime, setStartTime] = useState(Date.now());
 
-  // 👉 ĐÃ SỬA: Hàm reload lại toàn bộ thẻ bằng Axios
+  // 👉 ĐÃ SỬA: Hàm reload lại toàn bộ thẻ (Chuẩn hóa cách lấy dữ liệu Axios)
   const handleReviewAllAgain = async () => {
     setIsLoading(true);
     setIsSessionFinished(false);
@@ -34,57 +34,85 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
       const todayString = new Date().toISOString();
       const url = `/study/deck/${deckId}/due-cards?force=true&currentDate=${encodeURIComponent(todayString)}`;
 
-      const data = await api.get(url);
+      const res = await api.get(url);
 
-      const loadedCards = data.data || [];
-      setCards(loadedCards);
-      setInitialTotal(loadedCards.length);
+      // Bóc tách an toàn: Nếu Backend trả dạng {success: true, data: [...] } hoặc trả thẳng mảng
+      const loadedCards = res.data?.data || res.data || [];
+
+      setCards(Array.isArray(loadedCards) ? loadedCards : []);
+      setInitialTotal(Array.isArray(loadedCards) ? loadedCards.length : 0);
     } catch (err) {
       console.error("Lỗi khi tải lại danh sách thẻ:", err);
       setErrorMsg(
-        err.message || "Đã xảy ra sự cố trong quá trình tải dữ liệu.",
+        err.response?.data?.message || err.message || "Không thể tải dữ liệu.",
       );
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 👉 ĐÃ SỬA: Hàm tải danh sách thẻ ban đầu bằng Axios
+  // 👉 ĐÃ SỬA: Bảo hiểm chống sập màn hình trắng khi không có deckId
   useEffect(() => {
+    let isMounted = true; // Kỹ thuật Cleanup Effect
+
     const fetchDueCards = async () => {
+      // 1. Nếu không có deckId, báo lỗi ngay, dập tắt Loading
+      if (!deckId) {
+        if (isMounted) {
+          setErrorMsg("Không tìm thấy ID Bộ thẻ. Vui lòng quay lại.");
+          setIsLoading(false);
+        }
+        return;
+      }
+
       try {
+        setIsLoading(true);
+        setErrorMsg(null);
+
         const todayString = new Date().toISOString();
-        const url = forceReview
-          ? `/study/deck/${deckId}/due-cards?force=true&currentDate=${encodeURIComponent(todayString)}`
-          : `/study/deck/${deckId}/due-cards?currentDate=${encodeURIComponent(todayString)}`;
+        const url = `/study/deck/${deckId}/due-cards?currentDate=${encodeURIComponent(todayString)}${forceReview ? "&force=true" : ""}`;
 
-        const data = await api.get(url);
+        const res = await api.get(url);
 
-        const loadedCards = data.data || [];
-        setCards(loadedCards);
-        setInitialTotal(loadedCards.length);
+        if (isMounted) {
+          // Bóc tách JSON an toàn
+          const loadedCards = res.data?.data || res.data || [];
+          const finalCards = Array.isArray(loadedCards) ? loadedCards : [];
 
-        const savedIndex = localStorage.getItem(`review_progress_${deckId}`);
-        if (savedIndex) {
-          setSessionStats({ passed: parseInt(savedIndex, 10), forgotten: 0 });
+          setCards(finalCards);
+          setInitialTotal(finalCards.length);
+
+          const savedIndex = localStorage.getItem(`review_progress_${deckId}`);
+          if (savedIndex) {
+            setSessionStats({ passed: parseInt(savedIndex, 10), forgotten: 0 });
+          }
         }
       } catch (error) {
-        console.error("Lỗi khi tải dữ liệu:", error);
-        if (error.response?.status === 401) {
-          setErrorMsg("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
-        } else {
-          setErrorMsg(
-            error.message || "Mất kết nối với máy chủ. Vui lòng thử lại sau.",
-          );
+        console.error("Lỗi API tải thẻ:", error);
+        if (isMounted) {
+          if (
+            error.response?.status === 401 ||
+            error.message?.includes("401")
+          ) {
+            setErrorMsg("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+          } else {
+            setErrorMsg(
+              error.response?.data?.message ||
+                "Mất kết nối với máy chủ. Vui lòng thử lại sau.",
+            );
+          }
         }
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     };
 
-    if (deckId) {
-      fetchDueCards();
-    }
+    fetchDueCards();
+
+    // Dọn dẹp memory leak khi component bị gỡ (unmount)
+    return () => {
+      isMounted = false;
+    };
   }, [deckId, forceReview]);
 
   useEffect(() => {
@@ -98,12 +126,11 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
     setStartTime(Date.now());
   }, [currentIndex]);
 
-  // 👉 ĐÃ SỬA: Hàm gửi kết quả đánh giá (Nhớ/Quên) ngầm bằng Axios
   const handleRating = async (rating) => {
     const currentCard = cards[currentIndex];
     const durationMs = Date.now() - startTime;
 
-    // Gửi dữ liệu lưu trữ ngầm hoàn toàn lên Server
+    // Gửi điểm số ngầm, không cần đợi await để tránh giật lag UI
     api
       .post("/study/review", {
         flashcard_id: currentCard.id,
@@ -112,7 +139,6 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
       })
       .catch((err) => console.error("Lỗi đồng bộ dữ liệu ngầm:", err));
 
-    // Cập nhật thống kê phiên học ngay lập tức
     if (rating === 1) {
       setSessionStats((prev) => ({ ...prev, forgotten: prev.forgotten + 1 }));
     } else {
@@ -121,9 +147,7 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
 
     if (currentIndex < cards.length - 1) {
       setIsFlipped(false);
-      setTimeout(() => {
-        setCurrentIndex((prev) => prev + 1);
-      }, 150);
+      setTimeout(() => setCurrentIndex((prev) => prev + 1), 150);
     } else {
       localStorage.removeItem(`review_progress_${deckId}`);
       setIsSessionFinished(true);
@@ -164,10 +188,12 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
   if (isLoading) {
     return (
       <div style={{ padding: "50px", textAlign: "center" }}>
-        Đang tải dữ liệu...
+        Đang tải dữ liệu bộ thẻ... ⏳
       </div>
     );
   }
+
+  // --- CÁC PHẦN GIAO DIỆN (UI) CÒN LẠI GIỮ NGUYÊN HOÀN TOÀN ---
 
   if (errorMsg || cards.length === 0) {
     return (
@@ -331,7 +357,6 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
           >
             Bạn đã xem xét xong {initialTotal} thẻ.
           </p>
-
           <div
             style={{
               display: "flex",
@@ -394,7 +419,6 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
               </div>
             </div>
           </div>
-
           <button
             onClick={onFinish}
             style={{
@@ -431,7 +455,6 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
           Tiến độ: {displayProgress} / {initialTotal}
         </div>
       </div>
-
       <div
         className={`flashcard-container ${isFlipped ? "flipped" : ""}`}
         onClick={() => setIsFlipped(!isFlipped)}
@@ -444,14 +467,12 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
             </p>
           )}
         </div>
-
         <div className="card-face card-back">
           <p className="answer-text">
             {currentCard.answer || currentCard.back_content}
           </p>
         </div>
       </div>
-
       <div className="rating-section">
         {isFlipped ? (
           <>

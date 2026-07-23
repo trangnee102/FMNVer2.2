@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Sidebar from "../components/Layout/Sidebar";
 import AIInputSection from "../components/Cards/AIInputSection";
 import AIPreviewSection from "../components/Cards/AIPreviewSection";
-import api from "../services/api"; // 👉 ĐÃ THÊM: Kẻ vận chuyển ngầm
+import api from "../services/api";
 import "./DashboardPage.css";
 import "./CreateCardAIPage.css";
 
@@ -25,9 +25,10 @@ const CreateCardAIPage = ({ onNavigate }) => {
   useEffect(() => {
     const fetchMyDecks = async () => {
       try {
-        // 👉 ĐÃ SỬA: Dùng Axios gọi danh sách bộ thẻ cực gọn
-        const data = await api.get("/decks");
-        if (data.success) setExistingDecks(data.data || data);
+        // 👉 ĐÃ SỬA: Bóc tách lớp vỏ Axios an toàn tuyệt đối
+        const res = await api.get("/decks");
+        const decksList = res.data?.data || res.data || [];
+        setExistingDecks(Array.isArray(decksList) ? decksList : []);
       } catch (err) {
         console.error("Lỗi khi kéo dữ liệu bộ thẻ:", err);
       }
@@ -76,14 +77,22 @@ const CreateCardAIPage = ({ onNavigate }) => {
 
       formData.append("customPrompt", finalPrompt);
 
-      // 👉 ĐÃ SỬA: Axios tự động chèn Token và tự nhận diện FormData (File) luôn!
-      const data = await api.post("/ai/generate", formData);
+      const res = await api.post("/ai/generate", formData);
 
-      setGeneratedCards(data.data);
-      if (data.message) setAiMessage(data.message);
+      // 👉 ĐÃ SỬA: Lấy dữ liệu an toàn từ phản hồi của AI
+      const responseData = res.data?.data || res.data;
+      const cards = responseData?.cards || responseData || [];
+
+      setGeneratedCards(Array.isArray(cards) ? cards : []);
+      if (res.data?.message || responseData?.message) {
+        setAiMessage(res.data.message || responseData.message);
+      }
     } catch (err) {
-      // Axios bắt lỗi cực chuẩn từ Backend trả về
-      setError(err.message || "Không thể kết nối đến máy chủ AI.");
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Không thể kết nối đến máy chủ AI.",
+      );
     } finally {
       setLoading(false);
     }
@@ -109,9 +118,6 @@ const CreateCardAIPage = ({ onNavigate }) => {
     setError("");
 
     try {
-      // 👉 ĐÃ SỬA: Bọc kiện hàng chuẩn bị gửi đi.
-      // Nếu là lưu vào bộ cũ (!isNewTopic), ta gửi kèm `deck_id` (là cái topic).
-      // Nếu là tạo bộ mới, ta gửi `title` (cũng là cái topic).
       const payload = {
         title: isNewTopic ? topic : undefined,
         deck_id: !isNewTopic ? topic : undefined,
@@ -120,16 +126,16 @@ const CreateCardAIPage = ({ onNavigate }) => {
         cards: generatedCards,
       };
 
-      // Gọi API siêu ngắn gọn với Axios
-      const data = await api.post("/decks/bulk", payload);
+      const res = await api.post("/decks/bulk", payload);
+      const successMsg = res.data?.message || "Lưu thẻ thành công!";
 
-      alert("🎉 " + (data.message || "Lưu thẻ thành công!"));
+      alert("🎉 " + successMsg);
       setGeneratedCards([]);
       setAiMessage("");
       if (onNavigate) onNavigate("my-decks");
     } catch (err) {
-      // 👉 NHỜ AXIOS: Nếu Backend báo lỗi 500, nó sẽ moi móc được câu chữ lỗi thật sự (err.message) hiển thị lên đây!
-      const errorMsg = err.message || err.error || "Lỗi khi lưu thẻ!";
+      const errorMsg =
+        err.response?.data?.message || err.message || "Lỗi khi lưu thẻ!";
       alert("🚨 Lỗi từ Server: " + errorMsg);
       setError(errorMsg);
     } finally {

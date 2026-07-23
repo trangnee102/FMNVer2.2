@@ -3,7 +3,7 @@ import Sidebar from "../components/Layout/Sidebar";
 import Button from "../components/common/Button";
 import CramModeModal from "../components/Modals/CramModeModal";
 import ManageDeckModal from "../components/Modals/ManageDeckModal";
-import api from "../services/api"; // 👉 ĐÃ THÊM: Kẻ vận chuyển ngầm Axios
+import api from "../services/api";
 import "./DashboardPage.css";
 import "./MyDecksPage.css";
 
@@ -17,11 +17,12 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
 
   const fetchDecks = async () => {
     try {
-      // 👉 ĐÃ SỬA: Gọi API bằng Axios siêu ngắn gọn! Token đã được tự động đính kèm
-      const data = await api.get("/decks");
-      if (data.success) {
-        setDecks(data.data || []);
-      }
+      setIsLoading(true);
+      const res = await api.get("/decks");
+
+      // 👉 CHUẨN HÓA AXIOS: Bóc tách lớp vỏ data của Axios an toàn
+      const fetchedDecks = res.data?.data || res.data || [];
+      setDecks(Array.isArray(fetchedDecks) ? fetchedDecks : []);
     } catch (error) {
       console.error("Lỗi khi tải bộ thẻ:", error);
     } finally {
@@ -43,14 +44,14 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
     setIsManageModalOpen(true);
   };
 
-  // 👉 ĐÃ SỬA: Bẫy sự kiện bấm nút Ôn Tập Thường bằng Axios
   const handleStudyClick = async (deckId) => {
     try {
-      // Chớp nhoáng gọi API xem bộ thẻ này còn bài để học không bằng Axios
-      const data = await api.get(`/study/due/${deckId}`);
-      const dueCount = data.data ? data.data.length : 0;
+      const res = await api.get(`/study/due/${deckId}`);
 
-      // Nếu hết thẻ (0 thẻ) -> Bật Popup hỏi ý kiến
+      // 👉 CHUẨN HÓA AXIOS: Bóc dữ liệu an toàn tránh sập code
+      const safeDueCards = res.data?.data || res.data || [];
+      const dueCount = Array.isArray(safeDueCards) ? safeDueCards.length : 0;
+
       if (dueCount === 0) {
         const userWantsToForce = window.confirm(
           "✨ Cậu đã học xong bài môn này rồi!\n\nCậu có muốn 'vượt rào' ôn trước các thẻ chưa đến hạn không?",
@@ -61,12 +62,10 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
           else onNavigate("review", `${deckId}?force=true`);
         }
       } else {
-        // Nếu còn bài thì vào học bình thường (cờ = false)
         if (onStudy) onStudy(deckId, false);
         else onNavigate("review", deckId);
       }
     } catch (error) {
-      // Rủi ro mạng lag thì cứ mở trang học ra cho báo lỗi bên đó
       if (onStudy) onStudy(deckId, false);
       else onNavigate("review", deckId);
     }
