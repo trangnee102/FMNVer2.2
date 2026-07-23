@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import "./ManageDeckModal.css"; // 👉 ĐÃ THÊM: Nhúng file CSS mới
+import "./ManageDeckModal.css";
 
 const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
   const [deckCards, setDeckCards] = useState([]);
@@ -20,7 +20,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
         `http://localhost:5000/api/flashcards/deck/${deckId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        },
+        }
       );
       const data = await res.json();
       if (res.ok && data.success) setDeckCards(data.data || []);
@@ -55,7 +55,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ title: newDeckTitle, name: newDeckTitle }),
-        },
+        }
       );
       if (res.ok) {
         setIsEditingTitle(false);
@@ -87,7 +87,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
             is_public: updatedPublic,
             is_anonymous: updatedAnon,
           }),
-        },
+        }
       );
       if (res.ok) {
         onRefreshDecks();
@@ -100,7 +100,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
   const handleDeleteDeck = async () => {
     if (
       !window.confirm(
-        `XÓA VĨNH VIỄN bộ thẻ "${selectedDeck.title || selectedDeck.name}"?`,
+        `XÓA VĨNH VIỄN bộ thẻ "${selectedDeck.title || selectedDeck.name}"?`
       )
     )
       return;
@@ -111,7 +111,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
-        },
+        }
       );
       if (res.ok) {
         onClose();
@@ -131,7 +131,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${token}` },
-        },
+        }
       );
       if (res.ok) setDeckCards(deckCards.filter((c) => c.id !== cardId));
     } catch (error) {
@@ -156,7 +156,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
             question: editForm.question,
             answer: editForm.answer,
           }),
-        },
+        }
       );
       if (res.ok) {
         setEditingCardId(null);
@@ -184,7 +184,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
             question: addForm.question,
             answer: addForm.answer,
           }),
-        },
+        }
       );
       if (res.ok) {
         setIsAddingCard(false);
@@ -213,10 +213,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
                   onChange={(e) => setNewDeckTitle(e.target.value)}
                   autoFocus
                 />
-                <button
-                  className="btn-save-title"
-                  onClick={handleUpdateDeckName}
-                >
+                <button className="btn-save-title" onClick={handleUpdateDeckName}>
                   Lưu
                 </button>
                 <button
@@ -235,6 +232,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
                 <button
                   className="btn-edit-title"
                   onClick={() => setIsEditingTitle(true)}
+                  title="Sửa tên bộ thẻ"
                 >
                   ✏️
                 </button>
@@ -248,37 +246,42 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
 
         {/* SETTING CHIA SẺ */}
         <div className="share-settings-container">
-          <h4 className="share-settings-title">🌐 Trạng thái chia sẻ</h4>
-          <label className="share-label">
-            <input
-              type="checkbox"
-              className="share-checkbox"
-              checked={isPublic}
-              onChange={(e) => handleToggleShare("is_public", e.target.checked)}
-            />
-            <span className="share-text-primary">Chia sẻ lên Cộng đồng</span>
-          </label>
-          <label className={`share-label ${!isPublic ? "disabled" : ""}`}>
-            <input
-              type="checkbox"
-              className="share-checkbox"
-              checked={isAnonymous}
-              onChange={(e) =>
-                handleToggleShare("is_anonymous", e.target.checked)
-              }
-              disabled={!isPublic}
-            />
-            <span className="share-text-secondary">
-              Chia sẻ ẩn danh (Không hiện tên của bạn)
-            </span>
-          </label>
+          <div className="share-row">
+            <label className="share-label">
+              <input
+                type="checkbox"
+                className="share-checkbox"
+                checked={isPublic}
+                onChange={(e) => handleToggleShare("is_public", e.target.checked)}
+              />
+              <span className="share-text-primary">🌐 Chia sẻ lên Cộng đồng</span>
+            </label>
+            <label className={`share-label ${!isPublic ? "disabled" : ""}`}>
+              <input
+                type="checkbox"
+                className="share-checkbox"
+                checked={isAnonymous}
+                onChange={(e) =>
+                  handleToggleShare("is_anonymous", e.target.checked)
+                }
+                disabled={!isPublic}
+              />
+              <span className="share-text-secondary">
+                👤 Chia sẻ ẩn danh
+              </span>
+            </label>
+          </div>
         </div>
 
-        {/* DANH SÁCH THẺ */}
+        {/* KHU VỰC THÂN MODAL (CHIẾM TOÀN BỘ KHÔNG GIAN CÒN LẠI) */}
         <div className="manage-modal-body-content">
-          <h4 className="card-list-title">
-            Danh sách thẻ ({deckCards.length})
-          </h4>
+          <div className="card-list-header">
+            <h4 className="card-list-title">
+              Danh sách thẻ <span>({deckCards.length})</span>
+            </h4>
+          </div>
+          
+          {/* DANH SÁCH THẺ (CÓ THANH CUỘN ĐỘC LẬP) */}
           <div className="card-list-container">
             {deckCards.map((card, index) => (
               <div key={card.id} className="card-item-box">
@@ -293,14 +296,14 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
                       }
                       placeholder="Mặt trước (Câu hỏi)"
                     />
-                    <input
-                      className="card-edit-input"
-                      type="text"
+                    <textarea
+                      className="card-edit-textarea"
                       value={editForm.answer}
                       onChange={(e) =>
                         setEditForm({ ...editForm, answer: e.target.value })
                       }
                       placeholder="Mặt sau (Đáp án)"
+                      rows="3"
                     />
                     <div className="card-edit-actions">
                       <button
@@ -352,7 +355,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
             ))}
           </div>
 
-          {/* THÊM THẺ MỚI */}
+          {/* THÊM THẺ MỚI (Cố định ở dưới danh sách) */}
           <div className="add-card-section">
             {isAddingCard ? (
               <div className="add-card-form">
@@ -364,19 +367,19 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
                   onChange={(e) =>
                     setAddForm({ ...addForm, question: e.target.value })
                   }
-                  placeholder="Nhập mặt trước..."
+                  placeholder="Nhập mặt trước (Câu hỏi)..."
                   autoFocus
                 />
-                <input
-                  className="card-edit-input"
-                  type="text"
+                <textarea
+                  className="card-edit-textarea"
                   value={addForm.answer}
                   onChange={(e) =>
                     setAddForm({ ...addForm, answer: e.target.value })
                   }
-                  placeholder="Nhập mặt sau..."
+                  placeholder="Nhập mặt sau (Đáp án)..."
+                  rows="2"
                 />
-                <div className="card-edit-actions" style={{ marginTop: "5px" }}>
+                <div className="card-edit-actions">
                   <button
                     className="btn-cancel-card"
                     onClick={() => {
@@ -405,10 +408,12 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
           </div>
         </div>
 
-        {/* NÚT XONG */}
-        <button className="btn-close-modal" onClick={onClose}>
-          Xong
-        </button>
+        {/* NÚT ĐÓNG MODAL */}
+        <div className="manage-modal-footer">
+          <button className="btn-close-modal" onClick={onClose}>
+            Xong
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -3,53 +3,68 @@
   background: var(--bg-main);
   height: 100vh;
   overflow: hidden;
+  transition: background-color 0.3s ease;
 }
+
 .dashboard-content {
   flex: 1;
   padding: 40px;
   overflow-y: auto;
 }
+
 .content-header {
   margin-bottom: 30px;
 }
+
 .content-header h1 {
   font-size: 1.8rem;
   color: var(--text-dark);
   margin-bottom: 5px;
-}
-.content-header p {
-  color: var(--text-gray);
+  transition: color 0.3s ease;
 }
 
+.content-header p {
+  color: var(--text-gray);
+  transition: color 0.3s ease;
+}
+
+/* =========================================
+   LƯỚI THỐNG KÊ & THẺ THỐNG KÊ
+========================================= */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
   margin-bottom: 30px;
 }
-/* Màu cho Icon của Thẻ thống kê */
-.bg-purple {
-  background: #f5f3ff;
-  color: #8b5cf6;
-}
-.bg-green {
-  background: #ecfdf5;
-  color: #10b981;
-}
-.bg-red {
-  background: #fef2f2;
-  color: #ef4444;
-}
-.bg-blue {
-  background: #eff6ff;
-  color: #3b82f6;
+
+.stat-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
 }
 
+/* Màu cho Icon của Thẻ thống kê (Dùng nền RGBA trong suốt) */
+.bg-purple { background: rgba(139, 92, 246, 0.15) !important; color: #8b5cf6 !important; }
+.bg-green { background: rgba(16, 185, 129, 0.15) !important; color: #10b981 !important; }
+.bg-red { background: rgba(239, 68, 68, 0.15) !important; color: #ef4444 !important; }
+.bg-blue { background: rgba(59, 130, 246, 0.15) !important; color: #3b82f6 !important; }
+
+/* =========================================
+   LƯỚI HÀNH ĐỘNG & THẺ HÀNH ĐỘNG
+========================================= */
 .main-grid {
   display: grid;
   grid-template-columns: 1fr 320px;
   gap: 30px;
 }
+
 .action-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -57,19 +72,56 @@
   margin-bottom: 30px;
 }
 
+.action-card {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg);
+  padding: 25px 20px;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.action-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  border-color: var(--primary) !important;
+}
+
+.action-card h3 { color: var(--text-dark) !important; margin-bottom: 10px; }
+.action-card p { color: var(--text-gray) !important; font-size: 0.9rem; margin-bottom: 20px; }
+
+/* =========================================
+   THẺ BỘ THẺ (DECK ITEM)
+========================================= */
 .deck-item {
-  background: white;
+  background: var(--bg-card);
   padding: 20px;
   border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
+  margin-bottom: 15px;
 }
+
+.deck-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.08);
+  border-color: var(--primary);
+}
+
 .deck-icon {
   width: 45px;
   height: 45px;
-  background: #f5f3ff;
+  background: rgba(139, 92, 246, 0.15);
   color: #8b5cf6;
   border-radius: 12px;
   display: flex;
@@ -78,34 +130,101 @@
   font-size: 1.2rem;
 }
 
+/* =========================================
+   KHU VỰC LỊCH & STREAK
+========================================= */
 .calendar-card,
 .streak-card {
-  background: white;
+  background: var(--bg-card);
   padding: 30px;
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border);
   margin-bottom: 20px;
   text-align: center;
+  transition: all 0.3s ease;
 }
+
 .streak-val {
   font-size: 1.8rem;
   font-weight: 900;
   color: var(--text-dark);
   margin: 15px 0;
+  transition: color 0.3s ease;
 }
+
 /* ============================================= */
-/* CSS TÔ MÀU CHO NGÀY THI TRÊN TỜ LỊCH (CRAM MODE) */
+/* ÉP THƯ VIỆN LỊCH (REACT-CALENDAR) THEO DARK MODE */
 /* ============================================= */
+.react-calendar {
+  background-color: transparent !important;
+  border: none !important;
+  width: 100% !important;
+  color: var(--text-dark) !important;
+  font-family: inherit !important;
+}
+
+.react-calendar__navigation button {
+  color: var(--text-dark) !important;
+  min-width: 44px;
+  background: none;
+  font-weight: bold;
+}
+
+.react-calendar__navigation button:hover,
+.react-calendar__navigation button:focus {
+  background-color: var(--bg-main) !important;
+  border-radius: 8px;
+}
+
+.react-calendar__month-view__weekdays {
+  color: var(--text-gray) !important;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+}
+
+.react-calendar__month-view__days__day {
+  color: var(--text-dark) !important;
+}
+
+.react-calendar__month-view__days__day--neighboringMonth {
+  color: var(--border) !important;
+}
+
+.react-calendar__tile {
+  border-radius: 8px;
+  padding: 10px 6px !important;
+  transition: background-color 0.2s;
+}
+
+.react-calendar__tile:hover,
+.react-calendar__tile:focus {
+  background-color: var(--bg-main) !important;
+}
+
+.react-calendar__tile--now {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: var(--primary) !important;
+  font-weight: bold;
+}
+
+.react-calendar__tile--active {
+  background: var(--primary) !important;
+  color: white !important;
+  font-weight: bold;
+}
+
+/* Nút Cram Mode nổi bật */
 .exam-day-highlight {
-  background-color: #fffbeb !important; /* Nền vàng nhạt */
-  color: #ea580c !important; /* Chữ màu cam đậm */
+  background-color: rgba(245, 158, 11, 0.15) !important; 
+  color: #ea580c !important; 
   font-weight: 900 !important;
-  border-radius: 50% !important; /* Bo tròn xoe */
-  border: 2px solid #f59e0b !important; /* Viền cam nổi bật */
+  border-radius: 50% !important;
+  border: 2px solid #f59e0b !important;
   position: relative;
 }
 
-/* Thêm một chấm đỏ nhỏ xíu rung rung cảnh báo nếu thích */
 .exam-day-highlight::after {
   content: "";
   position: absolute;

@@ -6,7 +6,7 @@
   height: 100vh;
   background: var(--bg-card);
   border-right: 1px solid var(--border);
-  transition: width 0.3s ease;
+  transition: width 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
   display: flex;
   flex-direction: column;
   padding: 20px;
@@ -130,12 +130,107 @@
   position: absolute;
   left: 70px;
   top: 0;
-  background: white;
+  background: var(--bg-card); /* 👉 ĐÃ SỬA: Dùng biến thay vì white */
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   padding: 10px;
   border-radius: 8px;
   width: max-content;
   z-index: 100;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border); /* 👉 ĐÃ SỬA: Dùng biến viền */
   padding-left: 10px; /* Bỏ thụt lề khi trôi nổi */
+}
+
+/* =======================================
+   BỔ SUNG CSS: KHU VỰC AVATAR & ĐĂNG XUẤT CUỐI SIDEBAR
+======================================= */
+.sidebar-footer {
+  margin-top: auto; /* Tự động đẩy toàn bộ khu vực này xuống tận đáy */
+  padding-top: 15px;
+  border-top: 1px solid var(--border); /* 👉 ĐÃ SỬA: Dùng biến viền */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+/* Khi Sidebar thu nhỏ: Đổi hướng xếp dọc để Avatar nằm trên nút Đăng xuất */
+.sidebar-footer.footer-collapsed {
+  flex-direction: column;
+  gap: 15px;
+  justify-content: center;
+}
+
+.sidebar-user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden; /* Cắt phần chữ thừa để không làm vỡ layout */
+}
+
+.sidebar-avatar-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover; /* Đảm bảo ảnh không bị méo */
+  flex-shrink: 0;
+  border: 2px solid var(--border); /* 👉 ĐÃ SỬA: Dùng biến viền */
+}
+
+.sidebar-avatar-placeholder {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--bg-main); /* 👉 ĐÃ SỬA: Dùng nền tối hơn một chút */
+  color: var(--text-gray); /* 👉 ĐÃ SỬA: Dùng biến chữ xám */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.sidebar-user-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  max-width: 120px; /* Khống chế chiều ngang */
+}
+
+.sidebar-user-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-dark); /* 👉 ĐÃ SỬA: Dùng biến chữ đậm */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Hiện dấu ... nếu tên quá dài */
+}
+
+.sidebar-user-email {
+  font-size: 0.75rem;
+  color: var(--text-gray); /* 👉 ĐÃ SỬA: Dùng biến chữ xám */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Hiện dấu ... nếu email quá dài */
+}
+
+/* Nút icon đăng xuất riêng biệt */
+.sidebar-logout-icon-btn {
+  background: transparent;
+  border: none;
+  color: #ef4444; /* Màu đỏ cảnh báo */
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.sidebar-logout-icon-btn:hover {
+  /* 👉 ĐÃ SỬA: Dùng nền RGBA trong suốt để hiện thị đẹp trên cả Dark/Light mode */
+  background: rgba(239, 68, 68, 0.1); 
+  color: #ef4444;
+  transform: scale(1.05); /* Phóng to nhẹ khi đưa chuột vào */
 }

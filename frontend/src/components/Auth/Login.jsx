@@ -8,6 +8,11 @@ const Login = ({ onLogin, onNavigateToRegister }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
+  // Các state để quản lý Hộp thoại Quên Mật Khẩu (Modal)
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotStatus, setForgotStatus] = useState("");
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -25,8 +30,6 @@ const Login = ({ onLogin, onNavigateToRegister }) => {
       if (response.ok) {
         // 🎉 THÀNH CÔNG: Lưu Token
         localStorage.setItem("token", data.token);
-
-        // 👉 ĐÃ SỬA: Lấy Email thay vì Name vì Database của cậu không có cột Name
         onLogin(data.user?.email || "Bạn");
       } else {
         // ❌ THẤT BẠI: Hiện lỗi đỏ
@@ -40,60 +43,45 @@ const Login = ({ onLogin, onNavigateToRegister }) => {
     }
   };
 
+  // Hàm xử lý khi bấm nút "Gửi yêu cầu" khôi phục mật khẩu
+  const handleForgotPasswordSubmit = (e) => {
+    e.preventDefault();
+    if (!forgotEmail) {
+      setForgotStatus("⚠️ Vui lòng nhập địa chỉ email!");
+      return;
+    }
+    
+    setForgotStatus("⏳ Đang gửi yêu cầu...");
+    
+    setTimeout(() => {
+      setForgotStatus("✅ Đã gửi hướng dẫn khôi phục vào email của bạn!");
+      setTimeout(() => {
+        setShowForgotModal(false);
+        setForgotStatus("");
+        setForgotEmail("");
+      }, 3000);
+    }, 1500);
+  };
+
   return (
     <div className="login-page">
       <div className="login-card">
-        <div style={{ fontSize: "2.5rem", marginBottom: "10px" }}>🧠</div>
-        <h2
-          style={{
-            color: "var(--primary)",
-            marginBottom: "5px",
-            fontSize: "1.5rem",
-          }}
-        >
-          ForgetMeNot
-        </h2>
-        <h3 style={{ marginBottom: "10px", color: "var(--text-dark)" }}>
-          Chào mừng trở lại!
-        </h3>
-        <p
-          style={{
-            color: "var(--text-gray)",
-            marginBottom: "30px",
-            fontSize: "0.9rem",
-          }}
-        >
-          Đăng nhập để tiếp tục học tập
-        </p>
+        <div className="login-logo">🧠</div>
+        <h2 className="login-title">ForgetMeNot</h2>
+        <h3 className="login-subtitle">Chào mừng trở lại!</h3>
+        <p className="login-desc">Đăng nhập để tiếp tục học tập</p>
 
         {errorMessage && (
-          <div
-            style={{
-              color: "#d32f2f",
-              backgroundColor: "#ffebee",
-              padding: "10px",
-              borderRadius: "5px",
-              marginBottom: "15px",
-              fontSize: "0.9rem",
-              fontWeight: "500",
-            }}
-          >
+          <div className="error-message">
             ❌ {errorMessage}
           </div>
         )}
 
         <form onSubmit={handleLogin}>
           <div className="form-group">
-            <label
-              style={{
-                display: "block",
-                fontWeight: "500",
-                color: "var(--text-dark)",
-                fontSize: "0.95rem",
-              }}
-            >
-              Email
-            </label>
+            <div className="form-label-wrapper">
+              <label>Email</label>
+            </div>
             <input
               type="email"
               placeholder="your@email.com"
@@ -103,17 +91,10 @@ const Login = ({ onLogin, onNavigateToRegister }) => {
             />
           </div>
 
-          <div className="form-group" style={{ marginBottom: "30px" }}>
-            <label
-              style={{
-                display: "block",
-                fontWeight: "500",
-                color: "var(--text-dark)",
-                fontSize: "0.95rem",
-              }}
-            >
-              Mật khẩu
-            </label>
+          <div className="form-group">
+            <div className="form-label-wrapper">
+              <label>Mật khẩu</label>
+            </div>
             <input
               type="password"
               placeholder="********"
@@ -121,46 +102,84 @@ const Login = ({ onLogin, onNavigateToRegister }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            {/* 👉 ĐÃ SỬA: Đưa nút "Quên mật khẩu?" xuống dưới ô nhập và căn sang phải */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "6px" }}>
+              <span className="forgot-link" onClick={() => setShowForgotModal(true)}>
+                Quên mật khẩu?
+              </span>
+            </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={isLoading}
-            style={{
-              width: "100%",
-              padding: "12px",
-              backgroundColor: "var(--primary)",
-              color: "white",
-              border: "none",
-              borderRadius: "var(--radius-sm)",
-              fontWeight: "600",
-              cursor: isLoading ? "not-allowed" : "pointer",
-            }}
-          >
+          <button type="submit" className="btn-login" disabled={isLoading}>
             {isLoading ? "Đang xử lý..." : "Đăng nhập"}
           </button>
         </form>
 
-        <div
-          style={{
-            marginTop: "25px",
-            fontSize: "0.9rem",
-            color: "var(--text-gray)",
-          }}
-        >
+        <div className="register-hint">
           Chưa có tài khoản?{" "}
-          <span
-            onClick={onNavigateToRegister}
-            style={{
-              color: "var(--primary)",
-              cursor: "pointer",
-              fontWeight: "600",
-            }}
-          >
-            Đăng ký ngay
-          </span>
+          <span onClick={onNavigateToRegister}>Đăng ký ngay</span>
         </div>
       </div>
+
+      {/* =========================================================================
+          MODAL QUÊN MẬT KHẨU (Giao diện đè lên màn hình)
+      ========================================================================= */}
+      {showForgotModal && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <h3 style={{ margin: "0 0 10px 0", fontSize: "1.4rem" }}>Khôi phục mật khẩu</h3>
+            <p style={{ color: "var(--text-gray)", fontSize: "0.9rem", marginBottom: "20px" }}>
+              Nhập email bạn đã dùng để đăng ký. Chúng tôi sẽ gửi một liên kết để đặt lại mật khẩu.
+            </p>
+
+            {forgotStatus && (
+              <div style={{
+                padding: "12px", marginBottom: "15px", borderRadius: "8px", fontSize: "0.9rem", fontWeight: "600",
+                backgroundColor: forgotStatus.includes("✅") ? "rgba(34, 197, 94, 0.1)" : (forgotStatus.includes("⏳") ? "rgba(56, 189, 248, 0.1)" : "rgba(239, 68, 68, 0.1)"),
+                color: forgotStatus.includes("✅") ? "#16a34a" : (forgotStatus.includes("⏳") ? "#0284c7" : "#dc2626"),
+                border: `1px solid ${forgotStatus.includes("✅") ? "rgba(34, 197, 94, 0.2)" : (forgotStatus.includes("⏳") ? "rgba(56, 189, 248, 0.2)" : "rgba(239, 68, 68, 0.2)")}`
+              }}>
+                {forgotStatus}
+              </div>
+            )}
+
+            <form onSubmit={handleForgotPasswordSubmit}>
+              <input
+                type="email"
+                placeholder="Nhập email của bạn..."
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                style={{
+                  width: "100%", padding: "14px 16px", marginBottom: "25px",
+                  borderRadius: "10px", border: "1.5px solid var(--border)",
+                  background: "var(--bg-main)", color: "var(--text-dark)", outline: "none", fontSize: "1rem"
+                }}
+              />
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowForgotModal(false); setForgotStatus(""); setForgotEmail(""); }}
+                  style={{
+                    padding: "12px 20px", borderRadius: "8px", border: "1.5px solid var(--border)",
+                    background: "transparent", color: "var(--text-gray)", cursor: "pointer", fontWeight: "600"
+                  }}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: "12px 20px", borderRadius: "8px", border: "none",
+                    background: "var(--primary)", color: "white", cursor: "pointer", fontWeight: "600"
+                  }}
+                >
+                  Gửi yêu cầu
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

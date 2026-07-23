@@ -1,26 +1,33 @@
 import React from "react";
 import ActionCard from "../Cards/ActionCard";
 
-const DashboardActions = ({ totalDueCards, onNavigate, onOpenCramModal, onStartStudy }) => {
+const DashboardActions = ({ totalDueCards, onNavigate, onOpenCramModal }) => {
+  
+  // 👉 THÊM: Hàm xử lý thông báo chuyên nghiệp khi bật Cram Mode
+  const handleOpenCramMode = () => {
+    alert("⚡ Chế độ Cram Mode đã sẵn sàng!\nHãy tập trung cao độ để bứt phá giới hạn học tập của bạn nhé.");
+    onOpenCramModal();
+  };
+
   return (
     <div className="action-grid">
       <ActionCard
         title="Ôn tập ngay"
         desc={`Bắt đầu với ${totalDueCards > 0 ? totalDueCards : 0} thẻ cần ôn hôm nay`}
         btnText="Bắt đầu học →"
-        bgColor="#f5f3ff"
+        bgColor="rgba(139, 92, 246, 0.05)"
         btnVariant="primary"
-        // 👉 Gọi hàm tự động chọn bộ thẻ để học
-        onClick={onStartStudy} 
+        // 👉 ĐÃ SỬA THEO YÊU CẦU: Nhảy thẳng sang trang Thư viện của tôi
+        onClick={() => onNavigate("my-decks")} 
       />
 
       <ActionCard
         title="Tạo Flashcard"
         desc="Tải tài liệu lên, AI sẽ giúp bạn tạo thẻ nhanh chóng"
         btnText="Tạo ngay →"
-        bgColor="#ecfdf5"
+        bgColor="rgba(16, 185, 129, 0.05)"
         btnVariant="green"
-        // 👉 Đảm bảo tên route này TRÙNG KHỚP với tên route tạo thẻ trong file Sidebar của bạn (thường là "create" hoặc "create-deck")
+        // 👉 Giữ nguyên chức năng sang trang Tạo thẻ
         onClick={() => onNavigate("create")}
       />
 
@@ -28,10 +35,10 @@ const DashboardActions = ({ totalDueCards, onNavigate, onOpenCramModal, onStartS
         title="Ôn thi cấp tốc"
         desc="Tính năng Cram Mode rút ngắn chu kỳ"
         btnText="Bật Cram Mode ⚡"
-        bgColor="#fffbeb"
+        bgColor="rgba(245, 158, 11, 0.05)"
         btnVariant="orange"
-        // 👉 Bật Popup chọn bộ thẻ
-        onClick={onOpenCramModal}
+        // 👉 ĐÃ SỬA THEO YÊU CẦU: Hiện thông báo chuyên nghiệp rồi mới bật Modal
+        onClick={handleOpenCramMode}
       />
     </div>
   );

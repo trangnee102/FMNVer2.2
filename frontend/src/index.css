@@ -1,6 +1,53 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 /* src/index.css */
 @import "./styles/variables.css"; /* 👈 Gọi bảng màu chung vào đây */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+/* src/index.css */
+@import "./styles/variables.css"; /* 👈 Gọi bảng màu chung vào đây */
+
+/* =========================================================
+   👉 BỔ SUNG DARK MODE: 
+   Ghi đè các biến màu khi hệ thống bật class "dark-mode" 
+========================================================= */
+html.dark-mode {
+  --bg-main: #0f172a;       /* Nền web ngoài cùng (Xanh đen sẫm) */
+  --bg-card: #1e293b;       /* Nền các khối Box, Sidebar (Sáng hơn nền 1 chút) */
+  --text-dark: #f8fafc;     /* Chữ chính (Trắng sáng) */
+  --text-gray: #94a3b8;     /* Chữ phụ, viền mờ (Xám nhạt) */
+  --border: #334155;        /* Đường viền ngăn cách (Xám tối) */
+  --primary-light: #374151; /* Màu nền lúc Hover chuột (Xám tối) */
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-main);
+  background-color: var(--bg-main);
+  color: var(--text-dark);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  /* 👉 ĐÃ THÊM: Hiệu ứng chuyển màu mượt mà trong 0.3s khi bật/tắt Dark Mode */
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Ẩn thanh cuộn web cho đẹp nhưng vẫn cuộn được chuột */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: var(--radius-sm);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-gray);
+}
 
 * {
   box-sizing: border-box;

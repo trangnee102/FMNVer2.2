@@ -1,25 +1,30 @@
 /* src/pages/MyDecksPage.css */
-.my-decks-wrapper {
-  padding: 30px;
-  max-width: 1000px;
-  margin: 0 auto;
-}
 
+/* ========================================= */
+/* LAYOUT DANH SÁCH BỘ THẺ (GRID & LIST)     */
+/* ========================================= */
 .decks-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 20px;
-  margin-top: 20px;
 }
 
+.decks-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+/* Kế thừa class cũ đề phòng các component chưa kịp cập nhật */
 .deck-card {
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-  border: 1px solid #edf2f7;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+  transition: all 0.3s ease;
 }
 
 .deck-card-header {
@@ -31,8 +36,9 @@
 
 .deck-card-header h3 {
   margin: 0;
-  color: #2d3748;
+  color: var(--text-dark);
   font-size: 1.2rem;
+  transition: color 0.3s ease;
 }
 
 .deck-actions {
@@ -41,55 +47,140 @@
   flex-direction: column;
   gap: 10px;
   padding-top: 15px;
-  border-top: 1px dashed #e2e8f0;
+  border-top: 1px dashed var(--border);
 }
 
-/* Giao diện Bảng Popup (Modal) */
+/* ========================================= */
+/* GIAO DIỆN BẢNG POPUP (CRAM MODE MODAL)    */
+/* ========================================= */
+
 .cram-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(5px);
+  animation: fadeIn 0.2s ease-out;
 }
 
 .cram-modal {
-  background: white;
+  background: var(--bg-card);
   padding: 30px;
-  border-radius: 15px;
+  border-radius: 16px;
   width: 90%;
   max-width: 450px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   border-top: 5px solid #f59e0b;
+  animation: slideUp 0.3s ease-out;
 }
 
+/* Khu vực thanh kéo chỉnh ngày thi (Slider) */
 .cram-slider-container {
   margin: 25px 0;
-  background: #fffbeb;
-  padding: 15px;
-  border-radius: 8px;
-  border: 1px solid #fde68a;
+  background: rgba(245, 158, 11, 0.08); /* Nền cam/vàng trong suốt */
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  color: var(--text-dark);
 }
 
 /* ========================================= */
-/* CSS MỚI CHO BẢNG QUẢN LÝ CHI TIẾT BỘ THẺ  */
+/* GIAO DIỆN BẢNG QUẢN LÝ CHI TIẾT MODAL     */
 /* ========================================= */
 
-/* Nút Quản lý chi tiết ngoài màn hình chính */
+/* Bảng Popup Quản lý (Rộng hơn Cram Modal) */
+.manage-modal {
+  background: var(--bg-card);
+  padding: 30px;
+  border-radius: 16px;
+  width: 90%;
+  max-width: 700px;
+  max-height: 85vh;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border-top: 5px solid var(--primary); /* Viền màu hệ thống */
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease-out;
+}
+
+.manage-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 15px;
+}
+
+.manage-modal-header h2 {
+  color: var(--text-dark);
+  margin: 0;
+}
+
+/* Thanh cuộn nội dung cho bảng Quản lý */
+.manage-modal-body {
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 10px;
+}
+
+/* Tùy chỉnh Scrollbar cho đẹp trong Dark Mode */
+.manage-modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+.manage-modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.manage-modal-body::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 10px;
+}
+.manage-modal-body::-webkit-scrollbar-thumb:hover {
+  background: var(--text-gray);
+}
+
+/* Từng dòng thẻ (Flashcard) trong danh sách */
+.card-list-item {
+  background: var(--bg-main);
+  padding: 15px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  margin-bottom: 12px;
+  transition: all 0.2s ease;
+  color: var(--text-dark);
+}
+
+.card-list-item:hover {
+  border-color: var(--primary);
+  background: var(--bg-card);
+  transform: translateX(4px); /* Hover trượt nhẹ sang phải */
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.card-list-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  justify-content: flex-end;
+  border-top: 1px dashed var(--border);
+  padding-top: 12px;
+}
+
+/* Nút Quản lý/Hành động cũ nếu còn sót lại */
 .btn-manage {
   width: 100%;
-  padding: 10px;
-  background: #e2e8f0;
-  border: none;
-  border-radius: 6px;
-  color: #4a5568;
-  font-weight: bold;
+  padding: 12px;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-dark);
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   justify-content: center;
@@ -99,56 +190,26 @@
 }
 
 .btn-manage:hover {
-  background: #cbd5e1;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--primary);
+  border-color: var(--primary);
 }
 
-/* Bảng Popup Quản lý (Rộng hơn Cram Modal) */
-.manage-modal {
-  background: white;
-  padding: 30px;
-  border-radius: 15px;
-  width: 90%;
-  max-width: 650px;
-  max-height: 85vh;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-  border-top: 5px solid #3182ce; /* Viền xanh dương đặc trưng cho quản trị */
-  display: flex;
-  flex-direction: column;
+/* ========================================= */
+/* ANIMATIONS (Hiệu ứng)                     */
+/* ========================================= */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.manage-modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 20px;
-  border-bottom: 2px solid #edf2f7;
-  padding-bottom: 15px;
-}
-
-.manage-modal-body {
-  overflow-y: auto;
-  flex: 1;
-  padding-right: 5px;
-}
-
-/* Từng dòng thẻ (Flashcard) trong danh sách */
-.card-list-item {
-  background: #f8fafc;
-  padding: 15px;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  margin-bottom: 10px;
-  transition: transform 0.1s ease;
-}
-
-.card-list-item:hover {
-  border-color: #cbd5e1;
-  background: #f1f5f9;
-}
-
-.card-list-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 12px;
-  justify-content: flex-end;
+@keyframes slideUp {
+  from { 
+    opacity: 0; 
+    transform: translateY(30px) scale(0.98); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0) scale(1); 
+  }
 }

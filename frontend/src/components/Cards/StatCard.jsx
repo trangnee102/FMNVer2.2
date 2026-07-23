@@ -3,14 +3,17 @@ import React from "react";
 const StatCard = ({ icon, label, value, colorClass }) => {
   return (
     <div
+      className="stat-card"
       style={{
-        background: "white",
+        background: "var(--bg-card)", // 👉 ĐÃ SỬA: Thay "white" bằng biến hệ thống
+        border: "1px solid var(--border)", // 👉 ĐÃ THÊM: Viền nhẹ giúp thẻ tách biệt khỏi nền
         padding: "20px",
         borderRadius: "var(--radius-lg)",
         display: "flex",
         alignItems: "center",
         gap: "15px",
         boxShadow: "var(--shadow-card)",
+        transition: "all 0.3s ease", // 👉 ĐÃ THÊM: Hiệu ứng chuyển màu mượt mà
       }}
     >
       <div
@@ -33,11 +36,20 @@ const StatCard = ({ icon, label, value, colorClass }) => {
             color: "var(--text-gray)",
             fontSize: "0.9rem",
             marginBottom: "5px",
+            marginTop: "0",
+            transition: "color 0.3s ease",
           }}
         >
           {label}
         </p>
-        <h3 style={{ color: "var(--text-dark)", fontSize: "1.4rem" }}>
+        <h3 
+          style={{ 
+            color: "var(--text-dark)", 
+            fontSize: "1.4rem", 
+            margin: "0",
+            transition: "color 0.3s ease",
+          }}
+        >
           {value}
         </h3>
       </div>

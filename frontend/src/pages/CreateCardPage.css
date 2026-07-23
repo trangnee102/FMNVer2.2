@@ -7,6 +7,9 @@
   align-items: center;
   justify-content: center;
   width: 100%;
+  padding: 40px 20px;
+  background-color: var(--bg-main);
+  transition: background-color 0.3s ease;
 }
 
 .create-header {
@@ -21,24 +24,120 @@
   color: var(--text-dark);
   margin-bottom: 1.5vh;
   font-weight: 700;
+  transition: color 0.3s ease;
 }
 
 .create-header p {
   /* 👉 Chữ phụ cũng co giãn */
   font-size: clamp(1rem, 1.5vw, 1.3rem);
   color: var(--text-gray);
+  transition: color 0.3s ease;
 }
 
+/* 👉 CHÌA KHÓA: Khung chứa dàn đều các thẻ */
 .create-page-container {
   display: flex;
   flex-direction: row;
   justify-content: center;
   align-items: stretch;
   gap: 40px;
-
-  width: 100%;
-  max-width: 1200px;
+  width: 70%; /* Ép khung chiếm 70% màn hình để không bị bè ra quá to */
+  max-width: 1000px;
+  min-width: 800px;
   margin: 0 auto;
 }
 
-  /* 👉 CHÌA KHÓA: Khung chiếm 70% độ rộng màn hình, thẻ sẽ tự to ra */
+/* =========================================================
+   BỔ SUNG CSS CHO CÁC THẺ LỰA CHỌN (VD: TẠO BẰNG AI / THỦ CÔNG)
+========================================================= */
+.create-option-card {
+  flex: 1; /* Hai thẻ chia đều không gian 50/50 */
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 40px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
+}
+
+/* Hiệu ứng nổi bần bật khi di chuột vào thẻ */
+.create-option-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+  border-color: var(--primary);
+}
+
+.create-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.15); /* Nền xanh trong suốt */
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin-bottom: 25px;
+  transition: all 0.3s ease;
+}
+
+/* Icon phóng to và đổi màu sáng rực khi hover thẻ */
+.create-option-card:hover .create-icon-wrapper {
+  background: var(--primary);
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+.create-option-card h2 {
+  font-size: 1.5rem;
+  color: var(--text-dark);
+  margin-bottom: 15px;
+  transition: color 0.3s ease;
+}
+
+.create-option-card p {
+  color: var(--text-gray);
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 30px;
+  flex: 1; /* Ép nút bấm luôn nằm thẳng hàng ở dưới cùng */
+  transition: color 0.3s ease;
+}
+
+.create-btn {
+  padding: 14px 30px;
+  background: var(--primary);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.create-option-card:hover .create-btn {
+  filter: brightness(1.1);
+  box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
+}
+
+/* Đảm bảo giao diện không bị vỡ và tự xếp dọc trên màn hình nhỏ (iPad, Mobile) */
+@media (max-width: 900px) {
+  .create-page-container {
+    flex-direction: column;
+    align-items: center;
+    width: 90%;
+    min-width: unset;
+  }
+  
+  .create-option-card {
+    width: 100%;
+    max-width: 500px;
+  }
+}

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./Sidebar.css";
 
 const Sidebar = ({ currentView, onNavigate }) => {
@@ -7,6 +7,30 @@ const Sidebar = ({ currentView, onNavigate }) => {
     const savedState = localStorage.getItem("sidebar_collapsed");
     return savedState !== null ? JSON.parse(savedState) : false; 
   });
+
+  // 👉 ĐÃ THÊM: State quản lý thông tin User hiển thị ở góc dưới
+  const [userName, setUserName] = useState("Nguyễn Khắc Tuấn Đạt");
+  const [userEmail, setUserEmail] = useState("nguyenkhactdat2007@gmail.com");
+  const [userAvatar, setUserAvatar] = useState(null);
+
+  // 👉 ĐÃ THÊM: Tự động lấy dữ liệu từ localStorage khi Sidebar xuất hiện
+  useEffect(() => {
+    const storedName = localStorage.getItem("current_user_name");
+    const storedEmail = localStorage.getItem("current_user_email");
+    const storedAvatar = localStorage.getItem("user_avatar");
+    
+    if (storedName) setUserName(storedName);
+    if (storedEmail) setUserEmail(storedEmail);
+    if (storedAvatar) setUserAvatar(storedAvatar);
+
+    // Lắng nghe sự kiện nếu bên trang Settings có đổi ảnh thì Sidebar cũng đổi theo ngay lập tức
+    const handleStorageChange = () => {
+      setUserAvatar(localStorage.getItem("user_avatar"));
+      setUserName(localStorage.getItem("current_user_name") || "Nguyễn Khắc Tuấn Đạt");
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, []);
 
   // 👉 ĐÃ SỬA: Hàm xử lý đóng/mở và lưu lại trạng thái vào bộ nhớ
   const toggleSidebar = () => {
@@ -42,7 +66,8 @@ const Sidebar = ({ currentView, onNavigate }) => {
       id === "my-decks" ||
       id === "review" ||
       id === "stats" ||
-      id === "community"
+      id === "community" ||
+      id === "settings" // 👉 ĐÃ MỞ KHÓA: Cho phép điều hướng đến trang Cài đặt
     ) {
       if (onNavigate) onNavigate(id);
     } else {
@@ -130,20 +155,34 @@ const Sidebar = ({ currentView, onNavigate }) => {
           ))}
         </div>
 
-        {/* Nút Đăng xuất */}
-        <div
-          className="menu-item logout-btn"
-          onClick={handleLogout}
-          style={{
-            marginTop: "auto",
-            color: "#d32f2f",
-            fontWeight: "600",
-            borderTop: "1px solid rgba(0,0,0,0.05)",
-          }}
-        >
-          <i className="fa-solid fa-arrow-right-from-bracket"></i>
-          {!isCollapsed && <span>Đăng xuất</span>}
+        {/* 👉 ĐÃ SỬA MỚI: Khu vực Profile và Đăng xuất ở cuối Sidebar */}
+        <div className={`sidebar-footer ${isCollapsed ? "footer-collapsed" : ""}`}>
+          <div className="sidebar-user-profile">
+            {userAvatar ? (
+              <img src={userAvatar} alt="User Avatar" className="sidebar-avatar-img" />
+            ) : (
+              <div className="sidebar-avatar-placeholder">
+                <i className="fa-solid fa-user"></i>
+              </div>
+            )}
+            
+            {!isCollapsed && (
+              <div className="sidebar-user-info">
+                <span className="sidebar-user-name">{userName}</span>
+                <span className="sidebar-user-email">{userEmail}</span>
+              </div>
+            )}
+          </div>
+          
+          <button 
+            className="sidebar-logout-icon-btn" 
+            onClick={handleLogout}
+            title="Đăng xuất"
+          >
+            <i className="fa-solid fa-arrow-right-from-bracket"></i>
+          </button>
         </div>
+
       </nav>
     </div>
   );

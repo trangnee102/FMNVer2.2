@@ -21,10 +21,11 @@ const CreateFlashcardManualPage = ({ onNavigate }) => {
               Tạo thẻ thủ công{" "}
               <i
                 className="fa-solid fa-pen-to-square"
-                style={{ color: "#3b82f6", marginLeft: "8px" }}
+                style={{ color: "var(--primary)", marginLeft: "8px" }}
               ></i>
             </h1>
-            <p style={{ color: "#6b7280" }}>
+            {/* 👉 ĐÃ SỬA: Thay mã màu cứng thành biến màu hệ thống để đổi màu mượt mà */}
+            <p style={{ color: "var(--text-gray)" }}>
               Nhập chi tiết từng mặt thẻ để thêm vào bộ nhớ của bạn.
             </p>
           </header>

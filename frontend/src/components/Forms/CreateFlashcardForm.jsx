@@ -150,7 +150,7 @@ const CreateFlashcardForm = ({ onCancel }) => {
 
   return (
     <form className="manual-flashcard-form" onSubmit={handleSubmit}>
-      <h2 style={{ marginBottom: "30px", color: "var(--text-dark)" }}>
+      <h2 style={{ marginBottom: "30px", color: "var(--text-dark)", transition: "color 0.3s ease" }}>
         Nhập nội dung thẻ
       </h2>
 
@@ -186,11 +186,12 @@ const CreateFlashcardForm = ({ onCancel }) => {
           style={{
             marginTop: "-10px",
             padding: "15px 20px",
-            borderLeft: "4px solid #3b82f6",
-            backgroundColor: "#f8fafc",
+            borderLeft: "4px solid var(--primary)",
+            backgroundColor: "var(--bg-main)",
             borderRadius: "0 8px 8px 0",
             marginBottom: "25px",
             boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+            transition: "all 0.3s ease",
           }}
         >
           <div className="form-group" style={{ marginBottom: "15px" }}>
@@ -198,7 +199,7 @@ const CreateFlashcardForm = ({ onCancel }) => {
               style={{
                 fontSize: "0.9rem",
                 fontWeight: "600",
-                color: "#334155",
+                color: "var(--text-dark)",
               }}
             >
               Tên môn học mới <span style={{ color: "#ef4444" }}>*</span>
@@ -221,7 +222,7 @@ const CreateFlashcardForm = ({ onCancel }) => {
               <label
                 style={{
                   fontSize: "0.85rem",
-                  color: "#64748b",
+                  color: "var(--text-gray)",
                   fontWeight: "500",
                 }}
               >
@@ -243,7 +244,7 @@ const CreateFlashcardForm = ({ onCancel }) => {
               <label
                 style={{
                   fontSize: "0.85rem",
-                  color: "#64748b",
+                  color: "var(--text-gray)",
                   fontWeight: "500",
                 }}
               >
@@ -263,7 +264,7 @@ const CreateFlashcardForm = ({ onCancel }) => {
           <p
             style={{
               fontSize: "0.85rem",
-              color: "#0369a1",
+              color: "var(--primary)",
               margin: "5px 0 0 0",
               lineHeight: "1.5",
               display: "flex",
@@ -296,12 +297,13 @@ const CreateFlashcardForm = ({ onCancel }) => {
           <div
             key={index}
             style={{
-              background: "#fff",
+              background: "var(--bg-card)",
               padding: "20px",
               borderRadius: "12px",
-              border: "1px solid #e2e8f0",
-              boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
+              border: "1px solid var(--border)",
+              boxShadow: "0 4px 10px rgba(0,0,0,0.03)",
               position: "relative",
+              transition: "all 0.3s ease",
             }}
           >
             {/* Header của từng Thẻ & Nút Xóa */}
@@ -311,11 +313,11 @@ const CreateFlashcardForm = ({ onCancel }) => {
                 justifyContent: "space-between",
                 alignItems: "center",
                 marginBottom: "15px",
-                borderBottom: "1px solid #f1f5f9",
+                borderBottom: "1px solid var(--border)",
                 paddingBottom: "10px",
               }}
             >
-              <span style={{ fontWeight: "bold", color: "#3b82f6" }}>
+              <span style={{ fontWeight: "bold", color: "var(--primary)" }}>
                 Thẻ số {index + 1}
               </span>
 
@@ -329,8 +331,11 @@ const CreateFlashcardForm = ({ onCancel }) => {
                   cursor: "pointer",
                   fontSize: "1.1rem",
                   padding: "5px",
+                  transition: "transform 0.2s ease",
                 }}
                 title="Xóa thẻ này"
+                onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.1)")}
+                onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
               >
                 <i className="fa-solid fa-trash"></i>
               </button>
@@ -372,17 +377,23 @@ const CreateFlashcardForm = ({ onCancel }) => {
         style={{
           width: "100%",
           padding: "12px",
-          background: "#f8fafc",
-          color: "#3b82f6",
-          border: "2px dashed #93c5fd",
+          background: "var(--bg-main)",
+          color: "var(--primary)",
+          border: "2px dashed var(--primary)",
           borderRadius: "8px",
           fontWeight: "bold",
           cursor: "pointer",
           marginBottom: "30px",
-          transition: "0.2s",
+          transition: "all 0.2s ease",
         }}
-        onMouseOver={(e) => (e.currentTarget.style.background = "#eff6ff")}
-        onMouseOut={(e) => (e.currentTarget.style.background = "#f8fafc")}
+        onMouseOver={(e) => {
+          e.currentTarget.style.background = "rgba(59, 130, 246, 0.1)";
+          e.currentTarget.style.transform = "translateY(-2px)";
+        }}
+        onMouseOut={(e) => {
+          e.currentTarget.style.background = "var(--bg-main)";
+          e.currentTarget.style.transform = "translateY(0)";
+        }}
       >
         <i className="fa-solid fa-plus" style={{ marginRight: "8px" }}></i>
         Thêm thẻ mới

@@ -10,6 +10,7 @@ import CramReviewPage from "./pages/CramReviewPage";
 import StatisticsPage from "./pages/StatisticsPage";
 import CommunityPage from "./pages/CommunityPage";
 import CreateCardAIPage from "./pages/CreateCardAIPage";
+import SettingsPage from "./pages/SettingsPage"; // 👉 Đã thêm import SettingsPage
 import "./index.css";
 
 import TimeMachineWidget from "./components/TimeMachineWidget";
@@ -43,12 +44,25 @@ function App() {
   const [isForceReview, setIsForceReview] = useState(false);
 
   const handleLogin = () => {
-    setUserName("Admin (Từ Database)");
+    const defaultName = "Nguyễn Khắc Tuấn Đạt"; // Đổi tên mặc định cho giống ảnh của bạn
+    setUserName(defaultName);
+    
+    // 👉 ĐÃ THÊM: Lưu thông tin vào bộ nhớ để Sidebar và SettingsPage lấy ra dùng
+    localStorage.setItem("current_user_name", defaultName);
+    localStorage.setItem("current_user_email", "nguyenkhactdat2007@gmail.com");
+    
     setCurrentView("dashboard");
   };
 
   const handleRegister = (nameFromRegister) => {
     setUserName(nameFromRegister);
+    
+    // 👉 ĐÃ THÊM: Lưu thông tin vừa đăng ký vào bộ nhớ để Sidebar và Settings lấy ra dùng
+    localStorage.setItem("current_user_name", nameFromRegister);
+    // Tự động tạo 1 email ảo từ tên đăng ký để hiển thị cho đẹp
+    const generatedEmail = nameFromRegister.replace(/\s+/g, '').toLowerCase() + "@gmail.com";
+    localStorage.setItem("current_user_email", generatedEmail);
+    
     setCurrentView("dashboard");
   };
 
@@ -105,9 +119,7 @@ function App() {
         <ReviewPage
           deckId={activeDeckId}
           forceReview={isForceReview}
-          onNavigate={
-            handleNavigate
-          } /* 👉 ĐÃ FIX BUG: Truyền hàm này vào thì thanh Sidebar ở trang Ôn tập mới không bị sập! */
+          onNavigate={handleNavigate} /* 👉 ĐÃ FIX BUG: Truyền hàm này vào thì thanh Sidebar ở trang Ôn tập mới không bị sập! */
           onFinish={() => handleNavigate("my-decks")}
         />
       )}
@@ -129,6 +141,11 @@ function App() {
 
       {currentView === "create-ai" && (
         <CreateCardAIPage onNavigate={handleNavigate} />
+      )}
+
+      {/* 👉 Đã thêm Component SettingsPage */}
+      {currentView === "settings" && (
+        <SettingsPage onNavigate={handleNavigate} />
       )}
 
       <TimeMachineWidget />

@@ -9,17 +9,13 @@ import "./CommunityPage.css";
 const CommunityPage = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState("explore");
 
-  // 👉 BƯỚC QUAN TRỌNG: Lắng nghe tín hiệu từ Sidebar để tự động chuyển Tab
   useEffect(() => {
     const handleTabChange = (event) => {
-      // event.detail chính là cái subId ('explore', 'leaderboard', 'contacts') được gửi từ Sidebar
       setActiveTab(event.detail);
     };
 
-    // Bật radar lắng nghe tín hiệu "changeCommunityTab"
     window.addEventListener("changeCommunityTab", handleTabChange);
 
-    // Tắt radar khi rời khỏi trang để tránh lỗi rò rỉ bộ nhớ
     return () => {
       window.removeEventListener("changeCommunityTab", handleTabChange);
     };
@@ -28,12 +24,8 @@ const CommunityPage = ({ onNavigate }) => {
   return (
     <div className="dashboard-layout">
       <Sidebar currentView="community" onNavigate={onNavigate} />
-      <main
-        className="dashboard-content"
-        style={{ backgroundColor: "#f8fafc" }}
-      >
+      <main className="dashboard-content">
         <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "30px" }}>
-          {/* Header & Streak */}
           <header
             style={{
               display: "flex",
@@ -41,7 +33,7 @@ const CommunityPage = ({ onNavigate }) => {
               marginBottom: "30px",
             }}
           >
-            <h1>
+            <h1 style={{ color: "var(--text-dark)", transition: "color 0.3s ease" }}>
               <i className="fa-solid fa-users-rays"></i> Cộng đồng
             </h1>
             <div className="streak-widget">
@@ -49,12 +41,6 @@ const CommunityPage = ({ onNavigate }) => {
             </div>
           </header>
 
-          {/* 
-            ĐÃ XÓA THANH ĐIỀU HƯỚNG (.community-nav) CŨ Ở ĐÂY. 
-            Giờ giao diện sẽ vô cùng gọn gàng, điều hướng hoàn toàn bằng Sidebar!
-          */}
-
-          {/* Nội dung Tab hiển thị tùy theo activeTab */}
           <div className="tab-container">
             {activeTab === "explore" && <DiscoveryTab />}
             {activeTab === "leaderboard" && <LeaderboardTab />}

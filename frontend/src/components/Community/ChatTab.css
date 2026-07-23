@@ -2,27 +2,28 @@
 .chat-tab-container {
   display: flex;
   height: 600px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
-  background: #fff;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05); /* Thêm bóng đổ cho khối */
+  background: var(--bg-card);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
 }
 
 /* ============ SIDEBAR BÊN TRÁI ============ */
 .chat-sidebar {
   width: 320px;
-  border-right: 1px solid #e2e8f0;
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  background: #f8fafc;
+  background: var(--bg-main);
 }
 
 .chat-sidebar-header {
   display: flex;
   padding: 15px;
   gap: 10px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border);
 }
 .chat-search {
   flex: 1;
@@ -32,32 +33,34 @@
   position: absolute;
   left: 12px;
   top: 12px;
-  color: #94a3b8;
+  color: var(--text-gray);
 }
 .chat-search input {
   width: 100%;
   padding: 10px 10px 10px 35px;
   border-radius: 8px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-dark);
   outline: none;
   transition: 0.2s;
 }
 .chat-search input:focus {
-  border-color: #3b82f6; /* Đổi màu viền khi click vào tìm kiếm */
+  border-color: var(--primary);
 }
 .add-friend-btn {
   width: 40px;
   height: 40px;
   border-radius: 8px;
   border: none;
-  background: #eff6ff;
-  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15); /* Nền xanh trong suốt */
+  color: var(--primary);
   cursor: pointer;
   position: relative;
   transition: 0.2s;
 }
 .add-friend-btn:hover {
-  background: #dbeafe;
+  background: rgba(59, 130, 246, 0.25);
 }
 .badge {
   position: absolute;
@@ -69,12 +72,12 @@
   padding: 2px 6px;
   border-radius: 10px;
   font-weight: bold;
-  border: 2px solid #fff;
+  border: 2px solid var(--bg-card);
 }
 
 .chat-tabs {
   display: flex;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border);
 }
 .chat-tabs button {
   flex: 1;
@@ -82,14 +85,14 @@
   border: none;
   background: none;
   font-weight: 600;
-  color: #64748b;
+  color: var(--text-gray);
   cursor: pointer;
   transition: 0.2s;
 }
 .chat-tabs button.active {
-  color: #3b82f6;
-  border-bottom: 2px solid #3b82f6;
-  background: #fff;
+  color: var(--primary);
+  border-bottom: 2px solid var(--primary);
+  background: var(--bg-card);
 }
 
 .contact-list {
@@ -99,15 +102,15 @@
 .contact-item {
   display: flex;
   padding: 15px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--border);
   cursor: pointer;
   transition: all 0.2s ease;
-  border-left: 3px solid transparent; /* Viền ẩn mặc định */
+  border-left: 3px solid transparent;
 }
 .contact-item:hover,
 .contact-item.active {
-  background: #fff;
-  border-left: 3px solid #3b82f6; /* Viền xanh bên trái khi active */
+  background: var(--bg-card);
+  border-left: 3px solid var(--primary);
 }
 .contact-avatar {
   width: 45px;
@@ -128,7 +131,7 @@
   width: 12px;
   height: 12px;
   background: #10b981;
-  border: 2px solid #fff;
+  border: 2px solid var(--bg-card);
   border-radius: 50%;
 }
 .contact-info {
@@ -143,7 +146,7 @@
 }
 .contact-name-row h4 {
   margin: 0;
-  color: #1e293b;
+  color: var(--text-dark);
   font-size: 0.95rem;
   white-space: nowrap;
   overflow: hidden;
@@ -151,7 +154,7 @@
 }
 .time {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: var(--text-gray);
 }
 .contact-msg-row {
   display: flex;
@@ -161,7 +164,7 @@
 .last-msg {
   margin: 0;
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--text-gray);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -181,7 +184,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--bg-card);
 }
 
 /* Empty State */
@@ -193,16 +196,16 @@
   justify-content: center;
   text-align: center;
   padding: 40px;
-  color: #64748b;
-  background: #f8fafc;
+  color: var(--text-gray);
+  background: var(--bg-main);
 }
 .empty-icon {
   font-size: 4rem;
-  color: #cbd5e1;
+  color: var(--border);
   margin-bottom: 20px;
 }
 .empty-chat-state h3 {
-  color: #1e293b;
+  color: var(--text-dark);
   margin-bottom: 10px;
 }
 
@@ -212,8 +215,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 15px 20px;
-  border-bottom: 1px solid #e2e8f0;
-  background: #fff;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
 }
 .chat-header-info {
   display: flex;
@@ -232,7 +235,7 @@
 }
 .chat-header-info h4 {
   margin: 0 0 3px 0;
-  color: #1e293b;
+  color: var(--text-dark);
 }
 .chat-header-info .status {
   font-size: 0.8rem;
@@ -241,13 +244,13 @@
 .chat-options-btn {
   border: none;
   background: none;
-  color: #64748b;
+  color: var(--text-gray);
   cursor: pointer;
   font-size: 1.2rem;
   transition: 0.2s;
 }
 .chat-options-btn:hover {
-  color: #1e293b;
+  color: var(--text-dark);
 }
 .chat-options-container {
   position: relative;
@@ -257,10 +260,10 @@
   right: 0;
   top: calc(100% + 8px);
   min-width: 220px;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
   z-index: 20;
   padding: 8px 0;
 }
@@ -272,23 +275,23 @@
   padding: 10px 14px;
   border: none;
   background: transparent;
-  color: #334155;
+  color: var(--text-dark);
   font-size: 0.95rem;
   text-align: left;
   cursor: pointer;
 }
 .chat-options-item:hover {
-  background: #f8fafc;
+  background: var(--bg-main);
 }
 .chat-options-item i {
   width: 18px;
   text-align: center;
-  color: #64748b;
+  color: var(--text-gray);
 }
 .chat-options-divider {
   height: 1px;
   margin: 6px 0;
-  background: #e2e8f0;
+  background: var(--border);
 }
 
 /* Chat Messages */
@@ -299,7 +302,7 @@
   display: flex;
   flex-direction: column;
   gap: 15px;
-  background: #f8fafc;
+  background: var(--bg-main);
 }
 .message-wrapper {
   display: flex;
@@ -317,13 +320,13 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 .message-wrapper.theirs .message-bubble {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  color: #1e293b;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-dark);
   border-bottom-left-radius: 4px;
 }
 .message-wrapper.mine .message-bubble {
-  background: #3b82f6;
+  background: var(--primary);
   color: white;
   border-bottom-right-radius: 4px;
 }
@@ -344,50 +347,52 @@
   align-items: center;
   padding: 15px 20px;
   gap: 15px;
-  border-top: 1px solid #e2e8f0;
-  background: #fff;
+  border-top: 1px solid var(--border);
+  background: var(--bg-card);
 }
 .share-deck-btn {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   border: none;
-  background: #eff6ff;
-  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--primary);
   cursor: pointer;
   transition: 0.2s;
 }
 .share-deck-btn:hover {
-  background: #3b82f6;
+  background: var(--primary);
   color: #fff;
 }
 .chat-input-area input {
   flex: 1;
   padding: 12px 15px;
   border-radius: 20px;
-  border: 1px solid #e2e8f0;
-  background: #f1f5f9;
+  border: 1px solid var(--border);
+  background: var(--bg-main);
+  color: var(--text-dark);
   outline: none;
   transition: 0.2s;
 }
 .chat-input-area input:focus {
-  background: #fff;
-  border-color: #3b82f6;
+  background: var(--bg-card);
+  border-color: var(--primary);
 }
 .send-btn {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   border: none;
-  background: #3b82f6;
+  background: var(--primary);
   color: white;
   cursor: pointer;
   transition: 0.2s;
 }
 .send-btn:hover {
-  background: #2563eb;
+  filter: brightness(0.9);
   transform: scale(1.05);
 }
+
 /* ==========================================
    BỔ SUNG CSS CHO KẾT BẠN, NHÓM HỌC & ĐÍNH KÈM
    ========================================== */
@@ -400,8 +405,8 @@
 }
 
 .search-result-card {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.2);
   padding: 10px;
   border-radius: 8px;
   margin-top: 5px;
@@ -425,12 +430,12 @@
 .search-name {
   margin: 0;
   font-size: 0.9rem;
-  color: #166534;
+  color: var(--text-dark);
 }
 .search-email {
   margin: 0;
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--text-gray);
 }
 
 .action-btn {
@@ -444,7 +449,7 @@
   transition: 0.2s;
 }
 .btn-primary {
-  background: #3b82f6;
+  background: var(--primary);
   color: white;
 }
 .btn-success {
@@ -452,19 +457,19 @@
   color: white;
 }
 .btn-disabled {
-  background: #cbd5e1;
-  color: #475569;
+  background: var(--border);
+  color: var(--text-gray);
   cursor: not-allowed;
 }
 
 .pending-requests-box {
-  background: #fffbeb;
+  background: rgba(245, 158, 11, 0.05);
   padding: 10px;
-  border-bottom: 1px solid #fde68a;
+  border-bottom: 1px solid rgba(245, 158, 11, 0.2);
 }
 .pending-title {
   font-size: 0.85rem;
-  color: #b45309;
+  color: #f59e0b;
   margin: 0 0 10px 0;
 }
 .request-item {
@@ -523,7 +528,7 @@
   transition: 0.2s;
 }
 .group-toggle-btn.active.join {
-  background: #3b82f6;
+  background: var(--primary);
   color: white;
 }
 .group-toggle-btn.active.create {
@@ -531,8 +536,8 @@
   color: white;
 }
 .group-toggle-btn.inactive {
-  background: #e2e8f0;
-  color: #475569;
+  background: var(--bg-main);
+  color: var(--text-gray);
 }
 
 .group-form-box {
@@ -541,12 +546,12 @@
   margin-bottom: 10px;
 }
 .group-form-box.join {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
+  background: rgba(59, 130, 246, 0.05);
+  border: 1px solid var(--border);
 }
 .group-form-box.create {
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.2);
 }
 .group-input {
   width: 100%;
@@ -554,7 +559,9 @@
   margin-bottom: 8px;
   border-radius: 4px;
   outline: none;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border);
+  background: var(--bg-main);
+  color: var(--text-dark);
 }
 
 .group-manage-screen {
@@ -563,7 +570,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  background: #f8fafc;
+  background: var(--bg-main);
   padding: 20px;
   text-align: center;
 }
@@ -581,10 +588,10 @@
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 .invite-box {
-  background: white;
+  background: var(--bg-card);
   padding: 20px;
   border-radius: 12px;
-  border: 1px dashed #cbd5e1;
+  border: 1px dashed var(--border);
   width: 100%;
   max-width: 400px;
 }
@@ -601,17 +608,17 @@
   color: #4f46e5;
 }
 .copy-btn {
-  background: #e2e8f0;
+  background: var(--bg-main);
   border: none;
   width: 32px;
   height: 32px;
   border-radius: 50%;
   cursor: pointer;
-  color: #475569;
+  color: var(--text-gray);
   transition: 0.2s;
 }
 .copy-btn:hover {
-  background: #cbd5e1;
+  background: var(--border);
 }
 
 /* 3. Phần Input & File đính kèm */
@@ -620,17 +627,17 @@
   flex-direction: column;
   gap: 8px;
   padding: 10px 15px;
-  border-top: 1px solid #e2e8f0;
-  background: #fff;
+  border-top: 1px solid var(--border);
+  background: var(--bg-card);
 }
 .file-preview-box {
-  background: #f1f5f9;
+  background: var(--bg-main);
   padding: 8px 12px;
   border-radius: 8px;
   display: flex;
   align-items: center;
   gap: 10px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border);
   width: fit-content;
   max-width: 100%;
 }
@@ -643,7 +650,7 @@
 .file-preview-info {
   flex: 1;
   font-size: 0.85rem;
-  color: #1e293b;
+  color: var(--text-dark);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -665,6 +672,7 @@
 .attach-btn {
   background: none;
   border: none;
+  color: var(--text-gray);
   font-size: 1.2rem;
   cursor: pointer;
   padding: 8px;
@@ -674,14 +682,15 @@
   flex: 1;
   padding: 10px 15px;
   border-radius: 20px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border);
   outline: none;
-  background: #f8fafc;
+  background: var(--bg-main);
+  color: var(--text-dark);
   transition: 0.2s;
 }
 .chat-input-row input[type="text"]:focus {
-  background: #fff;
-  border-color: #3b82f6;
+  background: var(--bg-card);
+  border-color: var(--primary);
 }
 
 .msg-image {

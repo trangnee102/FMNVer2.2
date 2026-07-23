@@ -9,24 +9,29 @@
 
 .filter-group {
   display: flex;
-  background: #f1f5f9;
+  background: var(--border); /* 👉 ĐÃ SỬA: Đổi nền xám thành biến viền để hài hòa nền Sáng/Tối */
   border-radius: 8px;
   padding: 4px;
+  transition: background-color 0.3s ease;
 }
 
 .filter-btn {
   padding: 6px 16px;
   border: none;
   background: transparent;
-  color: #64748b;
+  color: var(--text-gray); /* 👉 ĐÃ SỬA */
   font-weight: bold;
   border-radius: 6px;
   cursor: pointer;
-  transition: 0.2s;
+  transition: all 0.2s;
+}
+
+.filter-btn:hover {
+  color: var(--text-dark); /* 👉 ĐÃ THÊM: Sáng chữ khi hover */
 }
 
 .filter-btn.active {
-  background: #6366f1;
+  background: var(--primary); /* 👉 ĐÃ SỬA: Dùng màu chủ đạo của hệ thống */
   color: white;
   box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
 }
@@ -40,14 +45,15 @@
 }
 
 .kpi-card {
-  background: white;
+  background: var(--bg-card); /* 👉 ĐÃ SỬA */
   padding: 20px;
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border); /* 👉 ĐÃ SỬA */
   display: flex;
   align-items: center;
   gap: 15px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  transition: all 0.3s ease; /* 👉 ĐÃ THÊM: Đổi màu mượt mà */
 }
 
 .kpi-icon {
@@ -62,14 +68,14 @@
 
 .kpi-info p {
   margin: 0;
-  color: #64748b;
+  color: var(--text-gray); /* 👉 ĐÃ SỬA */
   font-size: 0.85rem;
   font-weight: bold;
 }
 
 .kpi-info h3 {
   margin: 5px 0 0 0;
-  color: #1e293b;
+  color: var(--text-dark); /* 👉 ĐÃ SỬA */
   font-size: 1.4rem;
 }
 
@@ -82,18 +88,19 @@
 }
 
 .chart-card {
-  background: white;
+  background: var(--bg-card); /* 👉 ĐÃ SỬA */
   padding: 20px;
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border); /* 👉 ĐÃ SỬA */
   height: 350px;
   display: flex;
   flex-direction: column;
+  transition: all 0.3s ease;
 }
 
 .chart-card h4 {
   margin: 0 0 20px 0;
-  color: #334155;
+  color: var(--text-dark); /* 👉 ĐÃ SỬA */
   display: flex;
   align-items: center;
   gap: 8px;
@@ -101,17 +108,18 @@
 
 /* Danh sách hiệu suất bộ thẻ */
 .performance-list {
-  background: white;
+  background: var(--bg-card); /* 👉 ĐÃ SỬA */
   padding: 20px;
   border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border); /* 👉 ĐÃ SỬA */
+  transition: all 0.3s ease;
 }
 
 .perf-item {
   display: flex;
   align-items: center;
   padding: 15px 0;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--border); /* 👉 ĐÃ SỬA */
 }
 
 .perf-item:last-child {
@@ -121,7 +129,7 @@
 .perf-name {
   flex: 2;
   font-weight: bold;
-  color: #334155;
+  color: var(--text-dark); /* 👉 ĐÃ SỬA */
   display: flex;
   align-items: center;
   gap: 10px;
@@ -137,14 +145,14 @@
 .perf-bar-bg {
   flex: 1;
   height: 6px;
-  background: #e2e8f0;
+  background: var(--border); /* 👉 ĐÃ SỬA */
   border-radius: 4px;
   overflow: hidden;
 }
 
 .perf-bar-fill {
   height: 100%;
-  background: #10b981;
+  background: #10b981; /* Giữ nguyên màu xanh lục tượng trưng cho tiến độ */
   border-radius: 4px;
 }
 
@@ -153,11 +161,11 @@
   text-align: right;
   display: flex;
   justify-content: space-around;
-  color: #64748b;
+  color: var(--text-gray); /* 👉 ĐÃ SỬA */
   font-size: 0.9rem;
 }
 
 .perf-stats strong {
-  color: #1e293b;
+  color: var(--text-dark); /* 👉 ĐÃ SỬA */
   display: block;
 }
