@@ -1,13 +1,12 @@
-// frontend/src/pages/MyDecksPage.jsx
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/Layout/Sidebar";
 import Button from "../components/common/Button";
 import CramModeModal from "../components/Modals/CramModeModal";
 import ManageDeckModal from "../components/Modals/ManageDeckModal";
+import api from "../services/api"; // 👉 ĐÃ THÊM: Kẻ vận chuyển ngầm Axios
 import "./DashboardPage.css";
 import "./MyDecksPage.css";
 
-// 👉 ĐÃ SỬA: Nhận thêm prop onStudy để có thể đính kèm cờ "Vượt Rào"
 const MyDecksPage = ({ onNavigate, onStudy }) => {
   const [decks, setDecks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -18,12 +17,11 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
 
   const fetchDecks = async () => {
     try {
-      const token = localStorage.getItem("token") || "";
-      const res = await fetch("http://localhost:5000/api/decks", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
-      if (res.ok && data.success) setDecks(data.data || []);
+      // 👉 ĐÃ SỬA: Gọi API bằng Axios siêu ngắn gọn! Token đã được tự động đính kèm
+      const data = await api.get("/decks");
+      if (data.success) {
+        setDecks(data.data || []);
+      }
     } catch (error) {
       console.error("Lỗi khi tải bộ thẻ:", error);
     } finally {
@@ -45,16 +43,11 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
     setIsManageModalOpen(true);
   };
 
-  // 👉 ĐÃ THÊM: Bẫy sự kiện bấm nút Ôn Tập Thường
+  // 👉 ĐÃ SỬA: Bẫy sự kiện bấm nút Ôn Tập Thường bằng Axios
   const handleStudyClick = async (deckId) => {
     try {
-      const token = localStorage.getItem("token") || "";
-
-      // Chớp nhoáng gọi API xem bộ thẻ này còn bài để học không
-      const res = await fetch(`http://localhost:5000/api/study/due/${deckId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      // Chớp nhoáng gọi API xem bộ thẻ này còn bài để học không bằng Axios
+      const data = await api.get(`/study/due/${deckId}`);
       const dueCount = data.data ? data.data.length : 0;
 
       // Nếu hết thẻ (0 thẻ) -> Bật Popup hỏi ý kiến
@@ -64,9 +57,7 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
         );
 
         if (userWantsToForce) {
-          // Nếu đồng ý, gọi onStudy kèm cờ forceReview = true
           if (onStudy) onStudy(deckId, true);
-          // Hack an toàn nếu nhỡ quên cập nhật App.js
           else onNavigate("review", `${deckId}?force=true`);
         }
       } else {
@@ -88,7 +79,6 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
       <main className="dashboard-content">
         <div className="page-wrapper">
           <header style={{ marginBottom: "30px" }}>
-            {/* 👉 ĐÃ SỬA: Đổi tiêu đề trang ở đây */}
             <h1 style={{ color: "#2d3748" }}>Thư viện của tôi 📚</h1>
             <p style={{ color: "#718096" }}>
               Quản lý kho tàng kiến thức của bạn tại đây.

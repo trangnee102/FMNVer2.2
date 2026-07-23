@@ -57,64 +57,108 @@ const createDeck = async (req, res) => {
 };
 
 // =========================================
-// 👉 ĐÃ THÊM: HÀM MỚI - TẠO BỘ THẺ KÈM NHIỀU THẺ CÙNG LÚC
+// 👉 ĐÃ NÂNG CẤP: HÀM LƯU NHIỀU THẺ TỪ AI (Chống lỗi diện rộng)
 // =========================================
 const createDeckWithCards = async (req, res) => {
   try {
-    const { title, description, is_public, is_anonymous, cards } = req.body;
+    const { title, deck_id, description, is_public, is_anonymous, cards } =
+      req.body;
     const userId = parseInt(req.user.id) || req.user.id;
 
-    if (!title) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Tên bộ thẻ không được để trống!" });
-    }
-
-    // Kiểm tra xem user có gửi mảng thẻ (cards) lên không
+    // 1. Kiểm tra xem user có gửi mảng thẻ (cards) lên không
     if (!Array.isArray(cards) || cards.length === 0) {
       return res
         .status(400)
         .json({ success: false, message: "Vui lòng nhập ít nhất 1 thẻ!" });
     }
 
-    // Lọc bỏ những thẻ bị bỏ trống cả 2 mặt để chống rác Database
-    const validCards = cards.filter(
-      (c) => c.question?.trim() !== "" && c.answer?.trim() !== "",
-    );
+    // 2. Bộ lọc thông minh: Quét mọi key mà AI có thể nghĩ ra và chuẩn hóa thành chuỗi
+    const validCards = cards
+      .map((c) => {
+        const q = c.question || c.front || c.cau_hoi || c.CauHoi || c.q || "";
+        const a = c.answer || c.back || c.dap_an || c.DapAn || c.a || "";
+        return {
+          question: String(q).trim(),
+          answer: String(a).trim(),
+        };
+      })
+      .filter((c) => c.question !== "" && c.answer !== "");
 
     if (validCards.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Các thẻ đều trống nội dung, vui lòng nhập chữ!",
+        message: "Thẻ AI tạo ra bị lỗi định dạng hoặc trống nội dung!",
       });
     }
 
-    // 🚀 LƯU 1 PHÁT ĂN NGAY CẢ DECK LẪN FLASHCARDS
+    // ----------------------------------------------------
+    // KỊCH BẢN A: LƯU VÀO BỘ THẺ ĐÃ CÓ TỪ TRƯỚC (Nhận được deck_id)
+    // ----------------------------------------------------
+    if (deck_id) {
+      const parsedDeckId = parseInt(deck_id);
+
+      const existingDeck = await prisma.decks.findFirst({
+        where: { id: parsedDeckId, user_id: userId },
+      });
+
+      if (!existingDeck) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Không tìm thấy bộ thẻ bạn chọn!" });
+      }
+
+      // Tạo thẻ mới và nhét vào bộ thẻ cũ
+      await prisma.flashcards.createMany({
+        data: validCards.map((card) => ({
+          question: card.question,
+          answer: card.answer,
+          deck_id: parsedDeckId,
+        })),
+      });
+
+      return res.status(200).json({
+        success: true,
+        message: `Tuyệt vời! Đã thêm ${validCards.length} thẻ vào bộ "${existingDeck.title}".`,
+      });
+    }
+
+    // ----------------------------------------------------
+    // KỊCH BẢN B: TẠO BỘ THẺ MỚI HOÀN TOÀN (Nhận được title)
+    // ----------------------------------------------------
+    if (!title) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Tên bộ thẻ không được để trống!" });
+    }
+
+    // Tách làm 2 bước để không bị lỗi tên Relation (Flashcards vs flashcards)
     const newDeck = await prisma.decks.create({
       data: {
         title: title,
-        description: description || null,
+        description: description || "Tạo tự động bằng AI",
         is_public: is_public || false,
         is_anonymous: is_anonymous || false,
         user_id: userId,
-        Flashcards: {
-          create: validCards.map((card) => ({
-            question: card.question,
-            answer: card.answer,
-          })),
-        },
-      },
-      include: {
-        Flashcards: true, // Trả về kết quả kèm luôn danh sách thẻ để Frontend biết
       },
     });
 
-    res.status(201).json({
+    await prisma.flashcards.createMany({
+      data: validCards.map((card) => ({
+        question: card.question,
+        answer: card.answer,
+        deck_id: newDeck.id,
+      })),
+    });
+
+    return res.status(201).json({
       success: true,
-      message: `Tạo bộ thẻ thành công cùng với ${validCards.length} thẻ!`,
+      message: `Tạo bộ thẻ "${title}" thành công cùng với ${validCards.length} thẻ!`,
       data: newDeck,
     });
   } catch (error) {
+    // 👉 ĐÃ THÊM: Loa phường báo lỗi! Chữ này sẽ in thẳng ra Terminal để bắt bệnh
+    console.error("🚨 [LỖI NGHIÊM TRỌNG] Sập Server khi lưu thẻ AI:", error);
+
     res.status(500).json({
       success: false,
       message: "Lỗi hệ thống khi lưu nguyên bộ thẻ!",
@@ -201,7 +245,7 @@ const deleteDeck = async (req, res) => {
 module.exports = {
   getMyDecks,
   createDeck,
-  createDeckWithCards, // 👉 ĐÃ THÊM: Export hàm mới để Routes gọi được
+  createDeckWithCards,
   updateDeck,
   deleteDeck,
 };

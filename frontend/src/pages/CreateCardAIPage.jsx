@@ -1,8 +1,8 @@
-// frontend/src/pages/CreateCardAIPage.jsx
 import React, { useState, useRef, useEffect } from "react";
 import Sidebar from "../components/Layout/Sidebar";
 import AIInputSection from "../components/Cards/AIInputSection";
 import AIPreviewSection from "../components/Cards/AIPreviewSection";
+import api from "../services/api"; // 👉 ĐÃ THÊM: Kẻ vận chuyển ngầm
 import "./DashboardPage.css";
 import "./CreateCardAIPage.css";
 
@@ -25,12 +25,9 @@ const CreateCardAIPage = ({ onNavigate }) => {
   useEffect(() => {
     const fetchMyDecks = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch("http://localhost:5000/api/decks", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await response.json();
-        if (response.ok) setExistingDecks(data.data || data);
+        // 👉 ĐÃ SỬA: Dùng Axios gọi danh sách bộ thẻ cực gọn
+        const data = await api.get("/decks");
+        if (data.success) setExistingDecks(data.data || data);
       } catch (err) {
         console.error("Lỗi khi kéo dữ liệu bộ thẻ:", err);
       }
@@ -63,13 +60,11 @@ const CreateCardAIPage = ({ onNavigate }) => {
     setGeneratedCards([]);
 
     try {
-      const token = localStorage.getItem("token");
       const formData = new FormData();
       formData.append("topic", topic);
       formData.append("text", text);
       if (file) formData.append("file", file);
 
-      // 👉 Định dạng ép [MATH] và JSON chuẩn
       const mathInstruction = `LƯU Ý TỐI QUAN TRỌNG VỀ ĐỊNH DẠNG:
 1. BẮT BUỘC trả về KẾT QUẢ DUY NHẤT là một MẢNG JSON HỢP LỆ. Tuyệt đối không chèn thêm bất kỳ văn bản chào hỏi hay giải thích nào bên ngoài mảng JSON (không dùng markdown \`\`\`json).
 2. Trong nội dung thẻ, BẮT BUỘC bọc TẤT CẢ các công thức và ký hiệu toán học vào giữa 2 thẻ [MATH] và [/MATH]. (Ví dụ: [MATH]\\cos(a-b)[/MATH]). Không dùng dấu $ hay $$.
@@ -81,22 +76,14 @@ const CreateCardAIPage = ({ onNavigate }) => {
 
       formData.append("customPrompt", finalPrompt);
 
-      const response = await fetch("http://localhost:5000/api/ai/generate", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
+      // 👉 ĐÃ SỬA: Axios tự động chèn Token và tự nhận diện FormData (File) luôn!
+      const data = await api.post("/ai/generate", formData);
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setGeneratedCards(data.data);
-        if (data.message) setAiMessage(data.message);
-      } else {
-        setError(data.message || "Có lỗi xảy ra khi tạo thẻ.");
-      }
+      setGeneratedCards(data.data);
+      if (data.message) setAiMessage(data.message);
     } catch (err) {
-      setError("Không thể kết nối đến máy chủ AI.");
+      // Axios bắt lỗi cực chuẩn từ Backend trả về
+      setError(err.message || "Không thể kết nối đến máy chủ AI.");
     } finally {
       setLoading(false);
     }
@@ -122,37 +109,29 @@ const CreateCardAIPage = ({ onNavigate }) => {
     setError("");
 
     try {
-      const token = localStorage.getItem("token");
+      // 👉 ĐÃ SỬA: Bọc kiện hàng chuẩn bị gửi đi.
+      // Nếu là lưu vào bộ cũ (!isNewTopic), ta gửi kèm `deck_id` (là cái topic).
+      // Nếu là tạo bộ mới, ta gửi `title` (cũng là cái topic).
+      const payload = {
+        title: isNewTopic ? topic : undefined,
+        deck_id: !isNewTopic ? topic : undefined,
+        description: "Tạo tự động bằng AI",
+        is_public: false,
+        cards: generatedCards,
+      };
 
-      // 👉 GỌI ĐÚNG API /decks/bulk VÀ ĐỔI TOPIC THÀNH TITLE
-      const response = await fetch("http://localhost:5000/api/decks/bulk", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title: topic,
-          description: "Tạo tự động bằng AI",
-          is_public: false,
-          cards: generatedCards,
-        }),
-      });
+      // Gọi API siêu ngắn gọn với Axios
+      const data = await api.post("/decks/bulk", payload);
 
-      const data = await response.json();
-
-      if (response.ok) {
-        alert("🎉 " + (data.message || "Lưu thẻ thành công!"));
-        setGeneratedCards([]);
-        setAiMessage("");
-        if (onNavigate) onNavigate("my-decks");
-      } else {
-        alert("🚨 Lỗi: " + (data.message || "Không lưu được thẻ!"));
-        setError(data.message || "Lỗi khi lưu thẻ!");
-      }
+      alert("🎉 " + (data.message || "Lưu thẻ thành công!"));
+      setGeneratedCards([]);
+      setAiMessage("");
+      if (onNavigate) onNavigate("my-decks");
     } catch (err) {
-      alert("🚨 Đứt kết nối với Server!");
-      setError("Không thể kết nối đến server khi lưu thẻ.");
+      // 👉 NHỜ AXIOS: Nếu Backend báo lỗi 500, nó sẽ moi móc được câu chữ lỗi thật sự (err.message) hiển thị lên đây!
+      const errorMsg = err.message || err.error || "Lỗi khi lưu thẻ!";
+      alert("🚨 Lỗi từ Server: " + errorMsg);
+      setError(errorMsg);
     } finally {
       setIsSaving(false);
     }
@@ -172,7 +151,7 @@ const CreateCardAIPage = ({ onNavigate }) => {
             </p>
           </header>
 
-          <div 
+          <div
             className="create-page-container"
             style={{
               display: "flex",
@@ -181,7 +160,8 @@ const CreateCardAIPage = ({ onNavigate }) => {
               width: "100%",
               maxWidth: "900px",
               margin: "0 auto",
-            }}>
+            }}
+          >
             <AIInputSection
               topic={topic}
               setTopic={setTopic}

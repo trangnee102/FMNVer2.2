@@ -1,6 +1,9 @@
 import React, { useState } from "react";
+import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Login from "./components/Auth/Login";
 import Register from "./components/Auth/Register";
+import ProtectedRoute from "./components/Auth/ProtectedRoute"; // 👉 ĐÃ THÊM: Import Trạm gác an ninh
+
 import DashboardPage from "./pages/DashboardPage";
 import CreateCardPage from "./pages/CreateCardPage";
 import CreateFlashcardManualPage from "./pages/CreateFlashcardManualPage";
@@ -13,6 +16,7 @@ import CreateCardAIPage from "./pages/CreateCardAIPage";
 import "./index.css";
 
 import TimeMachineWidget from "./components/TimeMachineWidget";
+import { AuthProvider } from "./context/AuthContext";
 
 // ========================================================
 // HACK GIẢ LẬP THỜI GIAN (BẢN VÁ LỖI AN TOÀN TUYỆT ĐỐI 🛡️)
@@ -35,104 +39,161 @@ if (MOCK_DATE) {
 // ========================================================
 
 function App() {
-  const [currentView, setCurrentView] = useState("login");
+  const navigate = useNavigate();
+
   const [userName, setUserName] = useState("");
   const [activeDeckId, setActiveDeckId] = useState(null);
-
-  // 👉 State lưu trữ cờ "Vượt rào"
   const [isForceReview, setIsForceReview] = useState(false);
 
   const handleLogin = () => {
     setUserName("Admin (Từ Database)");
-    setCurrentView("dashboard");
+    navigate("/dashboard");
   };
 
   const handleRegister = (nameFromRegister) => {
     setUserName(nameFromRegister);
-    setCurrentView("dashboard");
+    navigate("/dashboard");
   };
 
   const handleNavigate = (view, deckId = null) => {
     if (deckId) {
       setActiveDeckId(deckId);
     }
-    setCurrentView(view);
+
+    const routeMap = {
+      login: "/login",
+      register: "/register",
+      dashboard: "/dashboard",
+      create: "/create",
+      "create-manual": "/create-manual",
+      "my-decks": "/my-decks",
+      study: "/study",
+      review: "/study",
+      "cram-review": "/cram-review",
+      stats: "/stats",
+      community: "/community",
+      "create-ai": "/create-ai",
+    };
+
+    const path = routeMap[view] || `/${view}`;
+    navigate(path);
   };
 
-  // 👉 Hàm gánh cờ forceReview đi khắp nơi
   const handleStartStudy = (deckId, forceReview = false) => {
     setIsForceReview(forceReview);
-    handleNavigate("study", deckId);
+    setActiveDeckId(deckId);
+    navigate("/study");
   };
 
   return (
-    <>
-      {currentView === "login" && (
-        <Login
-          onLogin={handleLogin}
-          onNavigateToRegister={() => handleNavigate("register")}
+    <AuthProvider>
+      <Routes>
+        {/* ========================================== */}
+        {/* KHU VỰC TỰ DO: Ai cũng có thể vào          */}
+        {/* ========================================== */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+
+        <Route
+          path="/login"
+          element={
+            <Login
+              onLogin={handleLogin}
+              onNavigateToRegister={() => handleNavigate("register")}
+            />
+          }
         />
-      )}
 
-      {currentView === "register" && (
-        <Register
-          onRegister={handleRegister}
-          onNavigateToLogin={() => handleNavigate("login")}
+        <Route
+          path="/register"
+          element={
+            <Register
+              onRegister={handleRegister}
+              onNavigateToLogin={() => handleNavigate("login")}
+            />
+          }
         />
-      )}
 
-      {currentView === "dashboard" && (
-        <DashboardPage
-          dynamicName={userName}
-          onNavigate={handleNavigate}
-          onStudy={handleStartStudy}
-        />
-      )}
+        {/* ========================================== */}
+        {/* KHU VỰC BẢO MẬT: Bắt buộc phải có Token    */}
+        {/* ========================================== */}
+        <Route element={<ProtectedRoute />}>
+          <Route
+            path="/dashboard"
+            element={
+              <DashboardPage
+                dynamicName={userName}
+                onNavigate={handleNavigate}
+                onStudy={handleStartStudy}
+              />
+            }
+          />
 
-      {currentView === "create" && (
-        <CreateCardPage onNavigate={handleNavigate} />
-      )}
+          <Route
+            path="/create"
+            element={<CreateCardPage onNavigate={handleNavigate} />}
+          />
 
-      {currentView === "create-manual" && (
-        <CreateFlashcardManualPage onNavigate={handleNavigate} />
-      )}
+          <Route
+            path="/create-manual"
+            element={<CreateFlashcardManualPage onNavigate={handleNavigate} />}
+          />
 
-      {currentView === "my-decks" && (
-        <MyDecksPage onNavigate={handleNavigate} onStudy={handleStartStudy} />
-      )}
+          <Route
+            path="/my-decks"
+            element={
+              <MyDecksPage
+                onNavigate={handleNavigate}
+                onStudy={handleStartStudy}
+              />
+            }
+          />
 
-      {(currentView === "study" || currentView === "review") && (
-        <ReviewPage
-          deckId={activeDeckId}
-          forceReview={isForceReview}
-          onNavigate={
-            handleNavigate
-          } /* 👉 ĐÃ FIX BUG: Truyền hàm này vào thì thanh Sidebar ở trang Ôn tập mới không bị sập! */
-          onFinish={() => handleNavigate("my-decks")}
-        />
-      )}
+          <Route
+            path="/study"
+            element={
+              <ReviewPage
+                deckId={activeDeckId}
+                forceReview={isForceReview}
+                onNavigate={handleNavigate}
+                onFinish={() => handleNavigate("my-decks")}
+              />
+            }
+          />
 
-      {currentView === "cram-review" && (
-        <CramReviewPage
-          deckId={activeDeckId}
-          onFinish={() => handleNavigate("my-decks")}
-        />
-      )}
+          <Route
+            path="/cram-review"
+            element={
+              <CramReviewPage
+                deckId={activeDeckId}
+                onFinish={() => handleNavigate("my-decks")}
+              />
+            }
+          />
 
-      {currentView === "stats" && (
-        <StatisticsPage onNavigate={handleNavigate} />
-      )}
+          <Route
+            path="/stats"
+            element={<StatisticsPage onNavigate={handleNavigate} />}
+          />
 
-      {currentView === "community" && (
-        <CommunityPage onNavigate={handleNavigate} />
-      )}
+          <Route
+            path="/community"
+            element={<CommunityPage onNavigate={handleNavigate} />}
+          />
 
-      {currentView === "create-ai" && (
-        <CreateCardAIPage onNavigate={handleNavigate} />
-      )}
+          <Route
+            path="/create-ai"
+            element={<CreateCardAIPage onNavigate={handleNavigate} />}
+          />
+        </Route>
+
+        {/* ========================================== */}
+        {/* BẮT LỖI 404: Gõ bậy bạ thì về Login        */}
+        {/* ========================================== */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
 
       <TimeMachineWidget />
-    </>
+    </AuthProvider>
   );
 }
 

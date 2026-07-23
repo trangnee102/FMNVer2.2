@@ -1,12 +1,18 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom"; // 👉 ĐÃ THÊM: Công cụ chuyển trang chuẩn
+import { useAuth } from "../../context/AuthContext"; // 👉 ĐÃ THÊM: Chìa khóa mở Két sắt
 import Button from "../common/Button";
 import "./Login.css";
 
-const Login = ({ onLogin, onNavigateToRegister }) => {
+const Login = () => {
+  // Không cần nhận props từ App.jsx nữa, component giờ đã hoàn toàn tự lập!
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+
+  const navigate = useNavigate();
+  const { loginUser } = useAuth(); // Kéo hàm cất dữ liệu từ Két sắt ra
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -23,11 +29,15 @@ const Login = ({ onLogin, onNavigateToRegister }) => {
       const data = await response.json();
 
       if (response.ok) {
-        // 🎉 THÀNH CÔNG: Lưu Token
+        // 🎉 THÀNH CÔNG: Lưu Token vào LocalStorage để làm "Thẻ căn cước"
         localStorage.setItem("token", data.token);
 
-        // 👉 ĐÃ SỬA: Lấy Email thay vì Name vì Database của cậu không có cột Name
-        onLogin(data.user?.email || "Bạn");
+        // 👉 CÁCH PRO LÀM: Ném toàn bộ thông tin User (id, email, avatar...) vào Két sắt!
+        // Từ giờ mọi trang khác cứ chọc vào Két sắt là lấy được thông tin người này.
+        loginUser(data.user);
+
+        // Đẩy người dùng sang trang Dashboard thông qua URL
+        navigate("/dashboard");
       } else {
         // ❌ THẤT BẠI: Hiện lỗi đỏ
         setErrorMessage(data.message || "Đăng nhập thất bại!");
@@ -150,7 +160,8 @@ const Login = ({ onLogin, onNavigateToRegister }) => {
         >
           Chưa có tài khoản?{" "}
           <span
-            onClick={onNavigateToRegister}
+            // 👉 ĐÃ SỬA: Chuyển trang Đăng ký bằng URL
+            onClick={() => navigate("/register")}
             style={{
               color: "var(--primary)",
               cursor: "pointer",

@@ -1,10 +1,16 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
+// 👉 ĐÃ THÊM: Máy quét ID thông minh (giống hệt bên chat)
+const getUserId = (req) => {
+  const id = req.user?.id || req.userId || req.user_id || req.user;
+  return parseInt(id);
+};
+
 const searchUserByEmail = async (req, res) => {
   try {
     const { email } = req.query;
-    const currentUserId = parseInt(req.user?.id) || 1;
+    const currentUserId = getUserId(req); // Đã sửa
     if (!email)
       return res
         .status(400)
@@ -41,6 +47,8 @@ const searchUserByEmail = async (req, res) => {
         avatar_color: user.avatar_color,
         is_online: user.is_online,
         friendship_status: friendship ? friendship.status : "none",
+        requester_id: friendship ? friendship.requester_id : null,
+        friendship_id: friendship ? friendship.id : null,
       },
     });
   } catch (error) {
@@ -52,7 +60,7 @@ const searchUserByEmail = async (req, res) => {
 
 const sendFriendRequest = async (req, res) => {
   try {
-    const currentUserId = parseInt(req.user?.id) || 1;
+    const currentUserId = getUserId(req); // Đã sửa
     const targetUserId = parseInt(req.body.targetUserId);
 
     if (!targetUserId || isNaN(targetUserId))
@@ -95,7 +103,7 @@ const sendFriendRequest = async (req, res) => {
 
 const getContacts = async (req, res) => {
   try {
-    const currentUserId = parseInt(req.user?.id) || 1;
+    const currentUserId = getUserId(req); // Đã sửa
     const friendships = await prisma.friendships.findMany({
       where: {
         status: "accepted",
@@ -139,7 +147,7 @@ const getContacts = async (req, res) => {
 
 const getPendingRequests = async (req, res) => {
   try {
-    const currentUserId = parseInt(req.user?.id) || 1;
+    const currentUserId = getUserId(req); // Đã sửa
     const requests = await prisma.friendships.findMany({
       where: { addressee_id: currentUserId, status: "pending" },
       include: {
@@ -162,7 +170,7 @@ const getPendingRequests = async (req, res) => {
 
 const respondFriendRequest = async (req, res) => {
   try {
-    const currentUserId = parseInt(req.user?.id) || 1;
+    const currentUserId = getUserId(req); // Đã sửa
     const { requestId, action } = req.body;
 
     const request = await prisma.friendships.findUnique({
@@ -181,7 +189,7 @@ const respondFriendRequest = async (req, res) => {
       data: { status: "accepted" },
     });
 
-    // Tạo phòng chat 1-1
+    // Tạo phòng chat 1-1 (Đã fix lỗi sập Database)
     const chatExists = await prisma.conversations.findFirst({
       where: {
         is_group: false,
@@ -193,13 +201,19 @@ const respondFriendRequest = async (req, res) => {
     });
 
     if (!chatExists) {
+      // 👉 ĐÃ FIX: Tạo chuỗi ngẫu nhiên độc nhất chống lỗi P2002
+      const uniqueSuffix =
+        Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
+
       await prisma.conversations.create({
         data: {
           is_group: false,
+          name: `DM_${currentUserId}_${request.requester_id}_${uniqueSuffix}`, // Tên phòng siêu độc nhất
+          invite_code: `INV_${uniqueSuffix}`, // Mã mời siêu độc nhất
           Participants: {
             create: [
-              { user_id: currentUserId },
-              { user_id: request.requester_id },
+              { user_id: currentUserId, role: "member" },
+              { user_id: request.requester_id, role: "member" },
             ],
           },
         },
@@ -207,6 +221,7 @@ const respondFriendRequest = async (req, res) => {
     }
     res.status(200).json({ success: true, message: "Đã kết bạn!" });
   } catch (error) {
+    console.error(error); // In lỗi ra log nếu có
     res.status(500).json({ success: false, message: "Lỗi hệ thống" });
   }
 };

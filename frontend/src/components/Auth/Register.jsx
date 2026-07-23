@@ -1,45 +1,56 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom"; // 👉 ĐÃ THÊM: Công cụ chuyển trang chuẩn
+import { useAuth } from "../../context/AuthContext"; // 👉 ĐÃ THÊM: Chìa khóa mở Két sắt
 import Button from "../common/Button";
 import "./Login.css";
 
-const Register = ({ onRegister, onNavigateToLogin }) => {
+const Register = () => {
+  // 👉 ĐÃ XÓA: Không cần nhận props từ App.jsx nữa
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  // 👉 THÊM: State để lưu thông báo lỗi
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false); // Thêm state loading cho mượt
+
+  const navigate = useNavigate();
+  const { loginUser } = useAuth(); // Kéo hàm cất dữ liệu từ Két sắt ra
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(""); // Xóa lỗi cũ đi trước khi thử lại
+    setIsLoading(true);
 
     try {
-      // 👉 BƯỚC 1: Gọi API Đăng ký xuống Backend
-      // (Đảm bảo cổng 5000 khớp với Backend của cậu đang chạy)
+      // Gọi API Đăng ký xuống Backend
       const response = await fetch("http://localhost:5000/api/auth/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, password }),
+        // 👉 ĐÃ SỬA: Nhớ gửi kèm cả Tên hiển thị (full_name) xuống Backend nhé!
+        body: JSON.stringify({ full_name: name, email, password }),
       });
 
       const data = await response.json();
 
-      // 👉 BƯỚC 2: Nếu Backend từ chối (VD: Trùng email)
+      // Nếu Backend từ chối (VD: Trùng email)
       if (!response.ok) {
         throw new Error(data.message || "Đăng ký thất bại!");
       }
 
-      // 👉 BƯỚC 3: Đăng ký thành công -> Lưu ngay Token vào Local Storage
+      // 🎉 BƯỚC 1: Đăng ký thành công -> Lưu ngay Token vào Local Storage
       localStorage.setItem("token", data.token);
 
-      // 👉 BƯỚC 4: Chuyển trang vào Dashboard
-      onRegister(name || data.user.email);
+      // 🎉 BƯỚC 2: Cất toàn bộ thông tin User mới tạo vào Két sắt
+      loginUser(data.user);
+
+      // 🎉 BƯỚC 3: Chuyển trang thẳng vào Dashboard bằng URL
+      navigate("/dashboard");
     } catch (err) {
       // Bắt lỗi và ném vào State để in ra chữ đỏ
       setError(err.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -69,7 +80,7 @@ const Register = ({ onRegister, onNavigateToLogin }) => {
           Bắt đầu hành trình học tập của bạn
         </p>
 
-        {/* 👉 THÊM: Khu vực hiển thị lỗi chữ đỏ báo cho người dùng */}
+        {/* Khu vực hiển thị lỗi chữ đỏ báo cho người dùng */}
         {error && (
           <div
             style={{
@@ -117,7 +128,23 @@ const Register = ({ onRegister, onNavigateToLogin }) => {
               required
             />
           </div>
-          <Button text="Đăng ký tài khoản" variant="primary" fullWidth={true} />
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            style={{
+              width: "100%",
+              padding: "12px",
+              backgroundColor: "var(--primary)",
+              color: "white",
+              border: "none",
+              borderRadius: "var(--radius-sm)",
+              fontWeight: "600",
+              cursor: isLoading ? "not-allowed" : "pointer",
+            }}
+          >
+            {isLoading ? "Đang xử lý..." : "Đăng ký tài khoản"}
+          </button>
         </form>
 
         <div
@@ -129,7 +156,8 @@ const Register = ({ onRegister, onNavigateToLogin }) => {
         >
           Đã có tài khoản?{" "}
           <span
-            onClick={onNavigateToLogin}
+            // 👉 ĐÃ SỬA: Chuyển trang bằng URL
+            onClick={() => navigate("/login")}
             style={{
               color: "var(--primary)",
               cursor: "pointer",
