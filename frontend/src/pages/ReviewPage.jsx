@@ -131,18 +131,13 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
     const durationMs = Date.now() - startTime;
 
     // Gửi dữ liệu lưu trữ ngầm hoàn toàn lên Server
-    fetch("http://localhost:5000/api/study/review", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
+    api
+      .post("/study/review", {
         flashcard_id: currentCard.id,
         rating: rating,
         duration_ms: durationMs,
-      }),
-    }).catch((err) => console.error("Lỗi đồng bộ dữ liệu ngầm:", err));
+      })
+      .catch((err) => console.error("Lỗi đồng bộ dữ liệu ngầm:", err));
 
     // Cập nhật thống kê phiên học ngay lập tức
     if (rating === 1) { 
