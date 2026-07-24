@@ -1,5 +1,13 @@
 const prisma = require("../services/prisma");
 
+const ratingToProgressScore = (rating) => {
+  if (rating === 1) return 0;
+  if (rating === 2) return 40;
+  if (rating === 3) return 75;
+  if (rating === 4) return 100;
+  return 0;
+};
+
 // 1. LẤY DANH SÁCH BỘ THẺ CỦA NGƯỜI DÙNG
 const getMyDecks = async (req, res) => {
   try {
@@ -8,9 +16,67 @@ const getMyDecks = async (req, res) => {
     const decks = await prisma.decks.findMany({
       where: { user_id: userId },
       orderBy: { id: "desc" },
+      include: {
+        _count: { select: { Flashcards: true } },
+        Flashcards: {
+          select: {
+            StudyProgress: {
+              where: { user_id: userId },
+              select: { ease_factor: true, next_review_date: true },
+            },
+            StudyLogs: {
+              where: { user_id: userId },
+              orderBy: { reviewed_at: "desc" },
+              take: 1,
+              select: { rating: true },
+            },
+          },
+        },
+      },
     });
 
-    res.json({ success: true, data: decks });
+    const formattedDecks = decks.map((deck) => {
+      const totalCards = deck._count?.Flashcards ?? 0;
+      let progressScoreSum = 0;
+      let dueCount = 0;
+      const today = new Date();
+
+      deck.Flashcards.forEach((card) => {
+        const progress = card.StudyProgress?.[0];
+        const latestRating = card.StudyLogs?.[0]?.rating;
+        const progressScore = ratingToProgressScore(latestRating);
+
+        if (!progress) {
+          dueCount++;
+          progressScoreSum += progressScore;
+          return;
+        }
+
+        if (new Date(progress.next_review_date) <= today) {
+          dueCount++;
+        }
+
+        progressScoreSum += progressScore;
+      });
+
+      return {
+        id: deck.id,
+        title: deck.title,
+        description: deck.description,
+        is_public: deck.is_public,
+        is_anonymous: deck.is_anonymous,
+        user_id: deck.user_id,
+        clone_count: deck.clone_count,
+        totalCards,
+        dueCards: dueCount,
+        progressPercent:
+          totalCards > 0
+            ? Math.round(progressScoreSum / totalCards)
+            : 0,
+      };
+    });
+
+    res.json({ success: true, data: formattedDecks });
   } catch (error) {
     res.status(500).json({
       success: false,

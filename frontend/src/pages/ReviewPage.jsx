@@ -130,27 +130,36 @@ const ReviewPage = ({ deckId, forceReview = false, onFinish }) => {
     const currentCard = cards[currentIndex];
     const durationMs = Date.now() - startTime;
 
-    // Gửi điểm số ngầm, không cần đợi await để tránh giật lag UI
-    api
-      .post("/study/review", {
+    // Gửi dữ liệu lưu trữ ngầm hoàn toàn lên Server
+    fetch("http://localhost:5000/api/study/review", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
         flashcard_id: currentCard.id,
         rating: rating,
         duration_ms: durationMs,
-      })
-      .catch((err) => console.error("Lỗi đồng bộ dữ liệu ngầm:", err));
+      }),
+    }).catch((err) => console.error("Lỗi đồng bộ dữ liệu ngầm:", err));
 
-    if (rating === 1) {
-      setSessionStats((prev) => ({ ...prev, forgotten: prev.forgotten + 1 }));
+    // Cập nhật thống kê phiên học ngay lập tức
+    if (rating === 1) { 
+      setSessionStats(prev => ({ ...prev, forgotten: prev.forgotten + 1 }));
     } else {
-      setSessionStats((prev) => ({ ...prev, passed: prev.passed + 1 }));
+      setSessionStats(prev => ({ ...prev, passed: prev.passed + 1 }));
     }
 
     if (currentIndex < cards.length - 1) {
       setIsFlipped(false);
-      setTimeout(() => setCurrentIndex((prev) => prev + 1), 150);
+      setTimeout(() => {
+        setCurrentIndex((prev) => prev + 1);
+      }, 150);
     } else {
       localStorage.removeItem(`review_progress_${deckId}`);
       setIsSessionFinished(true);
+      alert("🎉 Chúc mừng! Cậu đã hoàn thành phiên ôn tập này!");
       if (onFinish) onFinish();
     }
   };

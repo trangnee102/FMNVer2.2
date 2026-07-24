@@ -1,3 +1,4 @@
+// frontend/src/pages/MyDecksPage.jsx
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/Layout/Sidebar";
 import Button from "../components/common/Button";
@@ -10,19 +11,40 @@ import "./MyDecksPage.css";
 const MyDecksPage = ({ onNavigate, onStudy }) => {
   const [decks, setDecks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortOption, setSortOption] = useState("name-asc");
+  const [favoriteDecks, setFavoriteDecks] = useState(
+    JSON.parse(localStorage.getItem("favoriteDeckIds") || "[]") || [],
+  );
 
   const [selectedDeck, setSelectedDeck] = useState(null);
   const [isCramModalOpen, setIsCramModalOpen] = useState(false);
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
 
+  // =========================
+  // Helpers
+  // =========================
+  const getCardCount = (deck) =>
+    deck.totalCards ?? deck._count?.Flashcards ?? 0;
+
+  const isAIDeck = (deck) => {
+    if (deck.isAI !== undefined) return deck.isAI;
+    return (
+      (deck.title || "").toLowerCase().startsWith("[ai]") ||
+      (deck.description || "").toLowerCase().startsWith("[ai]")
+    );
+  };
+
+
   const fetchDecks = async () => {
     try {
-      setIsLoading(true);
-      const res = await api.get("/decks");
-
-      // 👉 CHUẨN HÓA AXIOS: Bóc tách lớp vỏ data của Axios an toàn
-      const fetchedDecks = res.data?.data || res.data || [];
-      setDecks(Array.isArray(fetchedDecks) ? fetchedDecks : []);
+      const token = localStorage.getItem("token") || "";
+      const res = await fetch("http://localhost:5000/api/decks", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) setDecks(data.data || []);
     } catch (error) {
       console.error("Lỗi khi tải bộ thẻ:", error);
     } finally {
@@ -31,8 +53,36 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
   };
 
   useEffect(() => {
-    fetchDecks();
+    let isMounted = true;
+
+    const loadDecks = async () => {
+      if (!isMounted) return;
+      await fetchDecks();
+    };
+
+    void loadDecks();
+
+    const handleDeckProgressUpdated = () => {
+      void fetchDecks();
+    };
+
+    window.addEventListener("deck-progress-updated", handleDeckProgressUpdated);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener("deck-progress-updated", handleDeckProgressUpdated);
+    };
   }, []);
+
+  const toggleFavoriteDeck = (deckId) => {
+    setFavoriteDecks((prev) => {
+      const nextFavorites = prev.includes(deckId)
+        ? prev.filter((id) => id !== deckId)
+        : [...prev, deckId];
+      localStorage.setItem("favoriteDeckIds", JSON.stringify(nextFavorites));
+      return nextFavorites;
+    });
+  };
 
   const openCramModal = (deck) => {
     setSelectedDeck(deck);
@@ -43,6 +93,59 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
     setSelectedDeck(deck);
     setIsManageModalOpen(true);
   };
+
+  const filteredDecks = decks
+    .filter((deck) => {
+      if (activeTab === "favorite") return favoriteDecks.includes(deck.id);
+      if (activeTab === "ai") {
+        return isAIDeck(deck);
+      }
+      return true;
+    })
+    .filter((deck) => {
+      const search = searchQuery.trim().toLowerCase();
+      if (!search) return true;
+      return (
+        (deck.title || deck.name || "").toLowerCase().includes(search) ||
+        (deck.description || "").toLowerCase().includes(search)
+      );
+    });
+    
+const sortedDecks = [...filteredDecks].sort((a, b) => {
+  // ==========================
+  // Ưu tiên bộ thẻ yêu thích lên đầu
+  // ==========================
+  const aFavorite = favoriteDecks.includes(a.id);
+  const bFavorite = favoriteDecks.includes(b.id);
+
+  if (aFavorite !== bFavorite) {
+    return bFavorite - aFavorite;
+  }
+
+  // ==========================
+  // Sau đó mới sort theo lựa chọn
+  // ==========================
+  switch (sortOption) {
+    case "name-asc":
+      return (a.title || a.name || "").localeCompare(
+        b.title || b.name || ""
+      );
+
+    case "name-desc":
+      return (b.title || b.name || "").localeCompare(
+        a.title || a.name || ""
+      );
+
+    case "cards-desc":
+      return getCardCount(b) - getCardCount(a);
+
+    case "cards-asc":
+      return getCardCount(a) - getCardCount(b);
+
+    default:
+      return 0;
+  }
+});
 
   const handleStudyClick = async (deckId) => {
     try {
@@ -66,6 +169,7 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
         else onNavigate("review", deckId);
       }
     } catch (error) {
+      // Rủi ro mạng lag thì cứ mở trang học ra cho báo lỗi bên đó
       if (onStudy) onStudy(deckId, false);
       else onNavigate("review", deckId);
     }
@@ -78,6 +182,7 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
       <main className="dashboard-content">
         <div className="page-wrapper">
           <header style={{ marginBottom: "30px" }}>
+            {/* 👉 ĐÃ SỬA: Đổi tiêu đề trang ở đây */}
             <h1 style={{ color: "#2d3748" }}>Thư viện của tôi 📚</h1>
             <p style={{ color: "#718096" }}>
               Quản lý kho tàng kiến thức của bạn tại đây.
@@ -88,107 +193,109 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
             <p style={{ textAlign: "center", color: "#718096" }}>
               Đang tải dữ liệu...
             </p>
-          ) : decks.length === 0 ? (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "50px",
-                background: "white",
-                borderRadius: "12px",
-                boxShadow: "0 4px 6px rgba(0, 0, 0, 0.05)",
-              }}
-            >
-              <p
-                style={{
-                  fontSize: "1.1rem",
-                  color: "#4a5568",
-                  marginBottom: "20px",
-                }}
-              >
-                Cậu chưa có bộ thẻ nào cả! Hãy tạo bộ thẻ đầu tiên nhé.
-              </p>
-              <Button
-                text="Tạo thẻ ngay"
-                variant="primary"
-                onClick={() => onNavigate("create")}
-              />
+          ) : sortedDecks.length === 0 ? (
+            <div className="empty-state">
+              Không tìm thấy bộ thẻ phù hợp với bộ lọc hiện tại.
             </div>
           ) : (
             <div className="decks-grid">
-              {decks.map((deck) => (
-                <div className="deck-card" key={deck.id}>
-                  <div className="deck-card-header">
-                    <div
-                      style={{
-                        background: "#ebf8ff",
-                        color: "#3182ce",
-                        padding: "12px",
-                        borderRadius: "10px",
+              {sortedDecks.map((deck) => {
+                const isFavorite = favoriteDecks.includes(deck.id);
+                const totalCards = getCardCount(deck);
+                const progressPercent = deck.progressPercent ?? 0;
+                const dueLabel = deck.dueCards != null ? deck.dueCards : totalCards;
+                const statusText = totalCards === 0
+                  ? "Chưa có thẻ"
+                  : dueLabel === 0
+                  ? "✅ Đã hoàn thành"
+                  : `⏳ Còn ${dueLabel} thẻ`;
+
+                return (
+                  <div className="deck-card" key={deck.id}>
+                    <button
+                      className={`favorite-btn ${isFavorite ? "active" : ""}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavoriteDeck(deck.id);
                       }}
+                      aria-label={isFavorite ? "Bỏ yêu thích" : "Yêu thích"}
                     >
-                      <i className="fa-solid fa-layer-group"></i>
+                      <i className={isFavorite ? "fa-solid fa-star" : "fa-regular fa-star"}></i>
+                    </button>
+
+                    <div className="deck-card-header">
+                      <div className="deck-card-icon">
+                        <i className="fa-solid fa-layer-group"></i>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+                        <h3>{deck.title || deck.name || "Bộ thẻ không tên"}</h3>
+                        {isAIDeck(deck) && (
+                          <span style={{background:"#7C3AED",color:"#fff",padding:"2px 8px",borderRadius:"999px",fontSize:"12px",fontWeight:600}}>AI</span>
+                        )}
+                      </div>
                     </div>
-                    <h3>{deck.title || deck.name}</h3>
+
+                    <p className="deck-card-description">
+                      {deck.description || "Chứa các thẻ từ vựng / thuật ngữ."}
+                    </p>
+
+                    <div className="deck-card-meta">
+                      <span className="deck-meta-pill">
+                        <i className="fa-regular fa-clone"></i>
+                        {totalCards} thẻ
+                      </span>
+                      {deck.description ? (
+                        <span className="deck-meta-pill">
+                          {deck.description}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="progress-area">
+                      <div className="progress-label">
+                        <span>Tiến độ ôn tập</span>
+                        <strong>{progressPercent}%</strong>
+                      </div>
+                      <div className="progress-track">
+                        <div
+                          className="progress-fill"
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="deck-status-row">
+                      <span className="deck-status-pill">{statusText}</span>
+                      <span className="deck-status-pill">
+                        {deck.clone_count ? `${deck.clone_count} lượt chia sẻ` : ""}
+                      </span>
+                    </div>
+
+                    <div className="deck-actions">
+                      <button
+                        className="card-action-button study"
+                        onClick={() => handleStudyClick(deck.id)}
+                      >
+                        Ôn tập thường
+                      </button>
+
+                      <button
+                        className="card-action-button cram"
+                        onClick={() => openCramModal(deck)}
+                      >
+                        ⚡ Bật Cram
+                      </button>
+
+                      <button
+                        className="card-action-button manage"
+                        onClick={() => openManageModal(deck)}
+                      >
+                        Quản lý
+                      </button>
+                    </div>
                   </div>
-
-                  <p
-                    style={{
-                      color: "#718096",
-                      fontSize: "0.9rem",
-                      margin: "0 0 20px 0",
-                    }}
-                  >
-                    Chứa các thẻ từ vựng / thuật ngữ.
-                  </p>
-
-                  <div className="deck-actions">
-                    <button
-                      onClick={() => handleStudyClick(deck.id)}
-                      style={{
-                        width: "100%",
-                        padding: "12px",
-                        background: "#f0f4f8",
-                        border: "none",
-                        borderRadius: "8px",
-                        color: "#2b6cb0",
-                        fontWeight: "bold",
-                        cursor: "pointer",
-                        transition: "0.2s",
-                      }}
-                    >
-                      Ôn tập thường
-                    </button>
-
-                    <button
-                      onClick={() => openCramModal(deck)}
-                      style={{
-                        width: "100%",
-                        padding: "12px",
-                        background: "#f59e0b",
-                        border: "none",
-                        borderRadius: "8px",
-                        color: "white",
-                        fontWeight: "bold",
-                        cursor: "pointer",
-                        display: "flex",
-                        justifyContent: "center",
-                        gap: "8px",
-                        alignItems: "center",
-                        transition: "0.2s",
-                      }}
-                    >
-                      ⚡ Bật Cram Mode
-                    </button>
-
-                    <button
-                      className="btn-manage"
-                      onClick={() => openManageModal(deck)}
-                    >
-                      ⚙️ Quản lý chi tiết
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
