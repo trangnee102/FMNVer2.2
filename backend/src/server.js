@@ -20,7 +20,7 @@ const aiRoutes = require("./routes/aiRoutes");
 const communityRoutes = require("./routes/communityRoutes");
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 
 // =========================================
 // 👉 ĐÃ THÊM: KHỞI TẠO SERVER & SOCKET.IO
@@ -129,8 +129,23 @@ if (app._router && app._router.stack) {
 }
 
 // 👉 ĐÃ SỬA: Dùng server.listen thay cho app.listen để chạy cả HTTP và WebSockets
-server.listen(PORT, () => {
-  console.log(
-    `✅ Server Backend & Socket.io đang chạy tại http://localhost:${PORT}`,
-  );
-});
+const startServerWithPort = (port) => {
+  const onError = (error) => {
+    if (error.code === "EADDRINUSE") {
+      console.warn(`⚠️ Cổng ${port} đang bị chiếm, đang thử cổng ${port + 1}...`);
+      server.removeListener("error", onError);
+      startServerWithPort(port + 1);
+    } else {
+      console.error("Server startup error:", error);
+      process.exit(1);
+    }
+  };
+
+  server.on("error", onError);
+
+  server.listen(port, () => {
+    console.log(`✅ Server Backend & Socket.io đang chạy tại http://localhost:${port}`);
+  });
+};
+
+startServerWithPort(PORT);
