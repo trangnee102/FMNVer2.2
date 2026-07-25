@@ -1,5 +1,4 @@
 import React from "react";
-import ActionCard from "../Cards/ActionCard";
 
 const DashboardActions = ({ totalDueCards, onNavigate, onOpenCramModal }) => {
   
@@ -11,35 +10,49 @@ const DashboardActions = ({ totalDueCards, onNavigate, onOpenCramModal }) => {
 
   return (
     <div className="action-grid">
-      <ActionCard
-        title="Ôn tập ngay"
-        desc={`Bắt đầu với ${totalDueCards > 0 ? totalDueCards : 0} thẻ cần ôn hôm nay`}
-        btnText="Bắt đầu học →"
-        bgColor="rgba(139, 92, 246, 0.05)"
-        btnVariant="primary"
-        // 👉 ĐÃ SỬA THEO YÊU CẦU: Nhảy thẳng sang trang Thư viện của tôi
-        onClick={() => onNavigate("my-decks")} 
-      />
+      
+      {/* Thẻ 1: Ôn tập ngay */}
+      <div className="action-card">
+        <div>
+          <h3>Ôn tập ngay</h3>
+          <p>Bắt đầu với {totalDueCards > 0 ? totalDueCards : 0} thẻ cần ôn hôm nay</p>
+        </div>
+        <button 
+          className="action-btn-primary btn-action-blue"
+          onClick={() => onNavigate("my-decks")} 
+        >
+          Bắt đầu học →
+        </button>
+      </div>
 
-      <ActionCard
-        title="Tạo Flashcard"
-        desc="Tải tài liệu lên, AI sẽ giúp bạn tạo thẻ nhanh chóng"
-        btnText="Tạo ngay →"
-        bgColor="rgba(16, 185, 129, 0.05)"
-        btnVariant="green"
-        // 👉 Giữ nguyên chức năng sang trang Tạo thẻ
-        onClick={() => onNavigate("create")}
-      />
+      {/* Thẻ 2: Tạo Flashcard */}
+      <div className="action-card">
+        <div>
+          <h3>Tạo Flashcard</h3>
+          <p>Tải tài liệu lên, AI sẽ giúp bạn tạo thẻ nhanh chóng</p>
+        </div>
+        <button 
+          className="action-btn-primary btn-action-gray"
+          onClick={() => onNavigate("create")}
+        >
+          Tạo ngay →
+        </button>
+      </div>
 
-      <ActionCard
-        title="Ôn thi cấp tốc"
-        desc="Tính năng Cram Mode rút ngắn chu kỳ"
-        btnText="Bật Cram Mode ⚡"
-        bgColor="rgba(245, 158, 11, 0.05)"
-        btnVariant="orange"
-        // 👉 ĐÃ SỬA THEO YÊU CẦU: Hiện thông báo chuyên nghiệp rồi mới bật Modal
-        onClick={handleOpenCramMode}
-      />
+      {/* Thẻ 3: Ôn thi cấp tốc */}
+      <div className="action-card">
+        <div>
+          <h3>Ôn thi cấp tốc</h3>
+          <p>Tính năng Cram Mode rút ngắn chu kỳ</p>
+        </div>
+        <button 
+          className="action-btn-primary btn-action-orange"
+          onClick={handleOpenCramMode}
+        >
+          Bật Cram Mode ⚡
+        </button>
+      </div>
+
     </div>
   );
 };

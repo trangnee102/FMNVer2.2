@@ -1,122 +1,95 @@
-const BASE_URL = "http://localhost:5000/api";
+import axios from "axios";
 
-const fetchWithAuth = async (endpoint, options = {}) => {
-  const token = localStorage.getItem("token");
-  const headers = { ...options.headers };
+// =========================================
+// 1. KHỞI TẠO "KẺ VẬN CHUYỂN NGẦM"
+// =========================================
+const api = axios.create({
+  baseURL: "http://localhost:5000/api", // Đảm bảo khớp với cổng Backend
+});
 
-  if (token) headers["Authorization"] = `Bearer ${token}`;
+// =========================================
+// 2. TRẠM KIỂM SOÁT ĐẦU RA (Tự động gắn thẻ căn cước)
+// =========================================
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
 
-  // Xử lý thông minh - Nếu dữ liệu không phải là file (FormData) thì mới ép kiểu JSON
-  if (options.body && !(options.body instanceof FormData)) {
-    headers["Content-Type"] = "application/json";
-  }
+// =========================================
+// 3. TRẠM KIỂM SOÁT ĐẦU VÀO (Xử lý dữ liệu & Bắt lỗi tự động)
+// =========================================
+api.interceptors.response.use(
+  (response) => {
+    // Tự động bóc tách vỏ Axios, trả về đúng dữ liệu lõi cho các hàm hook dễ dùng (giống fetch.json())
+    return response.data;
+  },
+  (error) => {
+    // Nếu Backend báo lỗi 401 (Chưa đăng nhập hoặc Token hết hạn/bị giả mạo)
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login"; // Đá văng ra cửa Đăng nhập
+    }
+    // Trả về thẳng cục lỗi của Backend để hiển thị (nếu có)
+    return Promise.reject(error.response?.data || error);
+  },
+);
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
-  return response.json();
-};
+// =========================================
+// CÁC HÀM GỌI API ĐÃ ĐƯỢC NÂNG CẤP BẰNG AXIOS
+// =========================================
 
 export const authAPI = {
-  login: (email, password) =>
-    fetchWithAuth("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    }),
+  // Ngắn gọn, không cần JSON.stringify hay khai báo method lằng nhằng!
+  login: (email, password) => api.post("/auth/login", { email, password }),
 };
 
-// =========================================
-// 👉 ĐÃ THÊM: API CHO QUẢN LÝ BỘ THẺ (DECKS)
-// =========================================
 export const deckAPI = {
-  // Gọi API tạo bộ thẻ và lưu hàng loạt Flashcard cùng lúc
-  createDeckWithCards: (deckData) =>
-    fetchWithAuth("/decks/bulk", {
-      method: "POST",
-      body: JSON.stringify(deckData),
-    }),
+  createDeckWithCards: (deckData) => api.post("/decks/bulk", deckData),
 };
 
 export const studyAPI = {
-  getDueCards: (deckId) =>
-    fetchWithAuth(`/study/deck/${deckId}/due-cards`, { method: "GET" }),
-
-  reviewCard: (cardId, grade) =>
-    fetchWithAuth(`/study/${cardId}/review`, {
-      method: "POST",
-      body: JSON.stringify({ grade }),
-    }),
+  getDueCards: (deckId) => api.get(`/study/deck/${deckId}/due-cards`),
+  reviewCard: (cardId, grade) => api.post(`/study/${cardId}/review`, { grade }),
 };
 
 export const statisticsAPI = {
-  getStats: (timeFilter) =>
-    fetchWithAuth(`/statistics?filter=${timeFilter}`, { method: "GET" }),
+  getStats: (timeFilter) => api.get(`/statistics?filter=${timeFilter}`),
 };
 
-// =========================================
-// API CHO TÍNH NĂNG CỘNG ĐỒNG
-// =========================================
 export const communityAPI = {
-  getDiscoveryDecks: () =>
-    fetchWithAuth("/community/discovery", { method: "GET" }),
+  getDiscoveryDecks: () => api.get("/community/discovery"),
+  getLeaderboard: () => api.get("/community/leaderboard"),
+  getContacts: () => api.get("/community/contacts"),
+  getMessages: (friendId) => api.get(`/community/messages/${friendId}`),
 
-  getLeaderboard: () =>
-    fetchWithAuth("/community/leaderboard", { method: "GET" }),
-
-  getContacts: () => fetchWithAuth("/community/contacts", { method: "GET" }),
-
-  getMessages: (friendId) =>
-    fetchWithAuth(`/community/messages/${friendId}`, { method: "GET" }),
-
-  sendMessage: (formData) =>
-    fetchWithAuth("/community/messages", {
-      method: "POST",
-      body: formData,
-    }),
+  // Axios cực kỳ thông minh: Thấy formData truyền vào, nó tự động set header "multipart/form-data"!
+  sendMessage: (formData) => api.post("/community/messages", formData),
 
   searchUser: (email) =>
-    fetchWithAuth(`/community/search?email=${encodeURIComponent(email)}`, {
-      method: "GET",
-    }),
-
+    api.get(`/community/search?email=${encodeURIComponent(email)}`),
   sendFriendRequest: (targetUserId) =>
-    fetchWithAuth("/community/friend-request", {
-      method: "POST",
-      body: JSON.stringify({ targetUserId }),
-    }),
-
-  getPendingRequests: () =>
-    fetchWithAuth("/community/friend-requests/pending", { method: "GET" }),
-
+    api.post("/community/friend-request", { targetUserId }),
+  getPendingRequests: () => api.get("/community/friend-requests/pending"),
   respondFriendRequest: (requestId, action) =>
-    fetchWithAuth("/community/friend-request/respond", {
-      method: "POST",
-      body: JSON.stringify({ requestId, action }),
-    }),
+    api.post("/community/friend-request/respond", { requestId, action }),
 
   createGroup: (name, description) =>
-    fetchWithAuth("/community/groups", {
-      method: "POST",
-      body: JSON.stringify({ name, description }),
-    }),
-
-  joinGroup: (inviteCode) =>
-    fetchWithAuth("/community/groups/join", {
-      method: "POST",
-      body: JSON.stringify({ inviteCode }),
-    }),
-
-  getMyGroups: () => fetchWithAuth("/community/groups", { method: "GET" }),
+    api.post("/community/groups", { name, description }),
+  joinGroup: (inviteCode) => api.post("/community/groups/join", { inviteCode }),
+  getMyGroups: () => api.get("/community/groups"),
   getGroupMessages: (groupId) =>
-    fetchWithAuth(`/community/groups/${groupId}/messages`, { method: "GET" }),
+    api.get(`/community/groups/${groupId}/messages`),
   sendGroupMessage: (groupId, formData) =>
-    fetchWithAuth(`/community/groups/${groupId}/messages`, {
-      method: "POST",
-      body: formData,
-    }),
-  leaveGroup: (groupId) =>
-    fetchWithAuth(`/community/groups/${groupId}/leave`, {
-      method: "POST",
-    }),
+    api.post(`/community/groups/${groupId}/messages`, formData),
+  leaveGroup: (groupId) => api.post(`/community/groups/${groupId}/leave`),
 };
+
+// Export thêm kẻ vận chuyển gốc để dự phòng nếu sau này cần dùng trực tiếp
+export default api;

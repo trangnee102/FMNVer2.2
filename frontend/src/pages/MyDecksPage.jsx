@@ -1,10 +1,10 @@
-// frontend/src/pages/MyDecksPage.jsx
 import React, { useState, useEffect } from "react";
 import Sidebar from "../components/Layout/Sidebar";
 import Button from "../components/common/Button";
 import StatCard from "../components/Cards/StatCard";
 import CramModeModal from "../components/Modals/CramModeModal";
 import ManageDeckModal from "../components/Modals/ManageDeckModal";
+import api from "../services/api"; // 👉 ĐÃ THÊM: Kẻ vận chuyển ngầm Axios
 import "./DashboardPage.css";
 import "./MyDecksPage.css";
 
@@ -26,27 +26,7 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      
-      if (res.ok && data.success) {
-        const rawDecks = data.data || [];
-        // 👉 Tính toán ngay ngày thi (Cram Mode) cho từng bộ thẻ
-        const augmentedDecks = rawDecks.map(deck => {
-          const savedSettings = JSON.parse(localStorage.getItem(`cram_settings_${deck.id}`)) || {};
-          const activeExamDate = savedSettings.examDate || deck.exam_date || null;
-          let daysLeft = null;
-          
-          if (activeExamDate) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const exam = new Date(activeExamDate);
-            exam.setHours(0, 0, 0, 0);
-            const diff = Math.ceil((exam - today) / (1000 * 60 * 60 * 24));
-            daysLeft = diff > 0 ? diff : 0;
-          }
-          return { ...deck, examDateToUse: activeExamDate, daysLeft };
-        });
-        setDecks(augmentedDecks);
-      }
+      if (res.ok && data.success) setDecks(data.data || []);
     } catch (error) {
       console.error("Lỗi khi tải bộ thẻ:", error);
     } finally {
@@ -68,15 +48,12 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
     setIsManageModalOpen(true);
   };
 
-  const handleStudyClick = async (deckId, totalCards) => {
-    if (totalCards === 0) {
-      const deckTarget = decks.find(d => d.id === deckId);
-      openManageModal(deckTarget);
-      return;
-    }
-
+  // 👉 ĐÃ THÊM: Bẫy sự kiện bấm nút Ôn Tập Thường
+  const handleStudyClick = async (deckId) => {
     try {
       const token = localStorage.getItem("token") || "";
+
+      // Chớp nhoáng gọi API xem bộ thẻ này còn bài để học không
       const res = await fetch(`http://localhost:5000/api/study/due/${deckId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -111,57 +88,14 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
     <div className="dashboard-layout">
       <Sidebar currentView="my-decks" onNavigate={onNavigate} />
 
-      <main className="dashboard-content" style={{ backgroundColor: "var(--bg-main)" }}>
-        <div className="page-wrapper" style={{ maxWidth: "1200px", margin: "0 auto" }}>
-          
-          <header style={{ 
-            display: "flex", justifyContent: "space-between", alignItems: "flex-start",
-            flexWrap: "wrap", gap: "20px", marginBottom: "30px" 
-          }}>
-            <div>
-              <h1 style={{ color: "var(--text-dark)", fontSize: "1.8rem", marginBottom: "5px" }}>
-                Thư viện của tôi 📚
-              </h1>
-              <p style={{ color: "var(--text-gray)" }}>
-                Quản lý và theo dõi các bộ thẻ của bạn.
-              </p>
-            </div>
-
-            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-              <div style={{ position: "relative" }}>
-                <i className="fa-solid fa-magnifying-glass" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-gray)" }}></i>
-                <input 
-                  type="text" 
-                  placeholder="Tìm kiếm bộ thẻ..." 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{
-                    padding: "10px 15px 10px 35px", borderRadius: "8px", border: "1px solid var(--border)",
-                    backgroundColor: "var(--bg-card)", color: "var(--text-dark)", outline: "none"
-                  }}
-                />
-              </div>
-              <select style={{
-                padding: "10px", borderRadius: "8px", border: "1px solid var(--border)",
-                backgroundColor: "var(--bg-card)", color: "var(--text-dark)", cursor: "pointer", outline: "none"
-              }}>
-                <option>Sắp xếp: Mới nhất</option>
-                <option>Sắp xếp: Tên A-Z</option>
-                <option>Sắp xếp: Nhiều thẻ nhất</option>
-              </select>
-              <div style={{ display: "flex", background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "8px", overflow: "hidden" }}>
-                <button 
-                  onClick={() => setViewMode("grid")}
-                  style={{ padding: "10px 12px", background: viewMode === "grid" ? "rgba(59, 130, 246, 0.1)" : "transparent", color: viewMode === "grid" ? "var(--primary)" : "var(--text-gray)", border: "none", cursor: "pointer" }}>
-                  <i className="fa-solid fa-border-all"></i>
-                </button>
-                <button 
-                  onClick={() => setViewMode("list")}
-                  style={{ padding: "10px 12px", background: viewMode === "list" ? "rgba(59, 130, 246, 0.1)" : "transparent", color: viewMode === "list" ? "var(--primary)" : "var(--text-gray)", border: "none", cursor: "pointer" }}>
-                  <i className="fa-solid fa-list"></i>
-                </button>
-              </div>
-            </div>
+      <main className="dashboard-content">
+        <div className="page-wrapper">
+          <header style={{ marginBottom: "30px" }}>
+            {/* 👉 ĐÃ SỬA: Đổi tiêu đề trang ở đây */}
+            <h1 style={{ color: "#2d3748" }}>Thư viện của tôi 📚</h1>
+            <p style={{ color: "#718096" }}>
+              Quản lý kho tàng kiến thức của bạn tại đây.
+            </p>
           </header>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px", marginBottom: "40px" }}>
@@ -297,7 +231,7 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
                     <div style={{ display: "flex", gap: "10px", marginTop: "15px" }}>
                       <div style={{ flex: 1 }}>
                         <Button 
-                          text={isEmpty ? "Thêm thẻ" : (isCompleted ? "👁 Xem lại" : "Ôn luyện")} 
+                          text={isEmpty ? "Ôn Luyện" : (isCompleted ? "👁 Xem lại" : "Ôn luyện")} 
                           variant={isEmpty ? "green" : (isCompleted ? "outline" : "primary")} 
                           fullWidth 
                           onClick={() => handleStudyClick(deck.id, total)} 

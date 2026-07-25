@@ -1,0 +1,117 @@
+/* --- CÁC CLASS CHO GIAO DIỆN TIN NHẮN (ChatWindow) --- */
+
+.message-wrapper {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end; /* Ép avatar và tin nhắn nằm sát đáy */
+  margin-bottom: 16px;
+  width: 100%; /* Chiếm trọn chiều ngang khung chat */
+}
+
+/* Căn lề trái/phải tự động dựa vào việc ai là người gửi */
+.message-wrapper.mine {
+  justify-content: flex-end;
+}
+.message-wrapper.theirs {
+  justify-content: flex-start;
+}
+
+/* Định dạng Avatar của người gửi bên cạnh tin nhắn */
+.message-sender-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+/* Khối dọc chứa Tên và Bong bóng tin nhắn */
+.message-content-col {
+  display: flex;
+  flex-direction: column;
+  max-width: 70%; /* Giới hạn độ dài để tin nhắn không bị tràn hết toàn màn hình */
+}
+
+/* Ép các phần tử bên trong sang trái hoặc phải */
+.message-wrapper.mine .message-content-col {
+  align-items: flex-end;
+}
+.message-wrapper.theirs .message-content-col {
+  align-items: flex-start;
+}
+
+/* Tên của thành viên hiển thị trong Nhóm học */
+.sender-name {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 4px;
+  margin-left: 4px;
+  font-weight: 500;
+}
+
+/* =========================================
+   🔥 VŨ KHÍ HẠNG NẶNG - CHUẨN HÓA UI/UX 🔥
+========================================= */
+.message-bubble {
+  padding: 10px 16px;
+  border-radius: 20px;
+  font-size: 14.5px;
+  line-height: 1.4;
+
+  /* 👉 ĐÃ SỬA: Dùng fit-content để tự động co giãn êm ái, nhường bước khi chạm max-width */
+  width: fit-content;
+  max-width: 100%;
+  white-space: pre-wrap;
+
+  /* 👉 ĐÃ SỬA: Chặt đứt các chuỗi spam dài ngoằng (như "Ahhhhhh") để ép xuống dòng */
+  word-break: break-word;
+  overflow-wrap: break-word;
+
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Bong bóng của mình (Màu xanh, bo góc nhọn bên phải giống Zalo) */
+.message-wrapper.mine .message-bubble {
+  background-color: #3b82f6;
+  color: #ffffff;
+  border-bottom-right-radius: 4px;
+}
+
+/* Bong bóng của người khác (Màu xám, bo góc nhọn bên trái) */
+.message-wrapper.theirs .message-bubble {
+  background-color: #f1f5f9;
+  color: #1e293b;
+  border-bottom-left-radius: 4px;
+}
+
+/* Dòng hiển thị thời gian gửi */
+.message-time {
+  font-size: 10px;
+  margin-top: 4px;
+  opacity: 0.7;
+}
+
+/* Mình thì giờ hiển thị bên phải, bạn bè thì giờ bên trái */
+.message-wrapper.mine .message-time {
+  text-align: right;
+  color: #dbeafe; /* Màu xanh nhạt cho dễ nhìn trên nền đậm */
+}
+.message-wrapper.theirs .message-time {
+  text-align: left;
+  color: #64748b;
+}
+
+/* Ảnh đính kèm trong chat */
+.msg-image {
+  max-width: 100%;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}

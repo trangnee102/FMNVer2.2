@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+
 import Sidebar from "../components/Layout/Sidebar";
 import DashboardHeader from "../components/Dashboard/DashboardHeader";
 import DashboardStats from "../components/Dashboard/DashboardStats";
@@ -71,9 +73,18 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
 
           if (data.decks) {
             const augmentedDecks = data.decks.map((deck) => {
-              const savedSettings =
-                JSON.parse(localStorage.getItem(`cram_settings_${deck.id}`)) || {};
-              const activeExamDate = savedSettings.examDate || deck.exam_date || null;
+              const savedSettings = JSON.parse(localStorage.getItem(`cram_settings_${deck.id}`));
+              
+              // 👉 ĐÃ FIX LỖI CRAM MODE ẢO: 
+              // Chỉ kích hoạt khi người dùng chủ động lưu ngày thi vào localStorage. 
+              // Bỏ qua giá trị exam_date mặc định rác từ Backend để tránh bộ thẻ mới bị "cháy máy".
+              let activeExamDate = null;
+              if (savedSettings && savedSettings.examDate) {
+                activeExamDate = savedSettings.examDate;
+              } else if (deck.is_cram_active === true && deck.exam_date) {
+                // Đề phòng sau này Backend có trường is_cram_active chuẩn
+                activeExamDate = deck.exam_date;
+              }
 
               let daysLeft = null;
               if (activeExamDate) {
@@ -85,10 +96,18 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
                 daysLeft = diff > 0 ? diff : 0;
               }
 
+              // Tính toán Mastered chuẩn
+              const total = parseInt(deck.totalCards) || 0;
+              const due = parseInt(deck.dueCards) || 0;
+              const mastered = deck.masteredCards !== undefined ? parseInt(deck.masteredCards) : Math.max(0, total - due);
+
               return {
                 ...deck,
                 examDateToUse: activeExamDate,
                 daysLeft: daysLeft,
+                calculatedMastered: mastered,
+                calculatedTotal: total,
+                calculatedDue: due
               };
             });
 
@@ -119,12 +138,12 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
   }, [dynamicName]); 
 
   const totalDecks = decks.length;
-  const totalDueCards = decks.reduce((sum, deck) => sum + (deck.dueCards || 0), 0);
-  const totalMastered = decks.reduce((sum, deck) => sum + (deck.masteredCards || 0), 0);
+  const totalDueCards = decks.reduce((sum, deck) => sum + deck.calculatedDue, 0);
+  const totalMastered = decks.reduce((sum, deck) => sum + deck.calculatedMastered, 0);
 
   const handleStudyClick = (deckId) => {
     const targetDeck = decks.find((d) => d.id === deckId);
-    const dueCount = targetDeck ? targetDeck.dueCards || 0 : 0;
+    const dueCount = targetDeck ? targetDeck.calculatedDue : 0;
 
     if (dueCount === 0) {
       const userWantsToForce = window.confirm(
@@ -138,15 +157,12 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
     }
   };
 
-  // 👉 HÀM TỰ ĐỘNG CHỌN BỘ THẺ KHI BẤM NÚT "BẮT ĐẦU HỌC" TO NGOÀI TRANG CHỦ
   const handleStartGlobalStudy = () => {
-    // Ưu tiên 1: Tìm bộ thẻ có thẻ đang đến hạn
-    const deckWithDueCards = decks.find((d) => (d.dueCards || 0) > 0);
+    const deckWithDueCards = decks.find((d) => d.calculatedDue > 0);
     
     if (deckWithDueCards) {
       onStudy(deckWithDueCards.id, false);
     } else if (decks.length > 0) {
-      // Nếu bộ nào cũng học xong rồi, hỏi xem có muốn học lại bộ đầu tiên trong danh sách không
       const confirmForce = window.confirm(
         "Hôm nay bạn đã học xong toàn bộ thẻ rồi!\n\nBạn có muốn tiếp tục ôn tập lại từ đầu bộ thẻ đầu tiên không?"
       );
@@ -163,23 +179,25 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
     <div className="dashboard-layout">
       <Sidebar currentView="dashboard" onNavigate={onNavigate} />
 
-      <main className="dashboard-content">
-        <div className="page-wrapper">
+      <main className="dashboard-content" style={{ backgroundColor: "var(--bg-main)" }}>
+        <div className="page-wrapper" style={{ maxWidth: "1200px", margin: "0 auto" }}>
           <DashboardHeader userName={userData.name} />
 
-          <DashboardStats
-            totalDueCards={totalDueCards}
-            totalMastered={totalMastered}
-            streak={userData.streak} 
-            totalDecks={totalDecks}
-          />
-
-          <div className="main-grid">
-            <div className="left-column">
+          {/* 👉 ĐÃ FIX: Chuyển DashboardStats vào chung khung với ActionCard và DeckList */}
+          <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "30px", marginTop: "10px" }}>
+            
+            {/* Cột trái: Thống kê + Hành động + Danh sách thẻ */}
+            <div className="left-column" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
+              <DashboardStats
+                totalDueCards={totalDueCards}
+                totalMastered={totalMastered}
+                streak={userData.streak} 
+                totalDecks={totalDecks}
+              />
               <DashboardActions
                 totalDueCards={totalDueCards}
                 onNavigate={onNavigate}
-                onStartStudy={handleStartGlobalStudy} // 👉 Truyền hàm học thông minh xuống đây
+                onStartStudy={handleStartGlobalStudy}
                 onOpenCramModal={() => setIsCramModalOpen(true)}
               />
               <DeckList
@@ -189,9 +207,14 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
               />
             </div>
 
+            {/* Cột phải: Khối Tích lũy Streak + Lịch */}
             <div className="right-column">
-              <CalendarWidget examDates={examDates} />
+              <CalendarWidget 
+                examDates={examDates} 
+                streak={userData.streak} 
+              />
             </div>
+
           </div>
         </div>
       </main>

@@ -1,44 +1,61 @@
+/* ======================================================
+   PHẦN 1: GIAO DIỆN HỌC & LẬT THẺ (FLASHCARD SESSION)
+====================================================== */
 .review-page-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   padding: 40px 20px;
-  background-color: #f8f9fa;
+  background-color: var(--bg-main);
   min-height: 100vh;
+  transition: background-color 0.3s ease;
 }
 
 .review-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   width: 100%;
-  max-width: 600px; /* Khớp với thẻ */
+  max-width: 650px; /* Nới rộng một chút cho thanh thoát */
   margin-bottom: 30px;
 }
 
 .btn-back {
-  background: none;
-  border: none;
-  color: #6c757d;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 8px 16px;
+  border-radius: 8px;
+  color: var(--text-gray);
   cursor: pointer;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-back:hover {
+  background: var(--border);
+  color: var(--text-dark);
 }
 
 .progress-bar {
-  font-weight: bold;
-  color: #4361ee;
-  background: white;
-  padding: 5px 15px;
+  font-weight: 700;
+  color: var(--primary);
+  background: var(--bg-card);
+  padding: 8px 20px;
   border-radius: 20px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--primary);
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.1);
 }
 
 .flashcard-container {
   width: 100%;
-  max-width: 600px; /* Kích thước chuẩn của thẻ */
-  height: 400px;
-  perspective: 1000px; /* Tạo chiều sâu 3D cho thẻ */
+  max-width: 650px;
+  height: 420px; /* Cao hơn một chút để nội dung thoải mái */
+  perspective: 1000px; /* Chiều sâu 3D */
   cursor: pointer;
+  position: relative;
 }
 
 /* Xoay mặt trước đi 180 độ theo trục Y */
@@ -57,103 +74,471 @@
   position: absolute;
   backface-visibility: hidden;
   transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
-  background: white;
-  border-radius: 15px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 30px;
+  padding: 40px;
   text-align: center;
 }
 
 .card-front {
   transform: rotateY(0deg);
 }
+.card-front h3 {
+  font-size: 1.6rem;
+  color: var(--text-dark);
+  line-height: 1.4;
+}
 
 .card-back {
-  transform: rotateY(-180deg); /* Ban đầu úp mặt sau xuống */
-  justify-content: center; /* Giữa thẻ */
+  transform: rotateY(-180deg);
+  border-color: var(--primary); /* Đổi viền xanh khi lật thẻ */
+  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.1);
 }
 
 .hint-text {
   position: absolute;
-  bottom: 20px;
-  color: #a0aec0;
+  bottom: 25px;
+  color: var(--text-gray);
   font-size: 0.9rem;
+  opacity: 0.8;
 }
 
 .answer-text {
-  font-size: 1.3rem;
-  color: #2d3748;
+  font-size: 1.4rem;
+  color: var(--text-dark);
+  line-height: 1.6;
 }
 
-/* 👉 KHU VỰC NÚT ĐÁNH GIÁ (NẰM DƯỚI THẺ) */
+/* KHU VỰC NÚT ĐÁNH GIÁ */
 .rating-section {
   width: 100%;
-  max-width: 600px; /* 👉 Quan trọng: Ép rộng đúng 600px để bằng thẻ */
-  margin-top: 30px;
+  max-width: 650px;
+  margin-top: 40px;
   min-height: 100px;
 }
 
 .rating-title {
   text-align: center;
-  color: #718096;
-  margin-bottom: 15px;
+  color: var(--text-gray);
+  margin-bottom: 20px;
   font-size: 1.05rem;
   font-weight: 600;
 }
 
 .rating-buttons {
   display: flex;
-  width: 100%; /* Trải dài full 600px */
-  gap: 15px; /* Khoảng cách giữa 4 nút */
+  width: 100%;
+  gap: 15px;
 }
 
 .btn-rating {
-  flex: 1; /* 👉 Tuyệt chiêu: Tự động co giãn chia đều 4 phần bằng nhau */
-  padding: 15px 5px;
+  flex: 1;
+  padding: 16px 5px;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   color: white;
-  font-weight: 600;
-  font-size: 1rem;
+  font-weight: bold;
+  font-size: 1.05rem;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  transition:
-    opacity 0.2s,
-    transform 0.1s;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  gap: 6px;
+  transition: transform 0.15s, filter 0.2s;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .btn-rating:hover {
-  opacity: 0.85;
+  filter: brightness(1.1);
+  transform: translateY(-3px); /* Hiệu ứng nảy nhẹ khi hover */
 }
 
 .btn-rating:active {
-  transform: scale(0.95);
+  transform: translateY(1px);
 }
 
-.btn-again {
-  background-color: #ef4444;
-}
-.btn-hard {
-  background-color: #f59e0b;
-}
-.btn-good {
-  background-color: #10b981;
-}
-.btn-easy {
-  background-color: #3b82f6;
-}
+.btn-again { background-color: #ef4444; }
+.btn-hard { background-color: #f59e0b; }
+.btn-good { background-color: #10b981; }
+.btn-easy { background-color: #3b82f6; }
 
 .key-hint {
+  font-size: 0.8rem;
+  opacity: 0.9;
+  font-weight: 500;
+  background: rgba(0,0,0,0.15);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+
+/* ======================================================
+   PHẦN 2: GIAO DIỆN DASHBOARD ÔN TẬP (LIST VIEW NGANG)
+====================================================== */
+
+.review-dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+/* Nút thông báo Cần ôn ở góc phải trên cùng */
+.top-due-badge {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  padding: 10px 20px;
+  border-radius: 30px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+.top-due-badge span {
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+/* THANH CÔNG CỤ TÌM KIẾM & BỘ LỌC */
+.review-filter-bar {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  position: relative;
+  flex: 1;
+  min-width: 250px;
+}
+.search-box i {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-gray);
+}
+.search-box input {
+  width: 100%;
+  padding: 12px 15px 12px 40px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-dark);
+  outline: none;
+  font-size: 0.95rem;
+}
+
+.filter-buttons {
+  display: flex;
+  background: var(--bg-card);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.filter-buttons button {
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text-gray);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.95rem;
+}
+.filter-buttons button:last-child {
+  border-right: none;
+}
+.filter-buttons button.active {
+  background: var(--primary);
+  color: white;
+}
+
+.sort-dropdown {
+  padding: 12px 15px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-dark);
+  cursor: pointer;
+  outline: none;
+  font-weight: 500;
+}
+
+/* DANH SÁCH BỘ THẺ HÀNG NGANG */
+.review-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 50px;
+}
+
+.review-list-item {
+  background: var(--bg-card);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 24px 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+  transition: all 0.3s ease;
+  gap: 30px;
+}
+.review-list-item:hover {
+  border-color: var(--primary);
+  transform: translateX(5px);
+  box-shadow: 0 6px 15px rgba(59, 130, 246, 0.08);
+}
+
+/* Cột 1: Thông tin chính */
+.rli-col-main {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.rli-title-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.rli-title-row h3 {
+  margin: 0;
+  color: var(--text-dark);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+.rli-badges {
+  display: flex;
+  gap: 8px;
+}
+.badge-cram {
+  background: rgba(245, 158, 11, 0.1);
+  color: #ea580c;
+  padding: 5px 12px;
+  border-radius: 20px;
   font-size: 0.75rem;
-  opacity: 0.8;
-  font-weight: normal;
+  font-weight: bold;
+}
+.badge-done {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+
+/* Thanh tiến độ */
+.rli-progress-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.rli-progress-track {
+  flex: 1;
+  height: 8px;
+  background: var(--bg-main);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.rli-progress-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.5s ease;
+}
+.rli-progress-text {
+  font-weight: 800;
+  font-size: 1rem;
+  color: var(--text-dark);
+}
+
+/* Hàng thông số (Thẻ, Đã học, Cần ôn) */
+.rli-stats-row {
+  display: flex;
+  gap: 35px;
+  font-size: 0.95rem;
+  color: var(--text-gray);
+}
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.stat-item strong {
+  color: var(--text-dark);
+  font-size: 1.2rem;
+}
+
+/* Cột 2: Lịch thi */
+.rli-col-exam {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 15px;
+  color: var(--text-gray);
+  border-left: 1px dashed var(--border);
+  padding-left: 30px;
+  min-width: 150px;
+}
+.rli-col-exam i {
+  font-size: 1.6rem;
+  color: #94a3b8;
+}
+.exam-days-left {
+  font-weight: 700;
+  color: var(--text-dark);
+  font-size: 1rem;
+}
+.exam-date {
+  font-size: 0.85rem;
+}
+
+/* Cột 3: Nút hành động & Menu */
+.rli-col-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.rli-menu-wrapper {
+  position: relative;
+}
+.rli-more-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-main);
+  color: var(--text-gray);
+  cursor: pointer;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.rli-more-btn:hover {
+  background: var(--border);
+  color: var(--text-dark);
+}
+
+/* MENU DROPDOWN TỰ THIẾT KẾ */
+.rli-dropdown {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+  min-width: 200px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+  animation: fadeIn 0.15s ease-out;
+}
+.rli-dropdown button {
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-dark);
+  font-size: 0.95rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: 0.2s;
+}
+.rli-dropdown button i {
+  width: 20px;
+  text-align: center;
+  color: var(--text-gray);
+}
+.rli-dropdown button:hover {
+  background: rgba(59, 130, 246, 0.08);
+  color: var(--primary);
+}
+.rli-dropdown button:hover i {
+  color: var(--primary);
+}
+.rli-dropdown .divider {
+  height: 1px;
+  background: var(--border);
+  margin: 6px 0;
+}
+.rli-dropdown button.text-red {
+  color: #ef4444;
+}
+.rli-dropdown button.text-red i {
+  color: #ef4444;
+}
+.rli-dropdown button.text-red:hover {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* STATE RỖNG Ở CUỐI */
+.empty-review-state {
+  text-align: center;
+  padding: 60px 20px;
+  background: var(--bg-card);
+  border-radius: 16px;
+  border: 1px dashed var(--border);
+}
+.empty-icon {
+  font-size: 3.5rem;
+  color: var(--primary);
+  opacity: 0.2;
+  margin-bottom: 20px;
+}
+.empty-review-state h3 {
+  color: var(--text-dark);
+  font-size: 1.4rem;
+  margin-bottom: 10px;
+}
+.empty-review-state p {
+  color: var(--text-gray);
+  margin-bottom: 25px;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Tương thích màn hình nhỏ */
+@media (max-width: 900px) {
+  .review-list-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .rli-col-exam {
+    border-left: none;
+    border-top: 1px dashed var(--border);
+    padding-left: 0;
+    padding-top: 20px;
+    width: 100%;
+  }
+  .rli-col-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }

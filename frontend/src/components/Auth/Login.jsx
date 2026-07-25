@@ -1,8 +1,13 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom"; // 👉 Công cụ chuyển trang chuẩn
+import { useAuth } from "../../context/AuthContext"; // 👉 Chìa khóa mở Két sắt AuthContext
 import Button from "../common/Button";
 import "./Login.css";
 
-const Login = ({ onLogin, onNavigateToRegister }) => {
+const Login = () => {
+  const navigate = useNavigate();
+  const { login } = useAuth(); // Lấy hàm login từ AuthContext nếu có
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -28,9 +33,19 @@ const Login = ({ onLogin, onNavigateToRegister }) => {
       const data = await response.json();
 
       if (response.ok) {
-        // 🎉 THÀNH CÔNG: Lưu Token
+        // 🎉 THÀNH CÔNG: Lưu Token vào LocalStorage để làm "Thẻ căn cước"
         localStorage.setItem("token", data.token);
-        onLogin(data.user?.email || "Bạn");
+
+        // Lưu thông tin người dùng cơ bản nếu có
+        const userIdentifier = data.user?.email || email;
+        localStorage.setItem("current_user_email", userIdentifier);
+
+        // Gọi context login nếu tồn tại, đồng thời chuyển hướng sang dashboard
+        if (login) {
+          login(data.token, data.user);
+        }
+
+        navigate("/dashboard");
       } else {
         // ❌ THẤT BẠI: Hiện lỗi đỏ
         setErrorMessage(data.message || "Đăng nhập thất bại!");
@@ -102,7 +117,7 @@ const Login = ({ onLogin, onNavigateToRegister }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            {/* 👉 ĐÃ SỬA: Đưa nút "Quên mật khẩu?" xuống dưới ô nhập và căn sang phải */}
+            {/* Đưa nút "Quên mật khẩu?" xuống dưới ô nhập và căn sang phải */}
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "6px" }}>
               <span className="forgot-link" onClick={() => setShowForgotModal(true)}>
                 Quên mật khẩu?
@@ -117,7 +132,16 @@ const Login = ({ onLogin, onNavigateToRegister }) => {
 
         <div className="register-hint">
           Chưa có tài khoản?{" "}
-          <span onClick={onNavigateToRegister}>Đăng ký ngay</span>
+          <span
+            onClick={() => navigate("/register")}
+            style={{
+              color: "var(--primary)",
+              cursor: "pointer",
+              fontWeight: "600",
+            }}
+          >
+            Đăng ký ngay
+          </span>
         </div>
       </div>
 
@@ -127,7 +151,7 @@ const Login = ({ onLogin, onNavigateToRegister }) => {
       {showForgotModal && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3 style={{ margin: "0 0 10px 0", fontSize: "1.4rem" }}>Khôi phục mật khẩu</h3>
+            <h3 style={{ margin: "0 0 10px 0", fontSize: "1.4rem", color: "var(--text-dark)" }}>Khôi phục mật khẩu</h3>
             <p style={{ color: "var(--text-gray)", fontSize: "0.9rem", marginBottom: "20px" }}>
               Nhập email bạn đã dùng để đăng ký. Chúng tôi sẽ gửi một liên kết để đặt lại mật khẩu.
             </p>
