@@ -1,4 +1,6 @@
+// frontend/src/pages/StatisticsPage.jsx
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; 
 import Sidebar from "../components/Layout/Sidebar";
 import {
   BarChart,
@@ -12,32 +14,40 @@ import {
   CartesianGrid,
 } from "recharts";
 
-// 👉 IMPORT API ĐÃ ĐƯỢC ĐÓNG GÓI
 import { statisticsAPI } from "../services/api";
-
 import "./DashboardPage.css";
-import "./StatisticsPage.css";
+import "./StatisticsPage.css"; 
 
 const StatisticsPage = ({ onNavigate }) => {
+  const navigate = useNavigate();
   const [timeFilter, setTimeFilter] = useState("Tuần");
-
-  // 👉 CÁC STATE LƯU TRỮ DỮ LIỆU THẬT TỪ BACKEND
   const [statsData, setStatsData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  // 👉 HÀM GỌI API LẤY DỮ LIỆU THỐNG KÊ THẬT (Đã cập nhật)
+  // 👉 Lấy và lưu Streak cao nhất từ LocalStorage
+  const [highestStreak, setHighestStreak] = useState(() => {
+    return parseInt(localStorage.getItem("highestStreak") || "0", 10);
+  });
+
   useEffect(() => {
     const fetchStatistics = async () => {
       try {
         setIsLoading(true);
-        setErrorMsg(null); // Reset lỗi trước khi gọi lại API
+        setErrorMsg(null);
 
-        // 👉 Gọi API và truyền bộ lọc (Tuần/Tháng/Năm) xuống Backend
+        // Fetch dữ liệu từ Backend
         const json = await statisticsAPI.getStats(timeFilter);
 
         if (json && json.success) {
-          setStatsData(json.data); // Hốt trọn ổ dữ liệu từ Backend
+          setStatsData(json.data);
+          
+          // Cập nhật kỷ lục Streak ngay khi có dữ liệu mới
+          const currentStreak = json.data.kpis?.streak || 0;
+          if (currentStreak > highestStreak) {
+            setHighestStreak(currentStreak);
+            localStorage.setItem("highestStreak", currentStreak.toString());
+          }
         } else {
           setErrorMsg(json.message || "Không thể tải dữ liệu thống kê.");
         }
@@ -50,286 +60,300 @@ const StatisticsPage = ({ onNavigate }) => {
     };
 
     fetchStatistics();
-  }, [timeFilter]); // Mỗi lần bấm chuyển Tuần/Tháng/Năm sẽ tự động load lại số liệu
+  }, [timeFilter, highestStreak]);
 
-  // Trạng thái đang tải dữ liệu
   if (isLoading) {
     return (
       <div className="dashboard-layout">
         <Sidebar currentView="statistics" onNavigate={onNavigate} />
         <main className="dashboard-content">
-          <p style={{ textAlign: "center", color: "#64748b", padding: "50px" }}>
-            Đang tính toán số liệu học tập... ⏳
-          </p>
+          <div className="loading-state" style={{ textAlign: "center", padding: "50px", color: "var(--text-gray)" }}>
+            <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: "2rem", margin: "0 auto 15px auto", display: "block" }}></i>
+            <p>Đang đồng bộ số liệu thời gian thực... ⏳</p>
+          </div>
         </main>
       </div>
     );
   }
 
-  // Trạng thái bị lỗi
   if (errorMsg) {
     return (
       <div className="dashboard-layout">
         <Sidebar currentView="statistics" onNavigate={onNavigate} />
         <main className="dashboard-content">
-          <div style={{ textAlign: "center", padding: "50px" }}>
+          <div style={{ textAlign: "center", padding: "50px", background: "var(--bg-card)", border: "1px solid var(--border)", margin: "30px", borderRadius: "16px" }}>
             <h2 style={{ color: "#ef4444" }}>Ối, có lỗi rồi! 🚨</h2>
-            <p style={{ color: "#475569" }}>{errorMsg}</p>
+            <p style={{ color: "var(--text-gray)" }}>{errorMsg}</p>
           </div>
         </main>
       </div>
     );
   }
 
-  // Phân rã dữ liệu từ Backend ra để nhét vào UI
-  const { kpis, dailyActivity, retentionByWeek, deckPerformance } =
-    statsData || {};
+  const { kpis, dailyActivity, retentionByWeek, deckPerformance, recentHistory } = statsData || {};
+
+  // 👉 ĐÃ FIX: Tự động trích xuất Lịch sử ôn tập từ các bộ thẻ vừa học nếu Backend không trả về mảng recentHistory
+  const activeHistory = recentHistory && recentHistory.length > 0 
+    ? recentHistory 
+    : (deckPerformance || []).filter(d => d.learned > 0).sort((a, b) => b.learned - a.learned).slice(0, 5);
 
   return (
     <div className="dashboard-layout">
       <Sidebar currentView="statistics" onNavigate={onNavigate} />
 
-      <main className="dashboard-content">
-        <div className="page-wrapper">
-          {/* HEADER & LỌC THỜI GIAN */}
-          <header className="stats-header">
-            <div>
-              <h1
-                style={{
-                  margin: "0 0 5px 0",
-                  color: "#1e293b",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "10px",
-                }}
-              >
-                📈 Thống Kê Học Tập
+      <main className="dashboard-content scrollable-content" style={{ backgroundColor: "var(--bg-main)" }}>
+        <div className="page-wrapper stats-wrapper">
+          
+          {/* ========================================== */}
+          {/* HEADER & LỌC THỜI GIAN                     */}
+          {/* ========================================== */}
+          <header className="modern-stats-header">
+            <div className="header-title">
+              <h1>
+                <i className="fa-solid fa-chart-simple" style={{ color: "var(--primary)" }}></i> Thống Kê Học Tập
               </h1>
-              <p style={{ margin: 0, color: "#64748b" }}>
-                Theo dõi tiến độ, hiệu suất và thói quen học tập của cậu
-              </p>
+              <p>Theo dõi tiến độ, hiệu suất và thói quen học tập của bạn</p>
             </div>
 
-            <div className="filter-group">
-              {["Tuần", "Tháng", "Năm"].map((filter) => (
-                <button
-                  key={filter}
-                  className={`filter-btn ${timeFilter === filter ? "active" : ""}`}
-                  onClick={() => setTimeFilter(filter)}
-                >
-                  {filter}
-                </button>
-              ))}
+            <div className="header-actions">
+              <div className="modern-filter-group">
+                {["Tuần", "Tháng", "Năm"].map((filter) => (
+                  <button
+                    key={filter}
+                    className={`btn-filter ${timeFilter === filter ? "active" : ""}`}
+                    onClick={() => setTimeFilter(filter)}
+                  >
+                    {filter}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="date-picker-mock">
+                <i className="fa-regular fa-calendar"></i>
+                <span>Phân tích theo {timeFilter}</span>
+              </div>
             </div>
           </header>
 
-          {/* 4 THẺ KPIS THẬT */}
-          <div className="kpi-grid">
-            <div className="kpi-card">
-              <div
-                className="kpi-icon"
-                style={{ background: "#fef3c7", color: "#d97706" }}
-              >
-                🔥
+          {/* ========================================== */}
+          {/* HÀNG 1: 4 THẺ CHỈ SỐ (KPI CARDS)             */}
+          {/* ========================================== */}
+          <div className="stats-kpi-grid">
+            <div className="stats-kpi-card">
+              <div className="sk-header">
+                <div className="sk-icon bg-orange-light text-orange"><i className="fa-solid fa-fire"></i></div>
+                <span className="sk-title">Streak</span>
               </div>
-              <div className="kpi-info">
-                <p>Streak</p>
-                <h3>
-                  {kpis?.streak || 0}{" "}
-                  <span style={{ fontSize: "1rem", fontWeight: "normal" }}>
-                    ngày
-                  </span>
-                </h3>
+              <div className="sk-value">
+                {kpis?.streak || 0} <span>ngày</span>
               </div>
+              <div className="sk-subtext">Kỷ lục cao nhất: <strong style={{ color: "var(--text-dark)" }}>{highestStreak} ngày</strong></div>
             </div>
-            <div className="kpi-card">
-              <div
-                className="kpi-icon"
-                style={{ background: "#e0e7ff", color: "#4f46e5" }}
-              >
-                💳
+
+            <div className="stats-kpi-card">
+              <div className="sk-header">
+                <div className="sk-icon bg-blue-light text-blue"><i className="fa-solid fa-credit-card"></i></div>
+                <span className="sk-title">Thẻ đã học</span>
               </div>
-              <div className="kpi-info">
-                <p>Thẻ đã học</p>
-                <h3>
-                  {kpis?.cardsToday || 0}{" "}
-                  <span style={{ fontSize: "1rem", fontWeight: "normal" }}>
-                    thẻ
-                  </span>
-                </h3>
+              <div className="sk-value">
+                {kpis?.cardsToday || 0} <span>thẻ</span>
               </div>
+              <div className="sk-subtext">Tổng số thẻ đã ôn trong {timeFilter.toLowerCase()}</div>
             </div>
-            <div className="kpi-card">
-              <div
-                className="kpi-icon"
-                style={{ background: "#dcfce7", color: "#16a34a" }}
-              >
-                ⏱️
+
+            <div className="stats-kpi-card">
+              <div className="sk-header">
+                <div className="sk-icon bg-green-light text-green"><i className="fa-solid fa-stopwatch"></i></div>
+                <span className="sk-title">Thời gian học</span>
               </div>
-              <div className="kpi-info">
-                <p>Thời gian học</p>
-                <h3>
-                  {kpis?.minutesToday || 0}{" "}
-                  <span style={{ fontSize: "1rem", fontWeight: "normal" }}>
-                    phút
-                  </span>
-                </h3>
+              <div className="sk-value">
+                {kpis?.minutesToday || 0} <span>phút</span>
               </div>
+              <div className="sk-subtext">Tổng thời gian học tập</div>
             </div>
-            <div className="kpi-card">
-              <div
-                className="kpi-icon"
-                style={{ background: "#f3e8ff", color: "#9333ea" }}
-              >
-                🏆
+
+            <div className="stats-kpi-card">
+              <div className="sk-header">
+                <div className="sk-icon bg-purple-light text-purple"><i className="fa-solid fa-trophy"></i></div>
+                <span className="sk-title">Tỷ lệ ghi nhớ</span>
               </div>
-              <div className="kpi-info">
-                <p>Tỷ lệ ghi nhớ</p>
-                <h3>{kpis?.retentionRate || 0}%</h3>
+              <div className="sk-value">
+                {kpis?.retentionRate || 0}%
               </div>
+              <div className="sk-subtext">Hiệu suất ghi nhớ trung bình</div>
             </div>
           </div>
 
-          {/* KHU VỰC BIỂU ĐỒ THẬT */}
-          <div className="charts-grid">
-            {/* Biểu đồ Cột */}
-            <div className="chart-card">
-              <h4>📊 Hoạt động hàng ngày</h4>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={dailyActivity || []}
-                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke="#e2e8f0"
-                  />
-                  <XAxis
-                    dataKey="date"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "#64748b", fontSize: 12 }}
-                    dy={10}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "#64748b", fontSize: 12 }}
-                    allowDecimals={false}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "#f1f5f9" }}
-                    contentStyle={{
-                      borderRadius: "8px",
-                      border: "none",
-                      boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-                    }}
-                  />
-                  <Bar
-                    dataKey="cards"
-                    fill="#818cf8"
-                    radius={[4, 4, 0, 0]}
-                    maxBarSize={40}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+          {/* ========================================== */}
+          {/* HÀNG 2: BIỂU ĐỒ (CHARTS)                     */}
+          {/* ========================================== */}
+          <div className="stats-charts-grid">
+            
+            <div className="stats-chart-card">
+              <div className="chart-header">
+                <h4><i className="fa-solid fa-chart-column" style={{ color: "var(--primary)" }}></i> Hoạt động hàng ngày</h4>
+                <div className="chart-dropdown">Số thẻ đã ôn <i className="fa-solid fa-chevron-down"></i></div>
+              </div>
+              <div className="chart-body">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={dailyActivity || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: "var(--text-gray)", fontSize: 12 }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--text-gray)", fontSize: 12 }} allowDecimals={false} />
+                    <Tooltip 
+                      cursor={{ fill: "var(--border)", opacity: 0.5 }} 
+                      contentStyle={{ backgroundColor: "var(--bg-card)", borderRadius: "8px", border: "1px solid var(--border)", color: "var(--text-dark)", boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }} 
+                    />
+                    <Bar dataKey="cards" fill="var(--primary)" radius={[4, 4, 0, 0]} maxBarSize={45} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
 
-            {/* Biểu đồ Vùng */}
-            <div className="chart-card">
-              <h4>🧠 Tỷ lệ ghi nhớ</h4>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={retentionByWeek || []}
-                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke="#e2e8f0"
-                  />
-                  <XAxis
-                    dataKey="week"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "#64748b", fontSize: 12 }}
-                    dy={10}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "#64748b", fontSize: 12 }}
-                    tickFormatter={(val) => `${val}%`}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      borderRadius: "8px",
-                      border: "none",
-                      boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="rate"
-                    stroke="#10b981"
-                    strokeWidth={3}
-                    fill="#d1fae5"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+            <div className="stats-chart-card">
+              <div className="chart-header">
+                <h4><i className="fa-solid fa-brain" style={{ color: "#ec4899" }}></i> Tỷ lệ ghi nhớ</h4>
+                <div className="chart-dropdown">Tỷ lệ (%) <i className="fa-solid fa-chevron-down"></i></div>
+              </div>
+              <div className="chart-body">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={retentionByWeek || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                    <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{ fill: "var(--text-gray)", fontSize: 12 }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: "var(--text-gray)", fontSize: 12 }} tickFormatter={(val) => `${val}%`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: "var(--bg-card)", borderRadius: "8px", border: "1px solid var(--border)", color: "var(--text-dark)", boxShadow: "0 4px 10px rgba(0,0,0,0.05)" }} 
+                    />
+                    <Area type="monotone" dataKey="rate" stroke="#10b981" strokeWidth={3} fill="rgba(16, 185, 129, 0.15)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </div>
+
           </div>
 
-          {/* DANH SÁCH BỘ THẺ THẬT */}
-          <div className="performance-list">
-            <h4 style={{ margin: "0 0 20px 0", color: "#334155" }}>
-              🎯 Hiệu suất các bộ thẻ
-            </h4>
-            {deckPerformance && deckPerformance.length === 0 ? (
-              <p style={{ color: "#64748b", fontStyle: "italic" }}>
-                Cậu chưa có dữ liệu bộ thẻ nào.
-              </p>
-            ) : (
-              deckPerformance?.map((deck) => (
-                <div className="perf-item" key={deck.id}>
-                  <div className="perf-name">
-                    <span style={{ color: "#8b5cf6" }}>🗂️</span> {deck.name}
-                  </div>
-                  <div className="perf-bar-container">
-                    <div className="perf-bar-bg">
-                      <div
-                        className="perf-bar-fill"
-                        style={{
-                          width: `${deck.percent}%`,
-                          background:
-                            deck.percent === 100 ? "#10b981" : "#6366f1",
-                        }}
-                      ></div>
-                    </div>
-                    <span
-                      style={{
-                        fontSize: "0.85rem",
-                        fontWeight: "bold",
-                        color: "#475569",
-                        minWidth: "40px",
-                      }}
-                    >
-                      {deck.percent}%
-                    </span>
-                  </div>
-                  <div className="perf-stats">
-                    <div>
-                      <strong>{deck.learned}</strong> đã thuộc
-                    </div>
-                    <div>
-                      <strong>{deck.total}</strong> tổng số thẻ
-                    </div>
-                  </div>
+          {/* ========================================== */}
+          {/* HÀNG 3: BẢNG CHI TIẾT & LỊCH SỬ              */}
+          {/* ========================================== */}
+          <div className="stats-bottom-grid">
+            
+            {/* Cột trái: Bảng hiệu suất CÓ THANH TIẾN TRÌNH */}
+            <div className="stats-table-card">
+              <div className="table-header">
+                <h4><i className="fa-solid fa-bullseye" style={{ color: "#ec4899" }}></i> Hiệu suất các bộ thẻ</h4>
+              </div>
+              
+              <div className="table-container">
+                <table className="modern-perf-table">
+                  <thead>
+                    <tr>
+                      <th>Bộ thẻ</th>
+                      <th style={{textAlign: 'center', width: '15%'}}>Đã học</th>
+                      {/* 👉 Cột tiến trình mới */}
+                      <th style={{textAlign: 'center', width: '35%'}}>Tiến trình học tập</th>
+                      <th style={{textAlign: 'center', width: '15%'}}>Thời gian</th>
+                      <th style={{width: '5%'}}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deckPerformance && deckPerformance.length > 0 ? (
+                      deckPerformance.map((deck) => {
+                        const isAIGenerated = (deck.name || "").toLowerCase().includes("(ai generated)");
+                        const displayTitle = isAIGenerated ? deck.name.replace(/\(ai generated\)/i, "").trim() : deck.name;
+                        const isDone = deck.percent === 100;
+
+                        return (
+                          <tr key={deck.id}>
+                            <td className="deck-name-col">
+                              <div className="deck-icon bg-purple-light"><i className="fa-solid fa-layer-group"></i></div>
+                              <span className="deck-name-text">
+                                {displayTitle}
+                                {isAIGenerated && <i className="fa-solid fa-robot" style={{color: "#a855f7", marginLeft: "6px"}} title="Tạo bằng AI"></i>}
+                              </span>
+                            </td>
+                            <td style={{textAlign: 'center', fontWeight: '600'}}>{deck.learned}/{deck.total || 0}</td>
+                            
+                            {/* 👉 ĐÃ FIX: THANH TIẾN TRÌNH THỜI GIAN THỰC TRONG BẢNG */}
+                            <td style={{textAlign: 'center'}}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
+                                <div style={{ flex: 1, height: '8px', background: 'var(--border)', borderRadius: '4px', overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', background: isDone ? '#10b981' : 'var(--primary)', width: `${deck.percent}%`, transition: 'width 0.5s ease' }}></div>
+                                </div>
+                                <span style={{ fontWeight: '700', minWidth: '40px', textAlign: 'right', color: isDone ? '#10b981' : 'var(--text-dark)' }}>{deck.percent}%</span>
+                              </div>
+                            </td>
+
+                            <td style={{textAlign: 'center', color: 'var(--text-gray)'}}>{deck.time || 0} phút</td>
+                            <td style={{textAlign: 'right'}}>
+                              <button style={{background: 'none', border: 'none', cursor: 'pointer', padding: '5px'}} onClick={() => { if(onNavigate) onNavigate("review", deck.id) }}>
+                                <i className="fa-solid fa-circle-play" style={{ color: isDone ? "var(--text-gray)" : "var(--primary)", fontSize: "1.2rem" }}></i>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan="5" className="empty-table-row">Chưa có dữ liệu học tập cho bộ thẻ nào.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+              <div className="table-footer">
+                <button className="btn-view-all" onClick={() => { if(onNavigate) onNavigate("my-decks") }}>
+                  Xem tất cả bộ thẻ <i className="fa-solid fa-arrow-right"></i>
+                </button>
+              </div>
+            </div>
+
+            {/* Cột phải: Lịch sử ôn tập CÓ DỮ LIỆU */}
+            <div className="stats-history-card">
+              <div className="history-header">
+                <h4><i className="fa-solid fa-fire text-orange"></i> Lịch sử ôn tập gần đây</h4>
+              </div>
+              
+              {/* 👉 ĐÃ FIX: CHÈN LOGIC HIỂN THỊ LỊCH SỬ NẾU CÓ DỮ LIỆU THAY VÌ LUÔN HIỆN TRỐNG */}
+              {activeHistory.length > 0 ? (
+                <div style={{ padding: "10px 25px 25px 25px" }}>
+                  {activeHistory.map((item, idx) => {
+                    const itemName = item.deckName || item.name || "Bộ thẻ";
+                    const isAI = itemName.toLowerCase().includes("(ai generated)");
+                    const cleanName = isAI ? itemName.replace(/\(ai generated\)/i, "").trim() : itemName;
+
+                    return (
+                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: "15px", padding: "15px 0", borderBottom: "1px dashed var(--border)" }}>
+                        <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "var(--bg-main)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--primary)", fontSize: "1.1rem" }}>
+                          <i className="fa-solid fa-book-open-reader"></i>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <h5 style={{ margin: "0 0 4px 0", color: "var(--text-dark)", fontSize: "0.95rem", fontWeight: "700" }}>{cleanName}</h5>
+                          <p style={{ margin: 0, color: "var(--text-gray)", fontSize: "0.8rem" }}>Vừa ôn tập xong</p>
+                        </div>
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ color: "#10b981", fontWeight: "800", fontSize: "0.95rem" }}>+{item.cardsReviewed || item.learned} thẻ</div>
+                          <div style={{ color: "var(--text-gray)", fontSize: "0.8rem", marginTop: "3px" }}>{item.duration || item.time || "< 1"} phút</div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-              ))
-            )}
+              ) : (
+                <div className="history-empty-state">
+                  <div className="history-illustration bg-purple-light text-purple">
+                    <i className="fa-solid fa-box-open"></i>
+                  </div>
+                  <h5>Chưa có lịch tập gần đây</h5>
+                  <p>Bắt đầu ôn tập để xem lịch sử tại đây nhé!</p>
+                  <button className="btn-start-review" onClick={() => { if(onNavigate) onNavigate("review") }}>
+                    Bắt đầu ôn tập ngay
+                  </button>
+                </div>
+              )}
+            </div>
+
           </div>
+
         </div>
       </main>
     </div>

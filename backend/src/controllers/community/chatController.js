@@ -2,7 +2,7 @@ const { PrismaClient } = require("@prisma/client");
 const path = require("path");
 const prisma = new PrismaClient();
 
-// 👉 Máy quét ID thông minh (Chấp mọi loại tên biến từ Middleware)
+// 👉 Máy quét ID thông minh
 const getUserId = (req) => {
   const id = req.user?.id || req.userId || req.user_id || req.user;
   return parseInt(id);
@@ -17,10 +17,7 @@ const getMyConversations = async (req, res) => {
     const participations = await prisma.participants.findMany({
       where: {
         user_id: currentUserId,
-        // 👉 ĐÃ SỬA: Bộ lọc thép! CHỈ lấy những phòng là Group (loại bỏ hoàn toàn DM_)
-        Conversation: {
-          is_group: true,
-        },
+        Conversation: { is_group: true },
       },
       include: {
         Conversation: {
@@ -39,9 +36,13 @@ const getMyConversations = async (req, res) => {
                 },
               },
             },
-            // 👉 ĐÃ SỬA: Đếm tổng số lượng thành viên trong nhóm
             _count: {
               select: { Participants: true },
+            },
+            Messages: {
+              orderBy: { created_at: "desc" },
+              take: 1,
+              select: { content: true, created_at: true, message_type: true },
             },
           },
         },
@@ -49,21 +50,103 @@ const getMyConversations = async (req, res) => {
       orderBy: { joined_at: "desc" },
     });
 
-    const conversations = participations.map((p) => {
-      const convo = p.Conversation;
+    const conversations = await Promise.all(
+      participations.map(async (p) => {
+        const convo = p.Conversation;
 
-      // 👉 ĐÃ SỬA: Định hình chuẩn dữ liệu cho Nhóm học trả về Frontend
-      convo.display_name = convo.name;
-      convo.display_avatar = "👥";
-      convo.display_color = "#4f46e5";
-      convo.member_count = convo._count?.Participants || 0; // Lấy số lượng thành viên
-      convo.my_role = p.role; // Lấy vai trò của mình (admin/member)
+        let unreadCount = 0;
+        if (p.last_read_message_id !== null) {
+          unreadCount = await prisma.messages.count({
+            where: {
+              conversation_id: convo.id,
+              id: { gt: p.last_read_message_id },
+            },
+          });
+        } else {
+          unreadCount = await prisma.messages.count({
+            where: { conversation_id: convo.id },
+          });
+        }
 
-      return convo;
+        if (convo.is_group) {
+          convo.display_name = convo.name;
+          convo.display_avatar = "👥";
+          convo.display_color = "#4f46e5";
+          convo.member_count = convo._count?.Participants || 0;
+        } else {
+          const friend = convo.Participants.find(
+            (part) => part.user_id !== currentUserId,
+          )?.User;
+          if (friend) {
+            convo.display_name = friend.full_name;
+            convo.display_avatar = friend.avatar_text;
+            convo.display_color = friend.avatar_color;
+            convo.is_online = friend.is_online;
+          }
+        }
+
+        convo.my_role = p.role;
+        convo.unread_count = unreadCount;
+
+        if (convo.Messages && convo.Messages.length > 0) {
+          const lastMsg = convo.Messages[0];
+          convo.last_message_preview =
+            lastMsg.message_type === "image" ? "[Hình ảnh]" : lastMsg.content;
+          convo.last_message_time = lastMsg.created_at;
+        } else {
+          convo.last_message_preview = "Chưa có tin nhắn nào.";
+        }
+
+        delete convo.Messages;
+
+        return convo;
+      }),
+    );
+
+    conversations.sort((a, b) => {
+      const timeA = a.last_message_time
+        ? new Date(a.last_message_time).getTime()
+        : 0;
+      const timeB = b.last_message_time
+        ? new Date(b.last_message_time).getTime()
+        : 0;
+      return timeB - timeA;
     });
+
     res.status(200).json({ success: true, data: conversations });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ success: false, message: "Lỗi server" });
+  }
+};
+
+const markMessagesAsRead = async (req, res) => {
+  try {
+    const currentUserId = getUserId(req);
+    const conversationId = parseInt(req.params.id);
+
+    const latestMessage = await prisma.messages.findFirst({
+      where: { conversation_id: conversationId },
+      orderBy: { id: "desc" },
+    });
+
+    if (latestMessage) {
+      await prisma.participants.update({
+        where: {
+          conversation_id_user_id: {
+            conversation_id: conversationId,
+            user_id: currentUserId,
+          },
+        },
+        data: { last_read_message_id: latestMessage.id },
+      });
+    }
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: "Lỗi khi đánh dấu đã đọc" });
   }
 };
 
@@ -156,9 +239,7 @@ const getConversationMessages = async (req, res) => {
         },
       });
 
-      if (!convo) {
-        return res.status(200).json({ success: true, data: [] });
-      }
+      if (!convo) return res.status(200).json({ success: true, data: [] });
       targetConversationId = convo.id;
     }
 
@@ -200,12 +281,13 @@ const sendMessage = async (req, res) => {
     const currentUserId = getUserId(req);
     const { content } = req.body;
     let targetConversationId;
+    let receiverId = null;
 
     if (req.originalUrl.includes("/groups/")) {
       targetConversationId = parseInt(req.params.id);
     } else {
-      const receiver_id = parseInt(req.body.receiver_id);
-      if (!receiver_id)
+      receiverId = parseInt(req.body.receiver_id);
+      if (!receiverId)
         return res
           .status(400)
           .json({ success: false, message: "Thiếu ID người nhận" });
@@ -215,7 +297,7 @@ const sendMessage = async (req, res) => {
           is_group: false,
           AND: [
             { Participants: { some: { user_id: currentUserId } } },
-            { Participants: { some: { user_id: receiver_id } } },
+            { Participants: { some: { user_id: receiverId } } },
           ],
         },
       });
@@ -223,16 +305,15 @@ const sendMessage = async (req, res) => {
       if (!convo) {
         const uniqueSuffix =
           Date.now().toString(36) + Math.random().toString(36).substring(2, 6);
-
         convo = await prisma.conversations.create({
           data: {
             is_group: false,
-            name: `DM_${currentUserId}_${receiver_id}_${uniqueSuffix}`,
+            name: `DM_${currentUserId}_${receiverId}_${uniqueSuffix}`,
             invite_code: `INV_${uniqueSuffix}`,
             Participants: {
               create: [
                 { user_id: currentUserId, role: "member" },
-                { user_id: receiver_id, role: "member" },
+                { user_id: receiverId, role: "member" },
               ],
             },
           },
@@ -242,10 +323,7 @@ const sendMessage = async (req, res) => {
     }
 
     const isParticipant = await prisma.participants.findFirst({
-      where: {
-        conversation_id: targetConversationId,
-        user_id: currentUserId,
-      },
+      where: { conversation_id: targetConversationId, user_id: currentUserId },
     });
     if (!isParticipant)
       return res
@@ -272,6 +350,7 @@ const sendMessage = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Tin nhắn trống!" });
 
+    // LƯU TIN NHẮN (Việc nặng nhất cần làm ngay)
     const newMessage = await prisma.messages.create({
       data: messageData,
       include: {
@@ -286,19 +365,49 @@ const sendMessage = async (req, res) => {
       },
     });
 
-    const io = req.app.get("io");
-    if (io) {
-      io.to(targetConversationId.toString()).emit(
-        "receiveNewMessage",
-        newMessage,
-      );
-    }
-
     res
       .status(201)
       .json({ success: true, data: { ...newMessage, isMine: true } });
+
+    // ==========================================
+    // CHẠY NGẦM (FIRE AND FORGET)
+    // ==========================================
+    setTimeout(async () => {
+      try {
+        await prisma.participants.update({
+          where: {
+            conversation_id_user_id: {
+              conversation_id: targetConversationId,
+              user_id: currentUserId,
+            },
+          },
+          data: { last_read_message_id: newMessage.id },
+        });
+
+        // 👉 ĐÃ THÊM: LỚP BỌC AN TOÀN CHO SOCKET (SAFE CHECK)
+        const io = req.app.get("io");
+        if (io && typeof io.to === "function") { 
+          if (req.originalUrl.includes("/groups/")) {
+            io.to(targetConversationId.toString()).emit("receiveNewMessage", {
+              ...newMessage,
+              broadcast_from: currentUserId,
+            });
+          } else if (receiverId) {
+            io.to(receiverId.toString())
+              .to(currentUserId.toString())
+              .emit("receiveNewMessage", {
+                ...newMessage,
+                broadcast_from: currentUserId,
+              });
+          }
+        } else {
+             console.warn("⚠️ CẢNH BÁO TỪ BACKEND: Socket.io chưa được cấu hình đúng chuẩn Express ở file server.js. Hệ thống đang hoạt động ở chế độ Offline Message.");
+        }
+      } catch (err) {
+        console.error("Lỗi khi chạy tiến trình ngầm gửi tin nhắn:", err);
+      }
+    }, 50);
   } catch (error) {
-    console.error(error);
     res.status(500).json({ success: false, message: "Lỗi gửi tin nhắn" });
   }
 };
@@ -307,12 +416,6 @@ const leaveGroup = async (req, res) => {
   try {
     const currentUserId = getUserId(req);
     const groupId = parseInt(req.params.groupId);
-
-    const conversation = await prisma.conversations.findUnique({
-      where: { id: groupId },
-    });
-    if (!conversation || !conversation.is_group)
-      return res.status(404).json({ success: false, message: "Lỗi!" });
 
     const membership = await prisma.participants.findFirst({
       where: { conversation_id: groupId, user_id: currentUserId },
@@ -329,6 +432,155 @@ const leaveGroup = async (req, res) => {
   }
 };
 
+const renameGroup = async (req, res) => {
+  try {
+    const currentUserId = getUserId(req);
+    const groupId = parseInt(req.params.id);
+    const { name } = req.body;
+
+    if (!name || name.trim() === "") {
+      return res
+        .status(400)
+        .json({ success: false, message: "Tên nhóm không được trống" });
+    }
+
+    const membership = await prisma.participants.findFirst({
+      where: { conversation_id: groupId, user_id: currentUserId },
+    });
+
+    if (!membership)
+      return res
+        .status(403)
+        .json({ success: false, message: "Bạn không có trong nhóm này" });
+    if (membership.role !== "admin")
+      return res
+        .status(403)
+        .json({ success: false, message: "Chỉ trưởng nhóm mới được đổi tên" });
+
+    await prisma.conversations.update({
+      where: { id: groupId },
+      data: { name: name.trim() },
+    });
+
+    res.status(200).json({ success: true, message: "Đổi tên thành công" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Lỗi Server" });
+  }
+};
+
+const getGroupMembers = async (req, res) => {
+  try {
+    const currentUserId = getUserId(req);
+    const groupId = parseInt(req.params.id);
+
+    const isMember = await prisma.participants.findFirst({
+      where: { conversation_id: groupId, user_id: currentUserId },
+    });
+    if (!isMember)
+      return res
+        .status(403)
+        .json({ success: false, message: "Từ chối truy cập" });
+
+    const participants = await prisma.participants.findMany({
+      where: { conversation_id: groupId },
+      include: {
+        User: {
+          select: {
+            id: true,
+            full_name: true,
+            email: true,
+            avatar_text: true,
+            avatar_color: true,
+          },
+        },
+      },
+      orderBy: { role: "asc" },
+    });
+
+    const members = participants.map((p) => ({
+      ...p.User,
+      role: p.role,
+      joined_at: p.joined_at,
+    }));
+    res.status(200).json({ success: true, data: members });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Lỗi Server" });
+  }
+};
+
+const addGroupMember = async (req, res) => {
+  try {
+    const currentUserId = getUserId(req);
+    const groupId = parseInt(req.params.id);
+    const { email } = req.body;
+
+    if (!email)
+      return res
+        .status(400)
+        .json({ success: false, message: "Vui lòng nhập Email" });
+
+    const inviter = await prisma.participants.findFirst({
+      where: { conversation_id: groupId, user_id: currentUserId },
+    });
+    if (!inviter || inviter.role !== "admin")
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ trưởng nhóm mới được thêm thành viên",
+      });
+
+    const targetUser = await prisma.users.findUnique({
+      where: { email: email.trim() },
+    });
+    if (!targetUser)
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy người dùng với Email này",
+      });
+
+    const existingMember = await prisma.participants.findFirst({
+      where: { conversation_id: groupId, user_id: targetUser.id },
+    });
+    if (existingMember)
+      return res
+        .status(400)
+        .json({ success: false, message: "Người này đã có trong nhóm!" });
+
+    await prisma.participants.create({
+      data: {
+        conversation_id: groupId,
+        user_id: targetUser.id,
+        role: "member",
+      },
+    });
+
+    res.status(200).json({ success: true, message: "Đã thêm thành viên!" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Lỗi Server" });
+  }
+};
+
+const clearGroupHistory = async (req, res) => {
+  try {
+    const currentUserId = getUserId(req);
+    const groupId = parseInt(req.params.id);
+
+    const membership = await prisma.participants.findFirst({
+      where: { conversation_id: groupId, user_id: currentUserId },
+    });
+
+    if (!membership || membership.role !== "admin")
+      return res.status(403).json({
+        success: false,
+        message: "Chỉ trưởng nhóm mới được xóa lịch sử",
+      });
+
+    await prisma.messages.deleteMany({ where: { conversation_id: groupId } });
+    res.status(200).json({ success: true, message: "Đã xóa sạch lịch sử!" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Lỗi Server" });
+  }
+};
+
 module.exports = {
   getMyConversations,
   createGroup,
@@ -336,4 +588,9 @@ module.exports = {
   getConversationMessages,
   sendMessage,
   leaveGroup,
+  renameGroup,
+  getGroupMembers,
+  addGroupMember,
+  clearGroupHistory,
+  markMessagesAsRead,
 };

@@ -3,47 +3,46 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlserver"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Decks {
-  id           Int          @id(map: "PK__Decks__3213E83F528A4F5B") @default(autoincrement())
-  title        String       @db.NVarChar(255)
-  description  String?      @db.NVarChar(Max)
-  is_public    Boolean?     @default(false, map: "DF__Decks__is_public__3B75D760")
+  id           Int          @id @default(autoincrement())
+  title        String
+  description  String?
+  is_public    Boolean?     @default(false)
   is_anonymous Boolean?     @default(false)
-  
   clone_count  Int?         @default(0)
-  // 👉 ĐÃ THÊM: Cột phân loại môn học (Ngoại ngữ, Lập trình...)
-  category     String?      @db.NVarChar(100) 
+  category     String?
 
   user_id      Int
-  Users        Users        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Decks_Users")
+  Users        Users        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   Flashcards   Flashcards[]
-  StudyLogs    StudyLogs[]  
+  StudyLogs    StudyLogs[]
 }
 
 model Flashcards {
-  id            Int             @id(map: "PK__Flashcar__3213E83F6C1834FB") @default(autoincrement())
+  id            Int             @id @default(autoincrement())
   deck_id       Int
-  question      String          @db.NVarChar(Max)
-  answer        String          @db.NVarChar(Max)
-  Decks         Decks           @relation(fields: [deck_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_Flashcards_Decks")
+  question      String
+  answer        String
+  Decks         Decks           @relation(fields: [deck_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   StudyProgress StudyProgress[]
-  StudyLogs     StudyLogs[]     
+  StudyLogs     StudyLogs[]
 }
 
 model StudyProgress {
-  id               Int        @id(map: "PK__StudyPro__3213E83F44D8FFF1") @default(autoincrement())
+  id               Int        @id @default(autoincrement())
   flashcard_id     Int
   user_id          Int
-  ease_factor      Float?     @default(2.5, map: "DF__StudyProg__ease___4222D4EF")
-  interval         Int?       @default(0, map: "DF__StudyProg__inter__4316F928")
-  repetitions      Int?       @default(0, map: "DF__StudyProg__repet__440B1D61")
-  next_review_date DateTime?  @default(now(), map: "DF__StudyProg__next___44FF419A") @db.DateTime
-  Flashcards       Flashcards @relation(fields: [flashcard_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "FK_StudyProgress_Flashcards")
-  Users            Users      @relation(fields: [user_id], references: [id], onUpdate: NoAction, map: "FK_StudyProgress_Users")
+  ease_factor      Float?     @default(2.5)
+  interval         Int?       @default(0)
+  repetitions      Int?       @default(0)
+  next_review_date DateTime?  @default(now())
+  Flashcards       Flashcards @relation(fields: [flashcard_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  Users            Users      @relation(fields: [user_id], references: [id], onUpdate: NoAction)
 }
 
 model StudyLogs {
@@ -51,14 +50,13 @@ model StudyLogs {
   user_id      Int
   flashcard_id Int
   deck_id      Int
-  rating       Int        
-  duration_ms  Int?       @default(0) 
-  reviewed_at  DateTime   @default(now()) @db.DateTime 
+  rating       Int
+  duration_ms  Int?       @default(0)
+  reviewed_at  DateTime   @default(now())
   Users        Users      @relation(fields: [user_id], references: [id], onUpdate: NoAction)
   Flashcards   Flashcards @relation(fields: [flashcard_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   Decks        Decks      @relation(fields: [deck_id], references: [id], onUpdate: NoAction)
 }
-
 
 // =========================================
 // HỆ SINH THÁI CHAT CHUẨN ZALO (GỘP CHUNG 1-1 VÀ NHÓM)
@@ -66,11 +64,11 @@ model StudyLogs {
 
 // Bảng 1: Cuộc trò chuyện (Đại diện cho 1 Nhóm hoặc 1 đoạn chat 2 người)
 model Conversations {
-  id          Int      @id @default(autoincrement())
-  name        String?  @db.NVarChar(255) // Nhóm thì có tên, 1-1 thì để null
-  is_group    Boolean  @default(false)   // Phân biệt nhóm và 1-1
-  invite_code String?  @unique @db.VarChar(50) // Link mời vào nhóm
-  created_at  DateTime @default(now()) @db.DateTime
+  id          Int        @id @default(autoincrement())
+  name        String?    
+  is_group    Boolean    @default(false)  
+  invite_code String?    @unique 
+  created_at  DateTime   @default(now())
 
   Messages     Messages[]
   Participants Participants[]
@@ -78,14 +76,17 @@ model Conversations {
 
 // Bảng 2: Người tham gia (Ai đang ở trong cuộc trò chuyện nào)
 model Participants {
-  id              Int      @id @default(autoincrement())
-  conversation_id Int
-  user_id         Int
-  role            String   @default("member") @db.VarChar(20) // admin, member
-  joined_at       DateTime @default(now()) @db.DateTime
+  id                   Int      @id @default(autoincrement())
+  conversation_id      Int
+  user_id              Int
+  role                 String   @default("member") 
+  joined_at            DateTime @default(now())
 
-  Conversation    Conversations @relation(fields: [conversation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  User            Users         @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  // 👉 ĐÃ THÊM: Theo dõi ID tin nhắn cuối cùng mà user này đã xem
+  last_read_message_id Int?     @default(0)
+
+  Conversation  Conversations @relation(fields: [conversation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  User          Users         @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@unique([conversation_id, user_id]) // Một người chỉ tham gia 1 lần trong 1 box chat
 }
@@ -95,14 +96,14 @@ model Messages {
   id              Int      @id @default(autoincrement())
   conversation_id Int
   sender_id       Int
-  content         String?  @db.NVarChar(Max)
-  message_type    String?  @default("text") @db.VarChar(20) // text, image, file, deck_share
-  file_url        String?  @db.NVarChar(Max)
-  file_name       String?  @db.NVarChar(255)
-  created_at      DateTime @default(now()) @db.DateTime
+  content         String?  
+  message_type    String?  @default("text") 
+  file_url        String?  
+  file_name       String?  
+  created_at      DateTime @default(now())
 
-  Conversation    Conversations @relation(fields: [conversation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  Sender          Users         @relation(fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Conversation  Conversations @relation(fields: [conversation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  Sender        Users         @relation(fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 // =========================================
@@ -112,8 +113,8 @@ model Friendships {
   id           Int      @id @default(autoincrement())
   requester_id Int      // ID người gửi lời mời
   addressee_id Int      // ID người nhận lời mời
-  status       String   @default("pending") @db.VarChar(20) // pending, accepted, declined
-  created_at   DateTime @default(now()) @db.DateTime
+  status       String   @default("pending") // pending, accepted, declined
+  created_at   DateTime @default(now()) 
 
   Requester    Users    @relation("SentRequests", fields: [requester_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Addressee    Users    @relation("ReceivedRequests", fields: [addressee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -122,14 +123,14 @@ model Friendships {
 }
 
 model Users {
-  id            Int             @id(map: "PK__Users__3213E83F59EDBEC8") @default(autoincrement())
-  email         String          @unique(map: "UQ__Users__AB6E6164008F980D") @db.VarChar(255)
-  password_hash String          @db.VarChar(255)
-  role          String?         @default("student", map: "DF__Users__role__38996AB5") @db.VarChar(50)
+  id            Int             @id @default(autoincrement())
+  email         String          @unique 
+  password_hash String          
+  role          String?         @default("student") 
   
-  full_name     String?         @db.NVarChar(100)
-  avatar_text   String?         @db.VarChar(10)
-  avatar_color  String?         @db.VarChar(20)
+  full_name     String?         
+  avatar_text   String?         
+  avatar_color  String?         
   streak_days   Int?            @default(0)
   total_cards   Int?            @default(0)
   total_points  Int?            @default(0)
@@ -140,8 +141,8 @@ model Users {
   StudyLogs     StudyLogs[]     
   
   // Quan hệ cho hệ sinh thái Chat mới
-  Participations       Participants[]
-  MessagesSent         Messages[]
+  Participations         Participants[]
+  MessagesSent           Messages[]
 
   FriendRequestsSent     Friendships[]   @relation("SentRequests")
   FriendRequestsReceived Friendships[]   @relation("ReceivedRequests")

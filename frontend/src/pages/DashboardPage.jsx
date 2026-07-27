@@ -1,5 +1,7 @@
+// frontend/src/pages/DashboardPage.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 import Sidebar from "../components/Layout/Sidebar";
 import DashboardHeader from "../components/Dashboard/DashboardHeader";
@@ -8,18 +10,27 @@ import DashboardActions from "../components/Dashboard/DashboardActions";
 import DeckList from "../components/Dashboard/DeckList";
 import CalendarWidget from "../components/Dashboard/CalendarWidget";
 import CramModeModal from "../components/Modals/CramModeModal"; 
+import api from "../services/api"; 
 import "./DashboardPage.css";
 
 const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
+  const { user } = useAuth();
+
   const getInitialName = () => {
-    try {
-      const userStr = localStorage.getItem("user");
-      if (userStr) {
-        const userObj = JSON.parse(userStr);
-        if (userObj.full_name) return userObj.full_name;
+    let currentUser = user;
+    if (!currentUser) {
+      try {
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+          currentUser = JSON.parse(userStr);
+        }
+      } catch (e) {
+        console.error("Lỗi đọc localStorage:", e);
       }
-    } catch (e) {
-      console.error("Lỗi đọc localStorage:", e);
+    }
+    
+    if (currentUser) {
+      return currentUser.full_name || currentUser.name || currentUser.username || "Người dùng";
     }
     return dynamicName || "Người dùng";
   };
@@ -33,40 +44,78 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
   const [examDates, setExamDates] = useState([]);
   const [isCramModalOpen, setIsCramModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (dynamicName && userData.name === "Người dùng") {
-      setUserData((prev) => ({ ...prev, name: dynamicName }));
-    }
+  // 👉 Toast Notification State (Thay thế alert thô kệch bằng giao diện chuyên nghiệp)
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }));
+    }, 4500);
+  };
+
+  useEffect(() => {
+    if (user) {
+      setUserData(prev => ({
+        ...prev,
+        name: user.full_name || user.name || user.username || prev.name
+      }));
+    } else if (dynamicName && userData.name === "Người dùng") {
+      setUserData(prev => ({ ...prev, name: dynamicName }));
+    }
+  }, [user, dynamicName]);
+
+  useEffect(() => {
+    const checkAndResetStreak = () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const lastCheckInStr = localStorage.getItem("lastCheckInDate");
+      let currentLocalStreak = parseInt(localStorage.getItem("localStreak") || "0", 10);
+
+      if (lastCheckInStr) {
+        const lastCheckInDate = new Date(lastCheckInStr);
+        lastCheckInDate.setHours(0, 0, 0, 0);
+        
+        const diffTime = today - lastCheckInDate;
+        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays > 1) {
+          currentLocalStreak = 0;
+          localStorage.setItem("localStreak", "0");
+        }
+      }
+      
+      setUserData((prev) => ({ ...prev, streak: currentLocalStreak }));
+    };
+
+    checkAndResetStreak();
+  }, []);
+
+  useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const token = localStorage.getItem("token") || "";
         const todayString = new Date().toISOString();
+        const response = await api.get(`/dashboard/summary?currentDate=${encodeURIComponent(todayString)}`);
 
-        const response = await fetch(
-          `http://localhost:5000/api/dashboard/summary?currentDate=${encodeURIComponent(todayString)}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
+        if (response && response.success !== false) {
+          const data = response.data || response; 
           
           if (data.user) {
-            setUserData((prev) => ({
-              ...prev,
-              ...data.user,
-              name: data.user.full_name || data.user.name || prev.name,
-              streak: data.user.streak || 0,
-            }));
+            setUserData((prev) => {
+              const localStreak = parseInt(localStorage.getItem("localStreak") || "0", 10);
+              return {
+                ...prev,
+                ...data.user,
+                name: user?.full_name || data.user.full_name || data.user.name || prev.name,
+                streak: localStreak > 0 ? localStreak : (data.user.streak || 0),
+              };
+            });
 
             const existingUserStr = localStorage.getItem("user");
             if (existingUserStr) {
               const existingUser = JSON.parse(existingUserStr);
-              existingUser.full_name = data.user.full_name || data.user.name;
+              existingUser.full_name = user?.full_name || data.user.full_name || data.user.name;
               localStorage.setItem("user", JSON.stringify(existingUser));
             }
           }
@@ -75,14 +124,10 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
             const augmentedDecks = data.decks.map((deck) => {
               const savedSettings = JSON.parse(localStorage.getItem(`cram_settings_${deck.id}`));
               
-              // 👉 ĐÃ FIX LỖI CRAM MODE ẢO: 
-              // Chỉ kích hoạt khi người dùng chủ động lưu ngày thi vào localStorage. 
-              // Bỏ qua giá trị exam_date mặc định rác từ Backend để tránh bộ thẻ mới bị "cháy máy".
               let activeExamDate = null;
               if (savedSettings && savedSettings.examDate) {
                 activeExamDate = savedSettings.examDate;
               } else if (deck.is_cram_active === true && deck.exam_date) {
-                // Đề phòng sau này Backend có trường is_cram_active chuẩn
                 activeExamDate = deck.exam_date;
               }
 
@@ -96,16 +141,13 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
                 daysLeft = diff > 0 ? diff : 0;
               }
 
-              // Tính toán Mastered chuẩn
-              const total = parseInt(deck.totalCards) || 0;
-              const due = parseInt(deck.dueCards) || 0;
-              const mastered = deck.masteredCards !== undefined ? parseInt(deck.masteredCards) : Math.max(0, total - due);
+              const total = deck.totalCards ?? deck._count?.Flashcards ?? 0;
+              const due = deck.dueCount ?? deck.dueCards ?? 0;
 
               return {
                 ...deck,
                 examDateToUse: activeExamDate,
                 daysLeft: daysLeft,
-                calculatedMastered: mastered,
                 calculatedTotal: total,
                 calculatedDue: due
               };
@@ -135,11 +177,11 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
     };
 
     fetchDashboardData();
-  }, [dynamicName]); 
+  }, [user]);
 
   const totalDecks = decks.length;
   const totalDueCards = decks.reduce((sum, deck) => sum + deck.calculatedDue, 0);
-  const totalMastered = decks.reduce((sum, deck) => sum + deck.calculatedMastered, 0);
+  const totalCards = decks.reduce((sum, deck) => sum + deck.calculatedTotal, 0);
 
   const handleStudyClick = (deckId) => {
     const targetDeck = decks.find((d) => d.id === deckId);
@@ -147,7 +189,7 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
 
     if (dueCount === 0) {
       const userWantsToForce = window.confirm(
-        "Bạn đã hoàn thành lịch ôn tập hôm nay cho bộ thẻ này.\n\nBạn có muốn tiếp tục ôn tập lại toàn bộ danh sách thẻ không?"
+        "Bạn đã hoàn thành lịch ôn tập hôm hôm nay cho bộ thẻ này.\n\nBạn có muốn tiếp tục ôn tập lại toàn bộ danh sách thẻ không?"
       );
       if (userWantsToForce) {
         onStudy(deckId, true);
@@ -170,8 +212,42 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
         onStudy(decks[0].id, true);
       }
     } else {
-      alert("Bạn chưa có bộ thẻ nào. Hãy tạo bộ thẻ mới nhé!");
+      showToast("Bạn chưa có bộ thẻ nào. Hãy tạo bộ thẻ mới nhé!", "info");
       onNavigate("create");
+    }
+  };
+
+  // 👉 ĐÃ NÂNG CẤP: Điểm danh chuyên nghiệp với thông báo tùy chỉnh mượt mà
+  const handleCheckIn = async () => {
+    const todayStr = new Date().toDateString();
+    const lastCheckIn = localStorage.getItem("lastCheckInDate");
+    let currentStreak = parseInt(localStorage.getItem("localStreak") || userData.streak || "0", 10);
+
+    // Chặn nếu hôm nay đã điểm danh (Đúng câu lệnh bạn yêu cầu)
+    if (lastCheckIn === todayStr) {
+      showToast("Hôm nay bạn đã điểm danh rồi nhé, ngày mai quay lại nha! 😉", "info");
+      return;
+    }
+
+    const newStreak = currentStreak + 1;
+    setUserData(prev => ({ ...prev, streak: newStreak }));
+    localStorage.setItem("localStreak", newStreak.toString());
+    localStorage.setItem("lastCheckInDate", todayStr);
+    
+    showToast(`🔥 Điểm danh thành công! Chuỗi học tập hiện tại: ${newStreak} ngày.`, "success");
+
+    try {
+      const token = localStorage.getItem("token") || "";
+      await fetch("http://localhost:5000/api/dashboard/checkin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ streak: newStreak })
+      });
+    } catch (error) {
+      console.warn("Lưu ý: Backend chưa mở hoặc lỗi mạng. Streak đã được lưu an toàn tại Local Storage.");
     }
   };
 
@@ -179,27 +255,27 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
     <div className="dashboard-layout">
       <Sidebar currentView="dashboard" onNavigate={onNavigate} />
 
-      <main className="dashboard-content" style={{ backgroundColor: "var(--bg-main)" }}>
-        <div className="page-wrapper" style={{ maxWidth: "1200px", margin: "0 auto" }}>
+      <main className="dashboard-content scrollable-content" style={{ backgroundColor: "#f8fafc", overflowY: "auto", height: "100vh" }}>
+        <div className="page-wrapper" style={{ maxWidth: "1300px", margin: "0 auto", padding: "30px 40px" }}>
+          
           <DashboardHeader userName={userData.name} />
-
-          {/* 👉 ĐÃ FIX: Chuyển DashboardStats vào chung khung với ActionCard và DeckList */}
-          <div className="main-grid" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "30px", marginTop: "10px" }}>
+          
+          <div className="main-dashboard-grid">
             
-            {/* Cột trái: Thống kê + Hành động + Danh sách thẻ */}
-            <div className="left-column" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
+            <div className="dashboard-left-col">
               <DashboardStats
                 totalDueCards={totalDueCards}
-                totalMastered={totalMastered}
-                streak={userData.streak} 
+                totalCards={totalCards}
                 totalDecks={totalDecks}
               />
+              
               <DashboardActions
                 totalDueCards={totalDueCards}
                 onNavigate={onNavigate}
                 onStartStudy={handleStartGlobalStudy}
                 onOpenCramModal={() => setIsCramModalOpen(true)}
               />
+              
               <DeckList
                 decks={decks}
                 onStudy={handleStudyClick}
@@ -207,12 +283,25 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
               />
             </div>
 
-            {/* Cột phải: Khối Tích lũy Streak + Lịch */}
-            <div className="right-column">
-              <CalendarWidget 
-                examDates={examDates} 
-                streak={userData.streak} 
-              />
+            <div className="dashboard-right-col">
+              
+              <div className="widget-card streak-widget-large">
+                <div className="streak-header">
+                  <h3>Tích Lũy Streak 🔥</h3>
+                  <p>Bấm điểm danh mỗi ngày để duy trì chuỗi học tập.</p>
+                </div>
+                <div className="streak-body">
+                  <h2>🔥 Streak: {userData.streak} ngày</h2>
+                </div>
+                <button className="btn-checkin-large" onClick={handleCheckIn}>
+                  <i className="fa-solid fa-bullseye"></i> Điểm danh hôm nay
+                </button>
+              </div>
+
+              <div className="widget-card calendar-widget-container" style={{ marginTop: "25px" }}>
+                <h3 className="widget-title">Lịch học tập & Thi cử</h3>
+                <CalendarWidget examDates={examDates} />
+              </div>
             </div>
 
           </div>
@@ -225,6 +314,30 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
         decks={decks}
         onNavigate={onNavigate}
       />
+
+      {/* 👉 HỆ THỐNG TOAST NOTIFICATION CHUYÊN NGHIỆP */}
+      {toast.show && (
+        <div style={{
+          position: "fixed",
+          bottom: "30px",
+          right: "30px",
+          backgroundColor: toast.type === "success" ? "#10b981" : "#3b82f6",
+          color: "#fff",
+          padding: "16px 24px",
+          borderRadius: "14px",
+          boxShadow: "0 10px 25px rgba(0, 0, 0, 0.15)",
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          zIndex: 9999,
+          fontWeight: "600",
+          fontSize: "0.95rem",
+          animation: "slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards"
+        }}>
+          <span style={{ fontSize: "1.2rem" }}>{toast.type === "success" ? "🎉" : "✨"}</span>
+          <span>{toast.message}</span>
+        </div>
+      )}
     </div>
   );
 };

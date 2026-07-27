@@ -1,4 +1,3 @@
-// File: frontend/src/hooks/useChat.js
 import { useState, useEffect, useCallback, useRef } from "react";
 import { io } from "socket.io-client";
 import { communityAPI } from "../services/api";
@@ -14,8 +13,13 @@ export const useChat = () => {
 
   // 1. KHỞI TẠO ĂNG-TEN KẾT NỐI
   useEffect(() => {
+    // 👉 ĐÃ SỬA CHUẨN BỊ CHO VERCEL: Tự động nhận diện link local hoặc link Render
+    const backendUrl = import.meta.env.VITE_API_URL
+      ? import.meta.env.VITE_API_URL.replace("/api", "")
+      : "http://localhost:5000";
+
     // Kết nối tới Server Backend
-    socketRef.current = io("http://localhost:5000");
+    socketRef.current = io(backendUrl);
 
     // Lắng nghe tín hiệu "receiveNewMessage" từ Server
     socketRef.current.on("receiveNewMessage", (incomingMessage) => {
@@ -47,6 +51,14 @@ export const useChat = () => {
 
         return [...prevMessages, formattedMessage];
       });
+    });
+
+    // 👉 ĐÃ THÊM: Lắng nghe loa phường "friend_request_updated" từ Server
+    socketRef.current.on("friend_request_updated", (data) => {
+      // Phát sóng nội bộ cho các file khác (như CommunityPage) biết để tự gọi API load lại data danh bạ
+      window.dispatchEvent(
+        new CustomEvent("refresh_community_data", { detail: data }),
+      );
     });
 
     // Khi người dùng tắt trình duyệt hoặc chuyển trang -> Rút điện ăng-ten

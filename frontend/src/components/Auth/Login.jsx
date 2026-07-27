@@ -1,3 +1,4 @@
+// frontend/src/components/Auth/Login.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom"; // 👉 Công cụ chuyển trang chuẩn
 import { useAuth } from "../../context/AuthContext"; // 👉 Chìa khóa mở Két sắt AuthContext
@@ -93,9 +94,10 @@ const Login = () => {
         )}
 
         <form onSubmit={handleLogin}>
-          <div className="form-group">
-            <div className="form-label-wrapper">
-              <label>Email</label>
+          {/* Box Email */}
+          <div className="form-group" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%" }}>
+            <div className="form-label-wrapper" style={{ width: "100%", textAlign: "left", marginBottom: "8px" }}>
+              <label style={{ fontWeight: "600", color: "var(--text-dark)", fontSize: "0.95rem" }}>Email</label>
             </div>
             <input
               type="email"
@@ -103,12 +105,14 @@ const Login = () => {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              style={{ width: "100%", boxSizing: "border-box" }}
             />
           </div>
 
-          <div className="form-group">
-            <div className="form-label-wrapper">
-              <label>Mật khẩu</label>
+          {/* Box Mật khẩu */}
+          <div className="form-group" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", marginTop: "15px" }}>
+            <div className="form-label-wrapper" style={{ width: "100%", textAlign: "left", marginBottom: "8px" }}>
+              <label style={{ fontWeight: "600", color: "var(--text-dark)", fontSize: "0.95rem" }}>Mật khẩu</label>
             </div>
             <input
               type="password"
@@ -116,21 +120,32 @@ const Login = () => {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              style={{ width: "100%", boxSizing: "border-box" }}
             />
-            {/* Đưa nút "Quên mật khẩu?" xuống dưới ô nhập và căn sang phải */}
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "6px" }}>
-              <span className="forgot-link" onClick={() => setShowForgotModal(true)}>
+            
+            {/* Đưa nút "Quên mật khẩu?" xuống dưới ô nhập, căn sang phải và làm nhỏ lại */}
+            <div style={{ width: "100%", display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
+              <span 
+                className="forgot-link" 
+                onClick={() => setShowForgotModal(true)}
+                style={{ 
+                  fontSize: "0.85rem", /* 👉 ĐÃ SỬA: Chữ nhỏ hơn */
+                  color: "var(--primary)", 
+                  cursor: "pointer", 
+                  fontWeight: "600" 
+                }}
+              >
                 Quên mật khẩu?
               </span>
             </div>
           </div>
 
-          <button type="submit" className="btn-login" disabled={isLoading}>
+          <button type="submit" className="btn-login" disabled={isLoading} style={{ marginTop: "20px" }}>
             {isLoading ? "Đang xử lý..." : "Đăng nhập"}
           </button>
         </form>
 
-        <div className="register-hint">
+        <div className="register-hint" style={{ marginTop: "25px" }}>
           Chưa có tài khoản?{" "}
           <span
             onClick={() => navigate("/register")}
@@ -174,7 +189,7 @@ const Login = () => {
                 value={forgotEmail}
                 onChange={(e) => setForgotEmail(e.target.value)}
                 style={{
-                  width: "100%", padding: "14px 16px", marginBottom: "25px",
+                  width: "100%", padding: "14px 16px", marginBottom: "25px", boxSizing: "border-box",
                   borderRadius: "10px", border: "1.5px solid var(--border)",
                   background: "var(--bg-main)", color: "var(--text-dark)", outline: "none", fontSize: "1rem"
                 }}

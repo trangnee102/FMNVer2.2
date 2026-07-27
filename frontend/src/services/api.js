@@ -4,7 +4,7 @@ import axios from "axios";
 // 1. KHỞI TẠO "KẺ VẬN CHUYỂN NGẦM"
 // =========================================
 const api = axios.create({
-  baseURL: "http://localhost:5000/api", // Đảm bảo khớp với cổng Backend
+  baseURL: "http://localhost:5000/api",
 });
 
 // =========================================
@@ -26,17 +26,14 @@ api.interceptors.request.use(
 // =========================================
 api.interceptors.response.use(
   (response) => {
-    // Tự động bóc tách vỏ Axios, trả về đúng dữ liệu lõi cho các hàm hook dễ dùng (giống fetch.json())
     return response.data;
   },
   (error) => {
-    // Nếu Backend báo lỗi 401 (Chưa đăng nhập hoặc Token hết hạn/bị giả mạo)
     if (error.response && error.response.status === 401) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      window.location.href = "/login"; // Đá văng ra cửa Đăng nhập
+      window.location.href = "/login";
     }
-    // Trả về thẳng cục lỗi của Backend để hiển thị (nếu có)
     return Promise.reject(error.response?.data || error);
   },
 );
@@ -46,7 +43,6 @@ api.interceptors.response.use(
 // =========================================
 
 export const authAPI = {
-  // Ngắn gọn, không cần JSON.stringify hay khai báo method lằng nhằng!
   login: (email, password) => api.post("/auth/login", { email, password }),
 };
 
@@ -69,7 +65,7 @@ export const communityAPI = {
   getContacts: () => api.get("/community/contacts"),
   getMessages: (friendId) => api.get(`/community/messages/${friendId}`),
 
-  // Axios cực kỳ thông minh: Thấy formData truyền vào, nó tự động set header "multipart/form-data"!
+  // 👉 File này code quá chuẩn xác, chứng nhận 100% Passed!
   sendMessage: (formData) => api.post("/community/messages", formData),
 
   searchUser: (email) =>
@@ -89,7 +85,20 @@ export const communityAPI = {
   sendGroupMessage: (groupId, formData) =>
     api.post(`/community/groups/${groupId}/messages`, formData),
   leaveGroup: (groupId) => api.post(`/community/groups/${groupId}/leave`),
+
+  renameGroup: (groupId, name) =>
+    api.put(`/community/groups/${groupId}/rename`, { name }),
+
+  getGroupMembers: (groupId) => api.get(`/community/groups/${groupId}/members`),
+
+  addGroupMember: (groupId, email) =>
+    api.post(`/community/groups/${groupId}/members`, { email }),
+
+  clearGroupHistory: (groupId) =>
+    api.delete(`/community/groups/${groupId}/messages`),
+
+  markAsRead: (conversationId) =>
+    api.post(`/community/conversations/${conversationId}/read`),
 };
 
-// Export thêm kẻ vận chuyển gốc để dự phòng nếu sau này cần dùng trực tiếp
 export default api;

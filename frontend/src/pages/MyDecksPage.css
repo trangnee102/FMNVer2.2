@@ -1,59 +1,676 @@
 /* src/pages/MyDecksPage.css */
 
 /* ========================================= */
-/* LAYOUT DANH SÁCH BỘ THẺ (GRID & LIST)     */
+/* LAYOUT CHUNG & CƠ CHẾ SCROLL MƯỢT       */
 /* ========================================= */
-.decks-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+.dashboard-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden; /* Cấm thanh cuộn tổng */
+}
+
+/* Biến phần main thành nơi duy nhất được cuộn */
+.scrollable-content {
+  flex: 1;
+  overflow-y: auto;
+  background-color: #f8fafc; /* Nền xám nhạt hiện đại */
+}
+
+/* Custom thanh cuộn cho khu vực chính */
+.scrollable-content::-webkit-scrollbar {
+  width: 8px;
+}
+.scrollable-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollable-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.scrollable-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ========================================= */
+/* HEADER HIỆN ĐẠI (Search, Sort & Button) */
+/* ========================================= */
+.modern-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center; 
+  margin-bottom: 25px;
+  flex-wrap: wrap;
   gap: 20px;
 }
 
-.decks-list {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
+.header-actions-group {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  flex-wrap: wrap; 
 }
 
-/* Kế thừa class cũ đề phòng các component chưa kịp cập nhật */
-.deck-card {
-  background: var(--bg-card);
+.modern-search-box {
+  position: relative;
+  width: 280px;
+}
+
+.modern-search-box i {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+
+.modern-search-box input {
+  width: 100%;
+  padding: 11px 15px 11px 40px;
   border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+  box-sizing: border-box; /* Đảm bảo không bị lồi ra ngoài */
+}
+
+.modern-search-box input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.modern-sort-select {
+  padding: 11px 15px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  color: #475569;
+  font-size: 0.95rem;
+  cursor: pointer;
+  outline: none;
+  min-width: 180px;
+}
+
+/* ========================================= */
+/* TABS & BỘ LỌC                           */
+/* ========================================= */
+.modern-tabs-container {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 30px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 10px;
+}
+
+.modern-tab {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #64748b;
+  padding: 8px 15px;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s ease;
+}
+
+.modern-tab:hover {
+  color: #3b82f6;
+}
+
+.modern-tab.active {
+  color: #3b82f6;
+}
+
+.modern-tab.active::after {
+  content: "";
+  position: absolute;
+  bottom: -11px;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background-color: #3b82f6;
+  border-radius: 3px 3px 0 0;
+}
+
+/* ========================================= */
+/* KHỐI THỐNG KÊ (STAT CARDS)              */
+/* ========================================= */
+.modern-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.modern-stat-card {
+  background: white;
+  border-radius: 16px;
   padding: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.03);
-  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+  border: 1px solid #f1f5f9;
+  transition: transform 0.2s ease;
+}
+
+.modern-stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.04);
+}
+
+.stat-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.stat-blue .stat-icon { background: #eff6ff; color: #3b82f6; }
+.stat-green .stat-icon { background: #f0fdf4; color: #10b981; }
+.stat-orange .stat-icon { background: #fffbeb; color: #f59e0b; }
+.stat-red .stat-icon { background: #fef2f2; color: #ef4444; }
+
+.stat-info h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: #1e293b;
+  font-weight: 800;
+}
+
+.stat-info p {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+/* ========================================= */
+/* GRID THẺ BÀI (DECK CARDS) - ĐÃ CẢI TIẾN */
+/* ========================================= */
+.modern-decks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 25px;
+  padding-bottom: 50px; 
+}
+
+.modern-deck-card {
+  background: white;
+  border-radius: 20px;
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+  border: 1px solid #f1f5f9;
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
+  position: relative;
+  animation: fadeIn 0.4s ease-out; 
 }
 
-.deck-card-header {
+.modern-deck-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+  border-color: #e2e8f0;
+}
+
+/* Header Thẻ */
+.mdc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.mdc-icon-wrapper {
+  display: flex;
+  gap: 12px;
+}
+
+.mdc-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: #eff6ff;
+  color: #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+
+/* Khu vực góc phải chứa Badge, Biểu tượng AI & Yêu thích */
+.mdc-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 👉 STYLE CHO BIỂU TƯỢNG ROBOT AI */
+.mdc-ai-icon {
+  background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%);
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  box-shadow: 0 2px 6px rgba(168, 85, 247, 0.4);
+  cursor: help;
+  animation: pulseAI 2s infinite;
+}
+
+@keyframes pulseAI {
+  0% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.4); }
+  70% { box-shadow: 0 0 0 6px rgba(168, 85, 247, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(168, 85, 247, 0); }
+}
+
+.mdc-favorite {
+  background: none;
+  border: none;
+  font-size: 1.35rem;
+  color: #cbd5e1;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mdc-favorite:hover {
+  color: #f59e0b;
+  transform: scale(1.15);
+}
+
+.mdc-favorite.active {
+  color: #f59e0b;
+  filter: drop-shadow(0 2px 4px rgba(245, 158, 11, 0.3));
+}
+
+/* Badges */
+.mdc-badges {
+  display: flex;
+  gap: 8px;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.badge-success { background: #dcfce7; color: #166534; }
+.badge-new { background: #e0e7ff; color: #4338ca; }
+
+/* Tiêu đề & Tiến độ */
+.mdc-body {
+  margin-bottom: 25px; 
+}
+
+.mdc-title {
+  font-size: 1.25rem;
+  color: #1e293b;
+  margin: 0 0 15px 0;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mdc-progress-wrapper {
   display: flex;
   align-items: center;
   gap: 15px;
-  margin-bottom: 15px;
 }
 
-.deck-card-header h3 {
-  margin: 0;
-  color: var(--text-dark);
-  font-size: 1.2rem;
-  transition: color 0.3s ease;
+.mdc-progress-track {
+  flex: 1;
+  height: 8px;
+  background: #f1f5f9;
+  border-radius: 10px;
+  overflow: hidden;
 }
 
-.deck-actions {
-  margin-top: auto;
+.mdc-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #60a5fa, #3b82f6);
+  border-radius: 10px;
+  transition: width 0.5s ease;
+}
+
+.mdc-progress-text {
+  font-weight: 800;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+/* Thống kê lưới 2x2 chuyên nghiệp */
+.mdc-stats-grid-2x2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 25px;
+}
+
+.mdc-stat-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f8fafc;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #f1f5f9;
+  transition: all 0.2s ease;
+}
+
+.mdc-stat-box:hover {
+  background: white;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+  transform: translateY(-2px);
+}
+
+.mdc-stat-box i { font-size: 1.1rem; }
+.mdc-stat-box.box-purple i { color: #a855f7; }
+.mdc-stat-box.box-green i { color: #10b981; }
+.mdc-stat-box.box-orange i { color: #f59e0b; }
+.mdc-stat-box.box-red i { color: #ef4444; }
+
+.mdc-stat-box .stat-info {
   display: flex;
   flex-direction: column;
+}
+
+.mdc-stat-box .stat-num {
+  font-weight: 800;
+  color: #1e293b;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.mdc-stat-box .stat-label {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Dải băng Cram Mode nhỏ gọn */
+.mdc-cram-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  margin-bottom: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.mdc-cram-compact:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.mdc-cram-compact.active {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  border-style: solid;
+}
+
+.mdc-cram-compact .cram-left {
+  display: flex;
+  align-items: center;
   gap: 10px;
-  padding-top: 15px;
-  border-top: 1px dashed var(--border);
+  font-weight: 700;
+  color: #334155;
+}
+
+.mdc-cram-compact.active .cram-left {
+  color: #1d4ed8;
+}
+
+.mdc-cram-compact .cram-left i { color: #3b82f6; }
+
+.mdc-cram-compact .cram-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mdc-cram-compact .cram-status {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.mdc-cram-compact.active .cram-status { color: #3b82f6; }
+
+/* Nút switch mini */
+.compact-switch {
+  width: 36px;
+  height: 20px;
+  background-color: #cbd5e1;
+  border-radius: 20px;
+  position: relative;
+  transition: background-color 0.3s ease;
+}
+
+.compact-switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.mdc-cram-compact.active .compact-switch {
+  background-color: #3b82f6;
+}
+
+.mdc-cram-compact.active .compact-switch::after {
+  transform: translateX(16px);
+}
+
+/* Footer Actions */
+.mdc-footer {
+  display: flex;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.mdc-btn-study {
+  flex: 1;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  padding: 14px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);
+}
+
+.mdc-btn-study:hover {
+  background: #4338ca;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(79, 70, 229, 0.3);
+}
+
+.mdc-btn-settings {
+  width: 50px; 
+  background: #f1f5f9;
+  color: #64748b;
+  border: none;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 1.2rem;
+}
+
+.mdc-btn-settings:hover {
+  background: #e2e8f0;
+  color: #1e293b;
 }
 
 /* ========================================= */
-/* GIAO DIỆN BẢNG POPUP (CRAM MODE MODAL)    */
+/* TRẠNG THÁI TRỐNG (EMPTY STATE)          */
 /* ========================================= */
+.modern-empty-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  animation: fadeIn 0.4s ease-out; 
+}
 
+.modern-empty-state {
+  background: white;
+  border-radius: 20px;
+  padding: 80px 20px; 
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+  border: 1px dashed #cbd5e1; 
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto; 
+}
+
+.empty-illustration {
+  font-size: 5rem;
+  color: #cbd5e1;
+  margin-bottom: 20px;
+}
+
+.modern-empty-state h2 {
+  color: #1e293b;
+  margin-bottom: 10px;
+}
+
+.modern-empty-state p {
+  color: #64748b;
+  margin-bottom: 30px;
+  max-width: 400px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.5;
+}
+
+.btn-create-primary {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-weight: bold;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-create-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+  filter: brightness(1.1); 
+}
+
+.suggestions-title {
+  color: #1e293b;
+  font-size: 1.2rem;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.suggestions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 30px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.suggestion-card {
+  background: white;
+  border-radius: 16px;
+  padding: 25px;
+  border: 1px solid #f1f5f9;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+}
+
+.suggestion-card:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 10px 25px rgba(59, 130, 246, 0.1);
+  transform: translateY(-3px);
+}
+
+.s-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  margin-bottom: 20px;
+}
+
+.s-blue { background: #eff6ff; color: #3b82f6; }
+.s-green { background: #f0fdf4; color: #10b981; }
+.s-purple { background: #faf5ff; color: #a855f7; }
+
+.s-content h4 {
+  color: #1e293b;
+  margin: 0 0 10px 0;
+}
+
+.s-content p {
+  color: #64748b;
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.s-action {
+  margin-top: auto;
+  padding-top: 20px;
+  color: #3b82f6;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+/* ========================================= */
+/* MODALS                                    */
+/* ========================================= */
 .cram-modal-overlay {
   position: fixed;
   top: 0;
@@ -80,21 +697,15 @@
   animation: slideUp 0.3s ease-out;
 }
 
-/* Khu vực thanh kéo chỉnh ngày thi (Slider) */
 .cram-slider-container {
   margin: 25px 0;
-  background: rgba(245, 158, 11, 0.08); /* Nền cam/vàng trong suốt */
+  background: rgba(245, 158, 11, 0.08); 
   padding: 20px;
   border-radius: 12px;
   border: 1px solid rgba(245, 158, 11, 0.2);
   color: var(--text-dark);
 }
 
-/* ========================================= */
-/* GIAO DIỆN BẢNG QUẢN LÝ CHI TIẾT MODAL     */
-/* ========================================= */
-
-/* Bảng Popup Quản lý (Rộng hơn Cram Modal) */
 .manage-modal {
   background: var(--bg-card);
   padding: 30px;
@@ -103,7 +714,7 @@
   max-width: 700px;
   max-height: 85vh;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  border-top: 5px solid var(--primary); /* Viền màu hệ thống */
+  border-top: 5px solid var(--primary); 
   display: flex;
   flex-direction: column;
   animation: slideUp 0.3s ease-out;
@@ -123,14 +734,12 @@
   margin: 0;
 }
 
-/* Thanh cuộn nội dung cho bảng Quản lý */
 .manage-modal-body {
   overflow-y: auto;
   flex: 1;
   padding-right: 10px;
 }
 
-/* Tùy chỉnh Scrollbar cho đẹp trong Dark Mode */
 .manage-modal-body::-webkit-scrollbar {
   width: 6px;
 }
@@ -145,7 +754,6 @@
   background: var(--text-gray);
 }
 
-/* Từng dòng thẻ (Flashcard) trong danh sách */
 .card-list-item {
   background: var(--bg-main);
   padding: 15px 20px;
@@ -159,7 +767,7 @@
 .card-list-item:hover {
   border-color: var(--primary);
   background: var(--bg-card);
-  transform: translateX(4px); /* Hover trượt nhẹ sang phải */
+  transform: translateX(4px); 
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 }
 
@@ -172,7 +780,6 @@
   padding-top: 12px;
 }
 
-/* Nút Quản lý/Hành động cũ nếu còn sót lại */
 .btn-manage {
   width: 100%;
   padding: 12px;
@@ -195,9 +802,6 @@
   border-color: var(--primary);
 }
 
-/* ========================================= */
-/* ANIMATIONS (Hiệu ứng)                     */
-/* ========================================= */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

@@ -1,3 +1,4 @@
+// frontend/src/components/Modals/ManageDeckModal.jsx
 import React, { useState, useEffect } from "react";
 import "./ManageDeckModal.css";
 
@@ -5,9 +6,11 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
   const [deckCards, setDeckCards] = useState([]);
   const [newDeckTitle, setNewDeckTitle] = useState("");
   const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [editingCardId, setEditingCardId] = useState(null);
-  const [editForm, setEditForm] = useState({ question: "", answer: "" });
+  
+  // Quản lý trạng thái 2 cột
+  const [activeCardId, setActiveCardId] = useState(null);
   const [isAddingCard, setIsAddingCard] = useState(false);
+  const [editForm, setEditForm] = useState({ question: "", answer: "" });
   const [addForm, setAddForm] = useState({ question: "", answer: "" });
 
   const [isPublic, setIsPublic] = useState(false);
@@ -16,11 +19,10 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
   const loadCardsForDeck = async (deckId) => {
     try {
       const token = localStorage.getItem("token") || "";
+      const t = new Date().getTime(); // Ép phá cache để lấy thẻ mới nhất
       const res = await fetch(
-        `http://localhost:5000/api/flashcards/deck/${deckId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        `http://localhost:5000/api/flashcards/deck/${deckId}?t=${t}`,
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
       if (res.ok && data.success) setDeckCards(data.data || []);
@@ -34,7 +36,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
       setNewDeckTitle(selectedDeck.title || selectedDeck.name);
       setIsEditingTitle(false);
       setIsAddingCard(false);
-      setEditingCardId(null);
+      setActiveCardId(null);
       setIsPublic(selectedDeck.is_public || false);
       setIsAnonymous(selectedDeck.is_anonymous || false);
 
@@ -42,6 +44,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
     }
   }, [isOpen, selectedDeck]);
 
+  // Cập nhật lại Tên bộ thẻ
   const handleUpdateDeckName = async () => {
     if (!newDeckTitle.trim()) return alert("Tên bộ thẻ không được để trống!");
     try {
@@ -59,7 +62,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
       );
       if (res.ok) {
         setIsEditingTitle(false);
-        onRefreshDecks();
+        if (onRefreshDecks) onRefreshDecks(); // Ép trang ngoài gọi lại API ngay
       }
     } catch (error) {
       console.error("Lỗi đổi tên:", error);
@@ -90,7 +93,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
         }
       );
       if (res.ok) {
-        onRefreshDecks();
+        if (onRefreshDecks) onRefreshDecks();
       }
     } catch (error) {
       console.error("Lỗi cập nhật trạng thái chia sẻ:", error);
@@ -98,24 +101,16 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
   };
 
   const handleDeleteDeck = async () => {
-    if (
-      !window.confirm(
-        `XÓA VĨNH VIỄN bộ thẻ "${selectedDeck.title || selectedDeck.name}"?`
-      )
-    )
-      return;
+    if (!window.confirm(`XÓA VĨNH VIỄN bộ thẻ "${selectedDeck.title || selectedDeck.name}"?`)) return;
     try {
       const token = localStorage.getItem("token") || "";
       const res = await fetch(
         `http://localhost:5000/api/decks/${selectedDeck.id}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.ok) {
         onClose();
-        onRefreshDecks();
+        if (onRefreshDecks) onRefreshDecks();
       }
     } catch (error) {
       console.error("Lỗi khi xóa:", error);
@@ -128,24 +123,25 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
       const token = localStorage.getItem("token") || "";
       const res = await fetch(
         `http://localhost:5000/api/flashcards/${cardId}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } }
       );
-      if (res.ok) setDeckCards(deckCards.filter((c) => c.id !== cardId));
+      if (res.ok) {
+        setDeckCards(deckCards.filter((c) => c.id !== cardId));
+        setActiveCardId(null);
+        if (onRefreshDecks) onRefreshDecks(); // Ép cập nhật lại số liệu Thống kê bên ngoài
+      }
     } catch (error) {
       console.error("Lỗi xóa thẻ:", error);
     }
   };
 
-  const handleSaveEditCard = async (cardId) => {
+  const handleSaveEditCard = async () => {
     if (!editForm.question.trim() || !editForm.answer.trim())
-      return alert("Điền đủ 2 mặt nhé!");
+      return alert("Điền đủ 2 mặt thẻ nhé!");
     try {
       const token = localStorage.getItem("token") || "";
       const res = await fetch(
-        `http://localhost:5000/api/flashcards/${cardId}`,
+        `http://localhost:5000/api/flashcards/${activeCardId}`,
         {
           method: "PUT",
           headers: {
@@ -155,12 +151,14 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
           body: JSON.stringify({
             question: editForm.question,
             answer: editForm.answer,
+            // Không gửi next_review lên nữa để Backend tự lo
           }),
         }
       );
       if (res.ok) {
-        setEditingCardId(null);
-        loadCardsForDeck(selectedDeck.id);
+        setActiveCardId(null);
+        await loadCardsForDeck(selectedDeck.id);
+        if (onRefreshDecks) onRefreshDecks(); // Ép cập nhật thẻ Cần ôn/Quá hạn
       }
     } catch (error) {
       console.error("Lỗi sửa thẻ:", error);
@@ -189,7 +187,8 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
       if (res.ok) {
         setIsAddingCard(false);
         setAddForm({ question: "", answer: "" });
-        loadCardsForDeck(selectedDeck.id);
+        await loadCardsForDeck(selectedDeck.id);
+        if (onRefreshDecks) onRefreshDecks(); // Cập nhật lại Tống số thẻ
       }
     } catch (error) {
       console.error("Lỗi thêm thẻ mới:", error);
@@ -201,7 +200,10 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
   return (
     <div className="cram-modal-overlay" onClick={onClose}>
       <div className="manage-modal" onClick={(e) => e.stopPropagation()}>
-        {/* HEADER */}
+        
+        {/* ===================================== */}
+        {/* HEADER: TÊN BỘ THẺ & NÚT XÓA          */}
+        {/* ===================================== */}
         <div className="manage-modal-header">
           <div style={{ flex: 1, paddingRight: "15px" }}>
             <p className="manage-modal-subtitle">ĐANG QUẢN LÝ:</p>
@@ -213,9 +215,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
                   onChange={(e) => setNewDeckTitle(e.target.value)}
                   autoFocus
                 />
-                <button className="btn-save-title" onClick={handleUpdateDeckName}>
-                  Lưu
-                </button>
+                <button className="btn-save-title" onClick={handleUpdateDeckName}>Lưu</button>
                 <button
                   className="btn-cancel-title"
                   onClick={() => {
@@ -228,7 +228,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
               </div>
             ) : (
               <h2 className="manage-deck-title">
-                {selectedDeck.title || selectedDeck.name}
+                {newDeckTitle || selectedDeck.name}
                 <button
                   className="btn-edit-title"
                   onClick={() => setIsEditingTitle(true)}
@@ -240,11 +240,13 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
             )}
           </div>
           <button className="btn-delete-deck" onClick={handleDeleteDeck}>
-            🗑️ Xóa bộ thẻ
+            <i className="fa-regular fa-trash-can"></i> Xóa bộ thẻ
           </button>
         </div>
 
-        {/* SETTING CHIA SẺ */}
+        {/* ===================================== */}
+        {/* SETTING CHIA SẺ                       */}
+        {/* ===================================== */}
         <div className="share-settings-container">
           <div className="share-row">
             <label className="share-label">
@@ -254,164 +256,147 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
                 checked={isPublic}
                 onChange={(e) => handleToggleShare("is_public", e.target.checked)}
               />
-              <span className="share-text-primary">🌐 Chia sẻ lên Cộng đồng</span>
+              <span className="share-text-primary"><i className="fa-solid fa-earth-americas"></i> Chia sẻ lên Cộng đồng</span>
             </label>
             <label className={`share-label ${!isPublic ? "disabled" : ""}`}>
               <input
                 type="checkbox"
                 className="share-checkbox"
                 checked={isAnonymous}
-                onChange={(e) =>
-                  handleToggleShare("is_anonymous", e.target.checked)
-                }
+                onChange={(e) => handleToggleShare("is_anonymous", e.target.checked)}
                 disabled={!isPublic}
               />
-              <span className="share-text-secondary">
-                👤 Chia sẻ ẩn danh
-              </span>
+              <span className="share-text-secondary"><i className="fa-solid fa-user-ninja"></i> Ẩn danh</span>
             </label>
           </div>
         </div>
 
-        {/* KHU VỰC THÂN MODAL (CHIẾM TOÀN BỘ KHÔNG GIAN CÒN LẠI) */}
-        <div className="manage-modal-body-content">
-          <div className="card-list-header">
-            <h4 className="card-list-title">
-              Danh sách thẻ <span>({deckCards.length})</span>
-            </h4>
-          </div>
+        {/* ===================================== */}
+        {/* THÂN MODAL: LAYOUT SPLIT TRÁI / PHẢI  */}
+        {/* ===================================== */}
+        <div className="manage-modal-split-body">
           
-          {/* DANH SÁCH THẺ (CÓ THANH CUỘN ĐỘC LẬP) */}
-          <div className="card-list-container">
-            {deckCards.map((card, index) => (
-              <div key={card.id} className="card-item-box">
-                {editingCardId === card.id ? (
-                  <div className="card-edit-form">
-                    <input
-                      className="card-edit-input"
-                      type="text"
-                      value={editForm.question}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, question: e.target.value })
-                      }
-                      placeholder="Mặt trước (Câu hỏi)"
-                    />
-                    <textarea
-                      className="card-edit-textarea"
-                      value={editForm.answer}
-                      onChange={(e) =>
-                        setEditForm({ ...editForm, answer: e.target.value })
-                      }
-                      placeholder="Mặt sau (Đáp án)"
-                      rows="3"
-                    />
-                    <div className="card-edit-actions">
-                      <button
-                        className="btn-cancel-card"
-                        onClick={() => setEditingCardId(null)}
-                      >
-                        Hủy
-                      </button>
-                      <button
-                        className="btn-save-card"
-                        onClick={() => handleSaveEditCard(card.id)}
-                      >
-                        Lưu lại
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="card-front-text">
-                      <span className="card-index">#{index + 1}</span>
-                      {card.question || card.front_content}
-                    </div>
-                    <div className="card-back-text">
-                      {card.answer || card.back_content}
-                    </div>
-                    <div className="card-list-actions">
-                      <button
-                        className="btn-edit-card"
-                        onClick={() => {
-                          setEditingCardId(card.id);
-                          setEditForm({
-                            question: card.question || card.front_content,
-                            answer: card.answer || card.back_content,
-                          });
-                        }}
-                      >
-                        ✏️ Sửa
-                      </button>
-                      <button
-                        className="btn-delete-card"
-                        onClick={() => handleDeleteCard(card.id)}
-                      >
-                        🗑️ Xóa
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* THÊM THẺ MỚI (Cố định ở dưới danh sách) */}
-          <div className="add-card-section">
-            {isAddingCard ? (
-              <div className="add-card-form">
-                <h4 className="add-card-title">✨ Thêm thẻ mới</h4>
-                <input
-                  className="card-edit-input"
-                  type="text"
-                  value={addForm.question}
-                  onChange={(e) =>
-                    setAddForm({ ...addForm, question: e.target.value })
-                  }
-                  placeholder="Nhập mặt trước (Câu hỏi)..."
-                  autoFocus
-                />
-                <textarea
-                  className="card-edit-textarea"
-                  value={addForm.answer}
-                  onChange={(e) =>
-                    setAddForm({ ...addForm, answer: e.target.value })
-                  }
-                  placeholder="Nhập mặt sau (Đáp án)..."
-                  rows="2"
-                />
-                <div className="card-edit-actions">
-                  <button
-                    className="btn-cancel-card"
+          {/* CỘT TRÁI: DANH SÁCH THẺ */}
+          <div className="manage-left-panel">
+            <div className="panel-header">
+              <h4>Danh sách thẻ ({deckCards.length})</h4>
+            </div>
+            
+            <div className="compact-card-list">
+              {deckCards.map((card, index) => {
+                const isActive = activeCardId === card.id;
+                return (
+                  <div 
+                    key={card.id} 
+                    className={`compact-card-item ${isActive ? "active" : ""}`}
                     onClick={() => {
+                      setActiveCardId(card.id);
                       setIsAddingCard(false);
-                      setAddForm({ question: "", answer: "" });
+                      setEditForm({
+                        question: card.question || card.front_content,
+                        answer: card.answer || card.back_content
+                      });
                     }}
                   >
-                    Hủy
-                  </button>
-                  <button
-                    className="btn-confirm-add"
-                    onClick={handleSaveNewCard}
-                  >
-                    Thêm ngay
+                    <span className="compact-card-index">{index + 1}</span>
+                    <div className="compact-card-preview">
+                      <div className="preview-q">{card.question || card.front_content}</div>
+                      <div className="preview-a">{card.answer || card.back_content}</div>
+                    </div>
+                    {isActive && <i className="fa-solid fa-chevron-right active-indicator"></i>}
+                  </div>
+                );
+              })}
+            </div>
+
+            <button 
+              className={`btn-trigger-add ${isAddingCard ? "active" : ""}`}
+              onClick={() => {
+                setIsAddingCard(true);
+                setActiveCardId(null);
+                setAddForm({ question: "", answer: "" });
+              }}
+            >
+              + Thêm thẻ mới
+            </button>
+          </div>
+
+          {/* CỘT PHẢI: KHU VỰC CHỈNH SỬA / THÊM MỚI */}
+          <div className="manage-right-panel">
+            
+            {isAddingCard ? (
+              <div className="right-panel-form fade-in">
+                <div className="form-header">
+                  <h4>✨ Thêm thẻ mới</h4>
+                  <button className="btn-close-form" onClick={() => setIsAddingCard(false)}><i className="fa-solid fa-xmark"></i></button>
+                </div>
+                <div className="form-group">
+                  <label>Mặt trước (Câu hỏi)</label>
+                  <textarea
+                    className="right-panel-textarea"
+                    value={addForm.question}
+                    onChange={(e) => setAddForm({ ...addForm, question: e.target.value })}
+                    placeholder="Nhập câu hỏi vào đây..."
+                    autoFocus
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Mặt sau (Đáp án)</label>
+                  <textarea
+                    className="right-panel-textarea"
+                    value={addForm.answer}
+                    onChange={(e) => setAddForm({ ...addForm, answer: e.target.value })}
+                    placeholder="Nhập đáp án vào đây..."
+                  />
+                </div>
+                <button className="btn-save-full" onClick={handleSaveNewCard}>Thêm ngay</button>
+              </div>
+            ) : activeCardId ? (
+              <div className="right-panel-form fade-in">
+                <div className="form-header">
+                  <h4>✏️ Chỉnh sửa thẻ</h4>
+                  <button className="btn-close-form" onClick={() => setActiveCardId(null)}><i className="fa-solid fa-xmark"></i></button>
+                </div>
+                
+                <div className="form-group">
+                  <label>Mặt trước</label>
+                  <textarea
+                    className="right-panel-textarea"
+                    value={editForm.question}
+                    onChange={(e) => setEditForm({ ...editForm, question: e.target.value })}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Mặt sau</label>
+                  <textarea
+                    className="right-panel-textarea"
+                    value={editForm.answer}
+                    onChange={(e) => setEditForm({ ...editForm, answer: e.target.value })}
+                  />
+                </div>
+
+                <div className="right-panel-actions">
+                  <button className="btn-save-full" onClick={handleSaveEditCard}>Lưu thay đổi</button>
+                  <button className="btn-delete-full" onClick={() => handleDeleteCard(activeCardId)}>
+                    <i className="fa-regular fa-trash-can"></i> Xóa
                   </button>
                 </div>
               </div>
             ) : (
-              <button
-                className="btn-trigger-add"
-                onClick={() => setIsAddingCard(true)}
-              >
-                + Thêm thẻ mới vào bộ này
-              </button>
+              <div className="right-panel-empty">
+                <i className="fa-solid fa-layer-group empty-icon"></i>
+                <p>Chọn một thẻ bên trái để chỉnh sửa<br/>hoặc bấm "+ Thêm thẻ mới"</p>
+              </div>
             )}
+
           </div>
         </div>
 
         {/* NÚT ĐÓNG MODAL */}
         <div className="manage-modal-footer">
           <button className="btn-close-modal" onClick={onClose}>
-            Xong
+            Xong & Đóng
           </button>
         </div>
       </div>

@@ -1,0 +1,229 @@
+/* GroupInfoSidebar.css */
+.group-info-sidebar {
+  width: 340px;
+  min-width: 340px;
+  border-left: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.02);
+  animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.group-info-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: white;
+}
+
+.group-info-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #1e293b;
+}
+
+.close-sidebar-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: #64748b;
+  transition: 0.2s;
+}
+
+.close-sidebar-btn:hover {
+  color: #ef4444;
+}
+
+.group-info-content {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.group-info-avatar-section {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.group-large-avatar {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background-color: #8b5cf6;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin: 0 auto 15px auto;
+  box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3);
+}
+
+.group-info-name {
+  margin: 0 0 5px 0;
+  font-size: 1.2rem;
+  color: #0f172a;
+}
+
+.group-info-desc {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.info-card {
+  background-color: white;
+  padding: 15px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+}
+
+.info-card-title {
+  margin: 0 0 10px 0;
+  font-weight: bold;
+  color: #334155;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.invite-code-display {
+  display: flex;
+  gap: 10px;
+}
+
+.invite-code-box {
+  flex: 1;
+  background-color: #f1f5f9;
+  padding: 10px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: bold;
+  color: #3b82f6;
+  letter-spacing: 1px;
+}
+
+.copy-invite-btn {
+  background-color: #e0e7ff;
+  color: #4f46e5;
+  border: none;
+  border-radius: 8px;
+  width: 40px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.copy-invite-btn:hover {
+  background-color: #c7d2fe;
+}
+
+.view-all-btn {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.add-member-btn {
+  width: 100%;
+  padding: 10px;
+  background-color: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: 0.2s;
+}
+
+.add-member-btn:hover {
+  background-color: #f1f5f9;
+  color: #3b82f6;
+  border-color: #3b82f6;
+}
+
+.settings-list {
+  background-color: white;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+}
+
+.setting-item-btn {
+  width: 100%;
+  padding: 15px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid #f1f5f9;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #475569;
+  transition: 0.2s;
+}
+
+.setting-item-btn:last-child {
+  border-bottom: none;
+}
+
+.setting-item-btn:hover {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.setting-icon {
+  width: 20px;
+  text-align: center;
+}
+
+.group-info-footer {
+  padding: 20px;
+  border-top: 1px solid #e2e8f0;
+  background-color: white;
+}
+
+.leave-group-full-btn {
+  width: 100%;
+  padding: 12px;
+  background-color: #fee2e2;
+  color: #ef4444;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: 0.2s;
+}
+
+.leave-group-full-btn:hover {
+  background-color: #fecaca;
+}

@@ -1,62 +1,89 @@
 /* =========================================================
    GIAO DIỆN ĐĂNG NHẬP CHUYÊN NGHIỆP (HỖ TRỢ TỰ ĐỘNG DARK MODE)
+   Style: Môi trường học tập (Tập trung, Hiện đại, Khơi gợi cảm hứng)
 ========================================================= */
+
+/* Hiệu ứng xuất hiện mượt mà cho Card */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .login-page {
   min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: var(--bg-main); /* 👉 Ăn theo nền Dark Mode/Light Mode */
+  background-color: var(--bg-main); /* Ăn theo nền Dark Mode/Light Mode */
   padding: 20px;
   transition: background-color 0.3s ease;
+  font-family: inherit;
 }
 
 .login-card {
-  background: var(--bg-card); /* 👉 Nền của thẻ Form nổi bật */
+  background: var(--bg-card); /* Nền của thẻ Form nổi bật */
   padding: 50px 60px;
-  border-radius: 20px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08); /* Bóng đổ mềm mại */
+  border-radius: 24px; /* Bo tròn thân thiện hơn */
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05), 0 0 0 1px var(--border); /* Bóng đổ 2 lớp siêu mịn */
   width: 100%;
-  max-width: 480px; /* Bóp form lại cho gọn gàng, thon thả */
+  max-width: 480px; 
   text-align: center;
-  border: 1px solid var(--border);
   transition: all 0.3s ease;
+  animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Các thẻ Text (Tiêu đề, Phụ đề) */
+/* =========================================================
+   CÁC THẺ TEXT (TIÊU ĐỀ, PHỤ ĐỀ, LOGO)
+========================================================= */
 .login-logo {
-  font-size: 3rem;
+  font-size: 3.5rem;
   margin-bottom: 15px;
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
 }
+
 .login-title {
-  color: var(--primary);
-  margin: 0 0 10px 0;
-  font-size: 1.8rem;
-  font-weight: 800;
+  /* 👉 ĐỒNG BỘ: Hiệu ứng Gradient giống hệt Sidebar */
+  background: linear-gradient(90deg, #2563eb 0%, #9333ea 50%, #ea580c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0 0 8px 0;
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  filter: drop-shadow(0px 4px 10px rgba(147, 51, 234, 0.15));
 }
+
 .login-subtitle {
-  margin: 0 0 10px 0;
+  margin: 0 0 8px 0;
   color: var(--text-dark);
-  font-size: 1.2rem;
+  font-size: 1.3rem;
   font-weight: 700;
 }
+
 .login-desc {
   color: var(--text-gray);
   margin-bottom: 35px;
   font-size: 0.95rem;
+  font-weight: 500;
 }
 
-/* 👉 QUAN TRỌNG: Cấu trúc Nhãn + Ô nhập xếp dọc thẳng tắp */
+/* =========================================================
+   KHU VỰC FORM NHẬP LIỆU (BỐ CỤC CHUẨN)
+========================================================= */
 .form-group {
   text-align: left;
-  margin-bottom: 25px;
-  
+  margin-bottom: 22px;
   display: flex;
-  flex-direction: column; /* Xếp dọc từ trên xuống dưới */
-  gap: 8px; /* Khoảng cách giữa chữ và ô nhập */
+  flex-direction: column; 
+  gap: 8px; 
 }
 
-/* Bọc dòng Label và nút Quên mật khẩu nằm ngang */
 .form-label-wrapper {
   display: flex;
   justify-content: space-between;
@@ -64,10 +91,11 @@
 }
 
 .form-group label {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-dark);
   font-size: 0.95rem;
   margin: 0;
+  letter-spacing: 0.2px;
 }
 
 /* Nút Quên mật khẩu */
@@ -75,55 +103,82 @@
   font-size: 0.85rem;
   color: var(--primary);
   cursor: pointer;
-  font-weight: 600;
-  transition: color 0.2s;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin-right: -8px; /* Kéo nhẹ sang phải cho lề thẳng tuyệt đối */
 }
+
 .forgot-link:hover {
-  text-decoration: underline;
+  background-color: rgba(37, 99, 235, 0.08); /* Nền xám xanh nhẹ khi hover thay vì gạch chân */
+  color: #1d4ed8;
 }
 
 /* Ô nhập liệu (Input) */
 .form-group input {
   width: 100%;
   padding: 14px 16px;
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-main); /* Lấy màu nền chìm */
+  border: 2px solid var(--border);
+  border-radius: 12px; /* Bo góc mượt mà */
+  background: var(--bg-main); 
   color: var(--text-dark);
   font-size: 1rem;
-  transition: all 0.3s ease;
+  font-family: inherit;
+  transition: all 0.25s ease;
   outline: none;
+}
+
+.form-group input::placeholder {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.form-group input:hover {
+  border-color: #cbd5e1;
 }
 
 .form-group input:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15); /* Viền sáng bao quanh khi bấm vào */
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15); /* Viền sáng bao quanh êm ái */
   background: var(--bg-card);
 }
 
-/* Nút Submit */
+/* =========================================================
+   NÚT BẤM (BUTTONS)
+========================================================= */
 .btn-login {
   width: 100%;
-  padding: 15px;
-  background-color: var(--primary);
+  padding: 16px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
   border: none;
-  border-radius: 10px;
-  font-weight: 600;
+  border-radius: 12px;
+  font-weight: 700;
   font-size: 1.05rem;
   cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 10px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 15px;
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.25);
+  letter-spacing: 0.5px;
 }
 
 .btn-login:disabled {
-  opacity: 0.7;
+  background: #94a3b8;
+  box-shadow: none;
   cursor: not-allowed;
+  transform: none;
 }
 
 .btn-login:hover:not(:disabled) {
-  transform: translateY(-2px); /* Hiệu ứng nảy lên */
-  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
+  transform: translateY(-2px); 
+  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.35);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+}
+
+.btn-login:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
 }
 
 /* Dòng Gợi ý Đăng ký dưới cùng */
@@ -131,37 +186,58 @@
   margin-top: 30px;
   font-size: 0.95rem;
   color: var(--text-gray);
+  font-weight: 500;
 }
 
 .register-hint span {
   color: var(--primary);
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 700;
   transition: all 0.2s;
+  padding-left: 5px;
 }
+
 .register-hint span:hover {
   text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
 /* Khối thông báo lỗi đỏ */
 .error-message {
-  color: #ef4444;
-  background-color: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  font-size: 0.9rem;
+  color: #dc2626;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 14px;
+  border-radius: 10px;
+  margin-bottom: 25px;
+  font-size: 0.95rem;
   font-weight: 600;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: fadeInUp 0.3s ease forwards;
 }
 
 /* =========================================================
-   MODAL QUÊN MẬT KHẨU
+   MODAL QUÊN MẬT KHẨU (HIỆU ỨNG ZOOM MƯỢT)
 ========================================================= */
+@keyframes modalZoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; width: 100%; height: 100%;
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(15, 23, 42, 0.6); /* Nền tối xanh navy chuyên nghiệp */
+  backdrop-filter: blur(4px); /* Làm mờ background phía sau */
   z-index: 1000;
   display: flex;
   justify-content: center;
@@ -170,12 +246,13 @@
 
 .modal-content {
   background: var(--bg-card);
-  padding: 30px;
-  border-radius: 16px;
+  padding: 35px 30px;
+  border-radius: 20px;
   width: 90%;
-  max-width: 420px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  max-width: 440px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   color: var(--text-dark);
   border: 1px solid var(--border);
-  text-align: left;
+  text-align: left; 
+  animation: modalZoomIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

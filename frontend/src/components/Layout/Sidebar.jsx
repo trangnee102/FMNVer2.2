@@ -1,6 +1,7 @@
+// frontend/src/components/Layout/Sidebar.jsx
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // 👉 ĐÃ THÊM: Import useNavigate để chuyển trang
-import { useAuth } from "../../context/AuthContext"; // 👉 ĐÃ THÊM: Import useAuth để lấy hàm Đăng xuất
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext"; // 👉 ĐÃ THÊM: Lấy thông tin user chuẩn xác từ Context
 import "./Sidebar.css";
 
 const Sidebar = ({ currentView, onNavigate }) => {
@@ -10,32 +11,55 @@ const Sidebar = ({ currentView, onNavigate }) => {
     return savedState !== null ? JSON.parse(savedState) : false;
   });
 
-  // 👉 ĐÃ THÊM: State quản lý thông tin User hiển thị ở góc dưới
-  const [userName, setUserName] = useState("Nguyễn Khắc Tuấn Đạt");
-  const [userEmail, setUserEmail] = useState("nguyenkhactdat2007@gmail.com");
+  const navigate = useNavigate(); 
+  const { user, logoutUser } = useAuth(); // 👉 Lấy user và hàm đăng xuất từ Context
+
+  // 👉 CẬP NHẬT: State quản lý thông tin User không còn bị fix cứng
+  const [userName, setUserName] = useState("Đang tải...");
+  const [userEmail, setUserEmail] = useState("...");
   const [userAvatar, setUserAvatar] = useState(null);
 
-  // 👉 ĐÃ THÊM: Tự động lấy dữ liệu từ localStorage khi Sidebar xuất hiện
+  // 👉 CẬP NHẬT: Tự động lấy dữ liệu và đồng bộ chuẩn xác
   useEffect(() => {
-    const storedName = localStorage.getItem("current_user_name");
-    const storedEmail = localStorage.getItem("current_user_email");
-    const storedAvatar = localStorage.getItem("user_avatar");
-    
-    if (storedName) setUserName(storedName);
-    if (storedEmail) setUserEmail(storedEmail);
-    if (storedAvatar) setUserAvatar(storedAvatar);
+    // 1. Đồng bộ tên và email từ Context hoặc LocalStorage
+    let currentUser = user;
+    if (!currentUser) {
+      try {
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) currentUser = JSON.parse(storedUser);
+      } catch (e) {
+        console.error("Lỗi đọc dữ liệu tài khoản:", e);
+      }
+    }
 
-    // Lắng nghe sự kiện nếu bên trang Settings có đổi ảnh thì Sidebar cũng đổi theo ngay lập tức
+    if (currentUser) {
+      // Ưu tiên tên thật từ DB, nếu không có mới lấy tên lưu cục bộ ở Settings
+      setUserName(
+        currentUser.full_name || 
+        currentUser.name || 
+        currentUser.username || 
+        localStorage.getItem("current_user_name") || 
+        "Người dùng"
+      );
+      setUserEmail(
+        currentUser.email || 
+        localStorage.getItem("current_user_email") || 
+        "Chưa cập nhật email"
+      );
+    }
+
+    // 2. Load Avatar
+    setUserAvatar(localStorage.getItem("user_avatar"));
+
+    // 3. Lắng nghe sự kiện nếu bên trang Settings có cập nhật thì Sidebar cũng đổi theo ngay lập tức
     const handleStorageChange = () => {
       setUserAvatar(localStorage.getItem("user_avatar"));
-      setUserName(localStorage.getItem("current_user_name") || "Nguyễn Khắc Tuấn Đạt");
+      const updatedName = localStorage.getItem("current_user_name");
+      if (updatedName) setUserName(updatedName);
     };
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, []);
-
-  const navigate = useNavigate(); // 👉 Khởi tạo bản đồ
-  const { logoutUser } = useAuth(); // 👉 Lấy tính năng "Dọn sạch két sắt" ra dùng
+  }, [user]); // Chạy lại nếu user từ Context thay đổi
 
   // Hàm xử lý đóng/mở và lưu lại trạng thái vào bộ nhớ
   const toggleSidebar = () => {
@@ -71,29 +95,31 @@ const Sidebar = ({ currentView, onNavigate }) => {
       id === "review" ||
       id === "stats" ||
       id === "community" ||
-      id === "settings" // 👉 ĐÃ MỞ KHÓA: Cho phép điều hướng đến trang Cài đặt
+      id === "settings"
     ) {
       if (onNavigate) onNavigate(id);
     } else {
-      alert(
-        "Tính năng này đang được cật lực xây dựng! 🛠️ Vui lòng quay lại sau nhé!",
-      );
+      alert("Tính năng này đang được cật lực xây dựng! 🛠️ Vui lòng quay lại sau nhé!");
     }
   };
 
   const handleSubMenuClick = (parentId, subId) => {
+    // 1. Chuyển view chính sang "community" trước
     handleMenuClick(parentId);
-    // Bắn một tín hiệu ra toàn hệ thống báo rằng tab con vừa bị thay đổi
-    window.dispatchEvent(
-      new CustomEvent("changeCommunityTab", { detail: subId }),
-    );
+    
+    // 2. Dùng setTimeout (50ms) để đợi trang Cộng Đồng load lên xong xuôi, 
+    // sau đó mới bắn tín hiệu chuyển sang tab con.
+    setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent("changeCommunityTab", { detail: subId }),
+      );
+    }, 50); 
   };
 
-  // 👉 ĐÃ SỬA: Hàm Đăng xuất chuẩn theo luồng mới
   const handleLogout = () => {
     if (window.confirm("Bạn có chắc chắn muốn đăng xuất không?")) {
       logoutUser(); // Xóa sạch token và thông tin user trong Két sắt
-      navigate("/login"); // Đá thẳng về trang Đăng nhập mượt mà không cần reload
+      navigate("/login"); // Đá thẳng về trang Đăng nhập mượt mà
     }
   };
 
@@ -105,13 +131,31 @@ const Sidebar = ({ currentView, onNavigate }) => {
           display: "flex",
           justifyContent: isCollapsed ? "center" : "space-between",
           alignItems: "center",
+          padding: "20px 15px",
         }}
       >
-        {!isCollapsed && <span className="logo">FORGETMENOT</span>}
+        {!isCollapsed && (
+          /* 👉 ĐÃ SỬA: Logo "FORGETMENOT" chuyên nghiệp, gradient màu sắc rực rỡ */
+          <span 
+            className="logo"
+            style={{
+              background: "linear-gradient(90deg, #2563eb 0%, #9333ea 50%, #ea580c 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              fontWeight: "900",
+              fontSize: "1.05rem",
+              letterSpacing: "1.5px",
+              margin: 0,
+              textShadow: "0px 4px 15px rgba(147, 51, 234, 0.15)"
+            }}
+          >
+            FORGETMENOT
+          </span>
+        )}
         <i
           className="fa-solid fa-bars hamburger"
           onClick={toggleSidebar}
-          style={{ cursor: "pointer" }}
+          style={{ cursor: "pointer", fontSize: "1.2rem", color: "#64748b" }}
         ></i>
       </div>
 
@@ -141,7 +185,7 @@ const Sidebar = ({ currentView, onNavigate }) => {
                       key={sub.id}
                       className="submenu-item"
                       onClick={(e) => {
-                        e.stopPropagation();
+                        e.stopPropagation(); // Chặn sự kiện click nảy lên thẻ cha
                         handleSubMenuClick(item.id, sub.id);
                       }}
                     >
@@ -155,7 +199,7 @@ const Sidebar = ({ currentView, onNavigate }) => {
           ))}
         </div>
 
-        {/* 👉 ĐÃ SỬA MỚI: Khu vực Profile và Đăng xuất ở cuối Sidebar */}
+        {/* Khu vực Profile và Đăng xuất ở cuối Sidebar */}
         <div className={`sidebar-footer ${isCollapsed ? "footer-collapsed" : ""}`}>
           <div className="sidebar-user-profile">
             {userAvatar ? (
@@ -168,7 +212,7 @@ const Sidebar = ({ currentView, onNavigate }) => {
             
             {!isCollapsed && (
               <div className="sidebar-user-info">
-                <span className="sidebar-user-name">{userName}</span>
+                <span className="sidebar-user-name" style={{ fontWeight: "700" }}>{userName}</span>
                 <span className="sidebar-user-email">{userEmail}</span>
               </div>
             )}

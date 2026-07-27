@@ -2,8 +2,7 @@
   display: flex;
   height: 100vh;
   width: 100%;
-  /* 👉 ĐÃ SỬA: Dùng biến màu nền chính để ăn theo Dark Mode */
-  background-color: var(--bg-main); 
+  background-color: var(--bg-main);
   overflow: hidden;
   transition: background-color 0.3s ease;
 }
@@ -27,18 +26,18 @@
   margin: 0;
   font-size: 24px;
   font-weight: 700;
-  color: var(--text-dark); /* 👉 ĐÃ SỬA */
+  color: var(--text-dark);
 }
 
 .settings-header-title p {
   margin: 0;
   font-size: 14px;
-  color: var(--text-gray); /* 👉 ĐÃ SỬA */
+  color: var(--text-gray);
 }
 
 /* Main Box Card */
 .settings-card {
-  background-color: var(--bg-card); /* 👉 ĐÃ SỬA: Nền thẻ tự đổi màu */
+  background-color: var(--bg-card);
   border-radius: 12px;
   padding: 30px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
@@ -52,38 +51,38 @@
   align-items: center;
   gap: 24px;
   padding-bottom: 30px;
-  border-bottom: 1px solid var(--border); /* 👉 ĐÃ SỬA */
+  border-bottom: 1px solid var(--border);
 }
 
 .profile-avatar {
   width: 90px;
   height: 90px;
-  background-color: var(--border); /* 👉 ĐÃ SỬA: Nền placeholder đổi màu theo theme */
+  background-color: var(--border);
   border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
   font-size: 40px;
   color: var(--text-gray);
-  overflow: hidden; /* Chặn không cho ảnh phình to ra ngoài viền tròn */
+  overflow: hidden;
 }
 
 .profile-info-content h3 {
   margin: 0 0 6px 0;
   font-size: 20px;
-  color: var(--text-dark); /* 👉 ĐÃ SỬA */
+  color: var(--text-dark);
 }
 
 .profile-email {
   margin: 0 0 6px 0;
   font-size: 14px;
-  color: var(--text-gray); /* 👉 ĐÃ SỬA */
+  color: var(--text-gray);
 }
 
 .profile-date {
   margin: 0 0 16px 0;
   font-size: 13px;
-  color: var(--text-gray); /* 👉 ĐÃ SỬA */
+  color: var(--text-gray);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -95,12 +94,12 @@
 }
 
 .btn-outline {
-  background-color: var(--bg-card); /* 👉 ĐÃ SỬA */
-  border: 1px solid var(--border); /* 👉 ĐÃ SỬA */
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
   padding: 8px 14px;
   border-radius: 6px;
   font-size: 13px;
-  color: var(--text-dark); /* 👉 ĐÃ SỬA */
+  color: var(--text-dark);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -110,14 +109,14 @@
 }
 
 .btn-outline:hover {
-  background-color: var(--border); /* 👉 ĐÃ SỬA */
+  background-color: var(--border);
 }
 
 /* Navigation Tabs */
 .settings-nav-tabs {
   display: flex;
   gap: 40px;
-  border-bottom: 1px solid var(--border); /* 👉 ĐÃ SỬA */
+  border-bottom: 1px solid var(--border);
   margin-bottom: 30px;
   padding-top: 15px;
 }
@@ -127,7 +126,7 @@
   cursor: pointer;
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-gray); /* 👉 ĐÃ SỬA */
+  color: var(--text-gray);
   position: relative;
   display: flex;
   align-items: center;
@@ -136,7 +135,7 @@
 }
 
 .nav-tab:hover {
-  color: var(--text-dark); /* 👉 ĐÃ SỬA */
+  color: var(--text-dark);
 }
 
 .nav-tab.active {
@@ -144,7 +143,7 @@
 }
 
 .nav-tab.active::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: -1px;
   left: 0;
@@ -159,8 +158,14 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .settings-section {
@@ -170,7 +175,7 @@
 .section-title {
   margin: 0 0 20px 0;
   font-size: 17px;
-  color: var(--text-dark); /* 👉 ĐÃ SỬA */
+  color: var(--text-dark);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -181,7 +186,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 18px 0;
-  border-bottom: 1px solid var(--border); /* 👉 ĐÃ SỬA */
+  border-bottom: 1px solid var(--border);
 }
 
 .setting-row:last-child {
@@ -197,22 +202,22 @@
 .setting-name {
   font-size: 15px;
   font-weight: 600;
-  color: var(--text-dark); /* 👉 ĐÃ SỬA */
+  color: var(--text-dark);
 }
 
 .setting-desc {
   font-size: 14px;
-  color: var(--text-gray); /* 👉 ĐÃ SỬA */
+  color: var(--text-gray);
 }
 
 /* Custom Select Dropdown */
 .custom-select {
   padding: 10px 14px;
-  border: 1px solid var(--border); /* 👉 ĐÃ SỬA */
+  border: 1px solid var(--border);
   border-radius: 8px;
   font-size: 14px;
-  color: var(--text-dark); /* 👉 ĐÃ SỬA */
-  background-color: var(--bg-card); /* 👉 ĐÃ SỬA */
+  color: var(--text-dark);
+  background-color: var(--bg-card);
   outline: none;
   cursor: pointer;
   min-width: 140px;
@@ -240,8 +245,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: var(--border); /* 👉 ĐÃ SỬA: Nền xám khi tắt chuyển thành màu viền */
-  transition: .3s;
+  background-color: var(--border);
+  transition: 0.3s;
   border-radius: 26px;
 }
 
@@ -252,10 +257,10 @@
   width: 20px;
   left: 3px;
   bottom: 3px;
-  background-color: var(--bg-card); /* 👉 ĐÃ SỬA: Viên bi tròn bên trong */
-  transition: .3s;
+  background-color: var(--bg-card);
+  transition: 0.3s;
   border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 input:checked + .toggle-slider {
@@ -295,10 +300,9 @@ input:checked + .toggle-slider:before {
 }
 
 /* =========================================================================
-   👉 BỔ SUNG CSS MỚI CHO TAB BẢO MẬT & TÀI KHOẢN (ĐỪNG XÓA PHẦN NÀY)
+   BỔ SUNG CSS MỚI CHO TAB BẢO MẬT & TÀI KHOẢN
 ========================================================================= */
 
-/* CSS cho ảnh đại diện sau khi upload */
 .avatar-img {
   width: 100%;
   height: 100%;
@@ -306,24 +310,23 @@ input:checked + .toggle-slider:before {
   object-fit: cover;
 }
 
-/* Nút bấm nhỏ gọn ở Tab Bảo mật */
 .btn-action-small {
   padding: 8px 16px;
-  border: 1px solid var(--border); /* 👉 ĐÃ SỬA */
-  background-color: var(--bg-card); /* 👉 ĐÃ SỬA */
+  border: 1px solid var(--border);
+  background-color: var(--bg-card);
   border-radius: 6px;
   font-size: 13px;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--text-dark); /* 👉 ĐÃ SỬA */
+  color: var(--text-dark);
   font-weight: 600;
   transition: all 0.2s;
 }
 
 .btn-action-small:hover {
-  background-color: var(--bg-main); /* 👉 ĐÃ SỬA */
+  background-color: var(--bg-main);
 }
 
 /* Biểu mẫu Tab Tài khoản */
@@ -337,7 +340,7 @@ input:checked + .toggle-slider:before {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--border); /* 👉 ĐÃ SỬA */
+  border-bottom: 1px solid var(--border);
   padding-bottom: 15px;
 }
 
@@ -353,23 +356,23 @@ input:checked + .toggle-slider:before {
 
 .form-label strong {
   font-size: 14px;
-  color: var(--text-dark); /* 👉 ĐÃ SỬA */
+  color: var(--text-dark);
 }
 
 .form-label span {
   font-size: 13px;
-  color: var(--text-gray); /* 👉 ĐÃ SỬA */
+  color: var(--text-gray);
 }
 
 .form-input {
   padding: 10px 14px;
-  border: 1px solid var(--border); /* 👉 ĐÃ SỬA */
+  border: 1px solid var(--border);
   border-radius: 6px;
   font-size: 14px;
-  color: var(--text-dark); /* 👉 ĐÃ SỬA */
+  color: var(--text-dark);
   width: 320px;
   outline: none;
-  background-color: var(--bg-main); /* 👉 ĐÃ SỬA: Dùng màu nền chìm để dễ phân biệt ô nhập liệu */
+  background-color: var(--bg-main);
   transition: border-color 0.2s;
 }
 
@@ -378,8 +381,8 @@ input:checked + .toggle-slider:before {
 }
 
 .disabled-input {
-  background-color: var(--border); /* 👉 ĐÃ SỬA */
-  color: var(--text-gray); /* 👉 ĐÃ SỬA */
+  background-color: var(--border);
+  color: var(--text-gray);
   cursor: not-allowed;
   opacity: 0.8;
 }
@@ -387,7 +390,6 @@ input:checked + .toggle-slider:before {
 /* Vùng nguy hiểm (Danger Zone) */
 .danger-zone {
   margin-top: 40px;
-  /* 👉 ĐÃ SỬA: Thay màu đỏ chết thành mã RGBA trong suốt để hiện đẹp trên cả nền Sáng/Tối */
   border: 1px solid rgba(239, 68, 68, 0.3);
   background-color: rgba(239, 68, 68, 0.05);
   border-radius: 8px;
@@ -395,7 +397,7 @@ input:checked + .toggle-slider:before {
 }
 
 .danger-zone .section-title {
-  color: #ef4444; /* Đỏ thuần không đổi */
+  color: #ef4444;
   margin-bottom: 20px;
 }
 
@@ -404,8 +406,7 @@ input:checked + .toggle-slider:before {
   justify-content: space-between;
   align-items: center;
   padding: 15px 0;
-  /* 👉 ĐÃ SỬA: Viền phân cách đỏ mờ */
-  border-bottom: 1px solid rgba(239, 68, 68, 0.2); 
+  border-bottom: 1px solid rgba(239, 68, 68, 0.2);
 }
 
 .danger-row:last-child {

@@ -1,62 +1,131 @@
 /* frontend/src/pages/StatisticsPage.css */
 
-.stats-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 30px;
+.stats-wrapper {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 30px 40px;
+  font-family: 'Inter', system-ui, sans-serif;
 }
 
-.filter-group {
+/* ========================================= */
+/* HEADER & BỘ LỌC                           */
+/* ========================================= */
+.modern-stats-header {
   display: flex;
-  background: var(--border); /* 👉 ĐÃ SỬA: Đổi nền xám thành biến viền để hài hòa nền Sáng/Tối */
-  border-radius: 8px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.header-title h1 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  margin: 0 0 5px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-title p {
+  color: var(--text-gray);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.modern-filter-group {
+  display: flex;
+  background: var(--border); /* 👉 Nền biến viền hài hòa Sáng/Tối */
+  border-radius: 12px;
   padding: 4px;
   transition: background-color 0.3s ease;
 }
 
-.filter-btn {
-  padding: 6px 16px;
-  border: none;
+.btn-filter {
   background: transparent;
-  color: var(--text-gray); /* 👉 ĐÃ SỬA */
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  color: var(--text-gray);
   font-weight: bold;
-  border-radius: 6px;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
-.filter-btn:hover {
-  color: var(--text-dark); /* 👉 ĐÃ THÊM: Sáng chữ khi hover */
+.btn-filter:hover {
+  color: var(--text-dark); /* 👉 Sáng chữ khi hover */
 }
 
-.filter-btn.active {
-  background: var(--primary); /* 👉 ĐÃ SỬA: Dùng màu chủ đạo của hệ thống */
+.btn-filter.active {
+  background: var(--primary); /* 👉 Dùng màu chủ đạo của hệ thống */
   color: white;
-  box-shadow: 0 2px 4px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
 }
 
-/* 4 Khung KPIs */
-.kpi-grid {
+.date-picker-mock {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-card);
+  padding: 10px 15px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  color: var(--text-dark);
+  font-size: 0.9rem;
+  font-weight: bold;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+}
+
+/* ========================================= */
+/* HÀNG 1: 4 THẺ CHỈ SỐ                      */
+/* ========================================= */
+.stats-kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 20px;
   margin-bottom: 25px;
 }
 
-.kpi-card {
-  background: var(--bg-card); /* 👉 ĐÃ SỬA */
+.stats-kpi-card {
+  background: var(--bg-card);
+  border-radius: 16px;
   padding: 20px;
-  border-radius: 12px;
-  border: 1px solid var(--border); /* 👉 ĐÃ SỬA */
-  display: flex;
-  align-items: center;
-  gap: 15px;
+  border: 1px solid var(--border);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-  transition: all 0.3s ease; /* 👉 ĐÃ THÊM: Đổi màu mượt mà */
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s ease; /* 👉 Đổi màu mượt mà */
 }
 
-.kpi-icon {
+.stats-kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+  border-color: var(--primary); 
+}
+
+.sk-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+/* Các biến màu trong suốt, hỗ trợ tuyệt vời cho cả Sáng/Tối */
+.bg-purple-light { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+.bg-green-light { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.bg-orange-light { background: rgba(234, 88, 12, 0.15); color: #ea580c; }
+.bg-blue-light { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+
+.sk-icon {
   width: 45px;
   height: 45px;
   border-radius: 10px;
@@ -66,106 +135,255 @@
   font-size: 1.2rem;
 }
 
-.kpi-info p {
-  margin: 0;
-  color: var(--text-gray); /* 👉 ĐÃ SỬA */
-  font-size: 0.85rem;
+.sk-title {
+  color: var(--text-gray);
   font-weight: bold;
+  font-size: 0.85rem;
 }
 
-.kpi-info h3 {
-  margin: 5px 0 0 0;
-  color: var(--text-dark); /* 👉 ĐÃ SỬA */
-  font-size: 1.4rem;
+.sk-value {
+  color: var(--text-dark);
+  font-size: 2.2rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 10px;
 }
 
-/* Khung Biểu đồ */
-.charts-grid {
+.sk-value span {
+  font-size: 1rem;
+  font-weight: normal; 
+  color: var(--text-gray);
+}
+
+.sk-subtext {
+  color: var(--text-gray);
+  font-size: 0.8rem;
+  margin-top: auto;
+}
+
+/* ========================================= */
+/* HÀNG 2: CHARTS                            */
+/* ========================================= */
+.stats-charts-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
   margin-bottom: 25px;
 }
 
-.chart-card {
-  background: var(--bg-card); /* 👉 ĐÃ SỬA */
-  padding: 20px;
+.stats-chart-card {
+  background: var(--bg-card);
   border-radius: 12px;
-  border: 1px solid var(--border); /* 👉 ĐÃ SỬA */
+  padding: 20px;
+  border: 1px solid var(--border);
   height: 350px;
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
 }
 
-.chart-card h4 {
-  margin: 0 0 20px 0;
-  color: var(--text-dark); /* 👉 ĐÃ SỬA */
+.stats-chart-card:hover {
+  border-color: var(--primary);
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.chart-header h4 {
+  margin: 0;
+  color: var(--text-dark);
+  font-size: 1.1rem;
+  font-weight: bold;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-/* Danh sách hiệu suất bộ thẻ */
-.performance-list {
-  background: var(--bg-card); /* 👉 ĐÃ SỬA */
-  padding: 20px;
+.chart-dropdown {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--text-gray);
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.chart-body {
+  flex: 1;
+  width: 100%;
+}
+
+/* ========================================= */
+/* HÀNG 3: BOTTOM GRID                       */
+/* ========================================= */
+.stats-bottom-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 20px;
+  padding-bottom: 40px;
+}
+
+.stats-table-card, .stats-history-card {
+  background: var(--bg-card);
   border-radius: 12px;
-  border: 1px solid var(--border); /* 👉 ĐÃ SỬA */
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
   transition: all 0.3s ease;
 }
 
-.perf-item {
-  display: flex;
-  align-items: center;
-  padding: 15px 0;
-  border-bottom: 1px solid var(--border); /* 👉 ĐÃ SỬA */
+.stats-table-card:hover, .stats-history-card:hover {
+  border-color: var(--primary);
 }
 
-.perf-item:last-child {
-  border-bottom: none;
+.table-header, .history-header {
+  padding: 20px 25px;
+  border-bottom: 1px solid var(--border);
 }
 
-.perf-name {
-  flex: 2;
+.table-header h4, .history-header h4 {
+  margin: 0;
+  color: var(--text-dark);
+  font-size: 1.1rem;
   font-weight: bold;
-  color: var(--text-dark); /* 👉 ĐÃ SỬA */
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
-.perf-bar-container {
-  flex: 3;
+/* Bảng Table */
+.table-container {
+  padding: 10px 25px;
+  overflow-x: auto;
+}
+
+.modern-perf-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.modern-perf-table th {
+  text-align: left;
+  padding: 12px 10px;
+  color: var(--text-gray);
+  font-size: 0.85rem;
+  font-weight: bold;
+  border-bottom: 1px solid var(--border);
+}
+
+.modern-perf-table td {
+  padding: 15px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-dark);
+  font-size: 0.95rem;
+}
+
+.modern-perf-table tr:last-child td { border-bottom: none; }
+
+/* Hiệu ứng hover nhạt đồng bộ Sáng/Tối */
+.modern-perf-table tr:hover td { background-color: rgba(128, 128, 128, 0.05); }
+
+.deck-name-col {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
 }
 
-.perf-bar-bg {
-  flex: 1;
-  height: 6px;
-  background: var(--border); /* 👉 ĐÃ SỬA */
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.perf-bar-fill {
-  height: 100%;
-  background: #10b981; /* Giữ nguyên màu xanh lục tượng trưng cho tiến độ */
-  border-radius: 4px;
-}
-
-.perf-stats {
-  flex: 1;
-  text-align: right;
+.deck-icon {
+  width: 35px;
+  height: 35px;
+  border-radius: 10px;
   display: flex;
-  justify-content: space-around;
-  color: var(--text-gray); /* 👉 ĐÃ SỬA */
+  align-items: center;
+  justify-content: center;
+}
+
+.deck-name-text { font-weight: bold; }
+
+.empty-table-row {
+  text-align: center;
+  color: var(--text-gray);
+  padding: 30px !important;
+  font-style: italic;
+}
+
+.table-footer {
+  padding: 15px 25px 25px 25px;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.btn-view-all {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--primary);
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-weight: bold;
   font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.perf-stats strong {
-  color: var(--text-dark); /* 👉 ĐÃ SỬA */
-  display: block;
+.btn-view-all:hover { 
+  background: var(--bg-main); 
+  border-color: var(--primary); 
+}
+
+/* Thẻ Lịch sử (Cột phải) */
+.history-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+  flex: 1;
+}
+
+.history-illustration {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  margin-bottom: 20px;
+}
+
+.history-empty-state h5 { color: var(--text-dark); font-size: 1.1rem; margin: 0 0 5px 0; font-weight: bold; }
+.history-empty-state p { color: var(--text-gray); font-size: 0.9rem; margin: 0 0 25px 0; }
+
+.btn-start-review {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.btn-start-review:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  filter: brightness(1.1);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .stats-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .stats-charts-grid, .stats-bottom-grid { grid-template-columns: 1fr; }
 }

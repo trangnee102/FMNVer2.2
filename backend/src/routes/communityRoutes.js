@@ -21,6 +21,7 @@ router.post("/decks/:id/clone", verifyToken, discoveryController.cloneDeck);
 // ==========================================
 // 2. TÌM KIẾM & KẾT BẠN
 // ==========================================
+// 👉 ĐƯỜNG DẪN NÀY ĐÃ CHUẨN: Backend đã mở cửa /search đợi sẵn!
 router.get("/search", verifyToken, friendController.searchUserByEmail);
 router.post("/friend-request", verifyToken, friendController.sendFriendRequest);
 router.get("/contacts", verifyToken, friendController.getContacts);
@@ -46,6 +47,16 @@ router.post("/groups", verifyToken, chatController.createGroup);
 router.post("/groups/join", verifyToken, chatController.joinGroup);
 router.post("/groups/:groupId/leave", verifyToken, chatController.leaveGroup);
 
+// BỔ SUNG ROUTE MỚI CHO CHỨC NĂNG CÀI ĐẶT NHÓM
+router.put("/groups/:id/rename", verifyToken, chatController.renameGroup);
+router.get("/groups/:id/members", verifyToken, chatController.getGroupMembers);
+router.post("/groups/:id/members", verifyToken, chatController.addGroupMember);
+router.delete(
+  "/groups/:id/messages",
+  verifyToken,
+  chatController.clearGroupHistory,
+);
+
 // Lấy lịch sử tin nhắn (Tách biệt hộp thoại 1-1 và Nhóm)
 router.get(
   "/messages/:id",
@@ -58,11 +69,18 @@ router.get(
   chatController.getConversationMessages,
 );
 
+// 👉 BỔ SUNG ROUTE MỚI: Đánh dấu tin nhắn đã đọc (Xóa chấm đỏ)
+router.post(
+  "/conversations/:id/read",
+  verifyToken,
+  chatController.markMessagesAsRead,
+);
+
 // Gửi tin nhắn và đính kèm file (Tách biệt hộp thoại 1-1 và Nhóm)
 router.post(
   "/messages",
   verifyToken,
-  upload.single("file"), // Phải khớp với tên field formData bên React
+  upload.single("file"),
   chatController.sendMessage,
 );
 router.post(
