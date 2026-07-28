@@ -26,36 +26,62 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
   const [forceModal, setForceModal] = useState({ isOpen: false, deckId: null });
 
-  // 👉 ĐÃ SỬA: Thuật toán gộp dữ liệu 2 lớp cực kỳ chặt chẽ, không bao giờ lo hiển thị 0%
   const fetchDecksData = useCallback(async () => {
     try {
-      const todayString = new Date().toISOString();
-      const t = new Date().getTime(); // Phá cache
+      const todayString = new Date().toISOString().split('T')[0];
 
       const [decksRes, summaryRes] = await Promise.all([
-        api.get(`/decks?t=${t}`),
-        api.get(`/dashboard/summary?currentDate=${encodeURIComponent(todayString)}&t=${t}`).catch(() => null)
+        api.get(`/decks`),
+        api.get(`/dashboard/summary?currentDate=${encodeURIComponent(todayString)}`).catch(() => null)
       ]);
 
-      let rawDecks = decksRes.success ? (decksRes.data || []) : [];
+      let rawDecks = decksRes.success ? (decksRes.data || []) : (Array.isArray(decksRes) ? decksRes : []);
       const summaryData = (summaryRes && summaryRes.success !== false) ? (summaryRes.data || summaryRes) : null;
       const summaryDecks = summaryData?.decks || [];
 
-      // Vét cạn dữ liệu từ cả 2 API để đảm bảo số liệu chuẩn xác
       const augmentedDecks = rawDecks.map(deck => {
         const sDeck = summaryDecks.find(sd => sd.id === deck.id) || {};
         
         const totalCards = sDeck.totalCards ?? sDeck._count?.Flashcards ?? deck.totalCards ?? deck.cards?.length ?? deck._count?.Flashcards ?? 0;
-        const masteredCount = sDeck.masteredCount ?? sDeck.masteredCards ?? deck.masteredCount ?? deck.masteredCards ?? 0;
-        const dueCount = sDeck.dueCount ?? sDeck.dueCards ?? deck.dueCount ?? deck.dueCards ?? 0;
-        const overdueCount = sDeck.overdueCount ?? deck.overdueCount ?? 0;
+        let dueCount = sDeck.dueCount ?? sDeck.dueCards ?? deck.dueCount ?? deck.dueCards ?? 0;
+        let masteredCount = sDeck.masteredCount ?? sDeck.masteredCards ?? deck.masteredCount ?? deck.masteredCards ?? 0;
+        let overdueCount = sDeck.overdueCount ?? deck.overdueCount ?? 0;
+        
+        if (masteredCount === 0 && totalCards > 0) {
+          masteredCount = Math.max(0, totalCards - dueCount - overdueCount);
+        }
+
+        const cramSettingsStr = localStorage.getItem(`cram_settings_${deck.id}`);
+        let isCramActive = deck.is_cram_active || false;
+        let isDeckOverdue = false;
+
+        if (cramSettingsStr) {
+          isCramActive = true; 
+          try {
+            const settings = JSON.parse(cramSettingsStr);
+            if (settings.examDate) {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const exam = new Date(settings.examDate);
+              exam.setHours(0, 0, 0, 0);
+              if (today > exam) {
+                isDeckOverdue = true; 
+              }
+            }
+          } catch(e){}
+        }
+
+        if (isDeckOverdue && overdueCount === 0) {
+          overdueCount = 1; 
+        }
 
         return {
           ...deck,
           totalCards,
           masteredCount,
           dueCount,
-          overdueCount
+          overdueCount,
+          is_cram_active: isCramActive 
         };
       });
 
@@ -67,7 +93,6 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
     }
   }, []);
 
-  // Gọi lần đầu khi Component Mount
   useEffect(() => {
     fetchDecksData();
   }, [fetchDecksData]);
@@ -119,10 +144,14 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
       );
     });
 
+  // 👉 ĐÃ SỬA: Ưu tiên đưa các bộ thẻ đang bật Cram Mode lên vị trí hàng đầu tiên
   const sortedDecks = [...filteredDecks].sort((a, b) => {
+    const aCram = a.is_cram_active ? 1 : 0;
+    const bCram = b.is_cram_active ? 1 : 0;
+    if (aCram !== bCram) return bCram - aCram; // Đưa Cram Mode lên trên cùng
+
     const aFavorite = favoriteDecks.includes(a.id) ? 0 : 1;
     const bFavorite = favoriteDecks.includes(b.id) ? 0 : 1;
-    
     if (aFavorite !== bFavorite) return aFavorite - bFavorite;
     
     const cardsA = a.totalCards ?? 0;
@@ -145,9 +174,8 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
 
   const handleStudyClick = async (deckId) => {
     try {
-      const t = new Date().getTime(); 
-      const data = await api.get(`/study/deck/${deckId}/due-cards?t=${t}`);
-      const dueCount = data.data ? data.data.length : 0;
+      const data = await api.get(`/study/deck/${deckId}/due-cards`);
+      const dueCount = data.data ? data.data.length : (Array.isArray(data) ? data.length : 0);
 
       if (dueCount === 0) {
         setForceModal({ isOpen: true, deckId: deckId });
@@ -236,7 +264,7 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
       <Sidebar currentView="my-decks" onNavigate={onNavigate} />
 
       <main className="dashboard-content scrollable-content" style={{ backgroundColor: "var(--bg-main)", overflowY: "auto", height: "100vh" }}>
-        <div className="page-wrapper my-decks-wrapper" style={{ maxWidth: "1200px", margin: "0 auto", padding: "30px 40px" }}>
+        <div className="page-wrapper my-decks-wrapper" style={{ maxWidth: "1300px", margin: "0 auto", padding: "30px 40px" }}>
           
           <div className="modern-page-header">
             <div className="header-title-group">
@@ -325,119 +353,117 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
           ) : sortedDecks.length === 0 ? (
             renderEmptyState()
           ) : (
-            <div className="modern-decks-grid">
+            <div className="vertical-decks-grid">
               {sortedDecks.map((deck) => {
                 const isFavorite = favoriteDecks.includes(deck.id);
                 
-                // Dùng thẳng các biến đã được Map chuẩn xác từ thuật toán ở trên
-                const totalCardsCount = deck.totalCards;
-                const masteredCount = deck.masteredCount;
-                const dueCount = deck.dueCount;
-                const overdueCount = deck.overdueCount;
-                const progressPercent = totalCardsCount === 0 ? 0 : Math.round((masteredCount / totalCardsCount) * 100);
+                const totalCardsCount = deck.totalCards || 0;
+                const masteredCount = deck.masteredCount || 0;
+                const dueCount = deck.dueCount || 0;
                 
+                const progressPercent = totalCardsCount === 0 ? 0 : Math.round((masteredCount / totalCardsCount) * 100);
                 const isCompleted = totalCardsCount > 0 && progressPercent === 100;
                 
-                let isNew = false;
-                if (deck.createdAt) {
-                  const createdTime = new Date(deck.createdAt).getTime();
-                  const now = new Date().getTime();
-                  const hoursDiff = (now - createdTime) / (1000 * 60 * 60);
-                  isNew = hoursDiff <= 24; 
-                } else {
-                  isNew = totalCardsCount === 0; 
-                }
-
                 const originalTitle = deck.title || deck.name || "Bộ thẻ không tên";
                 const isAIGenerated = originalTitle.toLowerCase().includes("(ai generated)");
                 const displayTitle = isAIGenerated ? originalTitle.replace(/\(ai generated\)/i, "").trim() : originalTitle;
 
                 return (
-                  <div className="modern-deck-card" key={deck.id} style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
-                    <div className="mdc-header">
-                      <div className="mdc-icon-wrapper">
-                        <div className="mdc-icon"><i className="fa-solid fa-layer-group"></i></div>
+                  <div className="vertical-deck-card" key={deck.id}>
+                    <div className="vdc-header">
+                      <div className="vdc-icon-main">
+                        <i className="fa-solid fa-layer-group"></i>
                       </div>
-                      <div className="mdc-header-right">
-                        <div className="mdc-badges">
-                          {isCompleted && <span className="badge badge-success">Hoàn thành</span>}
-                          {isNew && !isCompleted && <span className="badge badge-new" style={{ background: "#fee2e2", color: "#dc2626" }}>Mới tạo</span>}
-                        </div>
-                        
+                      <div className="vdc-actions">
                         {isAIGenerated && (
-                          <div className="mdc-ai-icon" title="Tạo tự động bằng AI">
+                          <div className="vdc-badge-ai" title="Tạo bằng AI">
                             <i className="fa-solid fa-robot"></i>
                           </div>
                         )}
-
                         <button 
-                          className={`mdc-favorite ${isFavorite ? "active" : ""}`}
+                          className={`vdc-btn-icon ${isFavorite ? "favorite-active" : ""}`}
                           onClick={(e) => { e.stopPropagation(); toggleFavoriteDeck(deck.id); }}
                           title="Yêu thích"
                         >
                           <i className={isFavorite ? "fa-solid fa-star" : "fa-regular fa-star"}></i>
                         </button>
+                        <button 
+                          className="vdc-btn-icon"
+                          onClick={(e) => { e.stopPropagation(); openManageModal(deck); }}
+                          title="Cài đặt bộ thẻ"
+                        >
+                          <i className="fa-solid fa-ellipsis"></i>
+                        </button>
                       </div>
                     </div>
 
-                    <div className="mdc-body">
-                      <h3 className="mdc-title" style={{ color: "var(--text-dark)" }}>{displayTitle}</h3>
-                      <div className="mdc-progress-wrapper">
-                        <div className="mdc-progress-track" style={{ backgroundColor: "var(--border)" }}>
-                          <div className="mdc-progress-fill" style={{ width: `${progressPercent}%`, backgroundColor: isCompleted ? '#10b981' : undefined }}></div>
-                        </div>
-                        <span className="mdc-progress-text" style={{ color: isCompleted ? '#10b981' : 'var(--text-gray)' }}>{progressPercent}%</span>
+                    <div className="vdc-title-wrapper">
+                      <h3 className="vdc-title" title={displayTitle}>{displayTitle}</h3>
+                    </div>
+
+                    <div className="vdc-progress-wrapper">
+                      <div className="vdc-progress-track">
+                        <div 
+                          className="vdc-progress-fill" 
+                          style={{ 
+                            width: `${progressPercent}%`, 
+                            backgroundColor: isCompleted ? '#10b981' : 'var(--primary)' 
+                          }}
+                        ></div>
+                      </div>
+                      <span className="vdc-progress-text" style={{ color: isCompleted ? '#10b981' : 'var(--text-dark)' }}>
+                        {progressPercent}%
+                      </span>
+                    </div>
+
+                    <div className="vdc-stats-grid">
+                      <div className="vdc-stat-box box-purple">
+                        <div className="vdc-stat-icon"><i className="fa-solid fa-clone"></i></div>
+                        <div className="vdc-stat-val">{totalCardsCount}</div>
+                        <div className="vdc-stat-label">Thẻ</div>
+                      </div>
+                      <div className="vdc-stat-box box-orange">
+                        <div className="vdc-stat-icon"><i className="fa-solid fa-clock"></i></div>
+                        <div className="vdc-stat-val">{dueCount}</div>
+                        <div className="vdc-stat-label">Cần ôn</div>
+                      </div>
+                      <div className="vdc-stat-box box-green">
+                        <div className="vdc-stat-icon"><i className="fa-solid fa-check-square"></i></div>
+                        <div className="vdc-stat-val">{masteredCount}</div>
+                        <div className="vdc-stat-label">Đã học</div>
                       </div>
                     </div>
 
-                    <div className="mdc-stats-grid-2x2">
-                      <div className="mdc-stat-box box-purple" style={{ backgroundColor: "var(--bg-main)", borderColor: "var(--border)" }}>
-                        <i className="fa-solid fa-clone"></i>
-                        <div className="stat-info">
-                          <span className="stat-num" style={{ color: "var(--text-dark)" }}>{totalCardsCount}</span>
-                          <span className="stat-label">Thẻ</span>
-                        </div>
+                    <div 
+                      className={`vdc-cram-row ${deck.is_cram_active ? "active" : ""}`} 
+                      onClick={() => openCramModal(deck)}
+                      style={deck.is_cram_active ? { backgroundColor: "var(--bg-card)", borderColor: "#f59e0b", borderStyle: "solid", borderWidth: "1.5px" } : {}}
+                    >
+                      <div className="vdc-cram-left" style={deck.is_cram_active ? { color: "#f59e0b", fontWeight: "800" } : {}}>
+                        <i className="fa-solid fa-bolt" style={deck.is_cram_active ? { color: "#f59e0b" } : {}}></i>
+                        <span>Cram Mode</span>
                       </div>
-                      <div className="mdc-stat-box box-green" style={{ backgroundColor: "var(--bg-main)", borderColor: "var(--border)" }}>
-                        <i className="fa-solid fa-check-square"></i>
-                        <div className="stat-info">
-                          <span className="stat-num" style={{ color: "var(--text-dark)" }}>{masteredCount}</span>
-                          <span className="stat-label">Đã học</span>
-                        </div>
-                      </div>
-                      <div className="mdc-stat-box box-orange" style={{ backgroundColor: "var(--bg-main)", borderColor: "var(--border)" }}>
-                        <i className="fa-solid fa-clock"></i>
-                        <div className="stat-info">
-                          <span className="stat-num" style={{ color: "var(--text-dark)" }}>{dueCount}</span>
-                          <span className="stat-label">Cần ôn</span>
-                        </div>
-                      </div>
-                      <div className="mdc-stat-box box-red" style={{ backgroundColor: "var(--bg-main)", borderColor: "var(--border)" }}>
-                        <i className="fa-solid fa-circle-exclamation"></i>
-                        <div className="stat-info">
-                          <span className="stat-num" style={{ color: "var(--text-dark)" }}>{overdueCount}</span>
-                          <span className="stat-label">Quá hạn</span>
-                        </div>
+                      <div className="vdc-cram-right">
+                        <span className="vdc-cram-status" style={deck.is_cram_active ? { color: "#f59e0b", fontWeight: "700" } : {}}>
+                          {deck.is_cram_active ? "Bật" : "Tắt"}
+                        </span>
+                        <div className="vdc-toggle" style={deck.is_cram_active ? { backgroundColor: "#f59e0b" } : {}}></div>
                       </div>
                     </div>
 
-                    <div className={`mdc-cram-compact ${deck.is_cram_active ? "active" : ""}`} style={{ backgroundColor: "var(--bg-main)", borderColor: deck.is_cram_active ? "var(--primary)" : "var(--border)" }} onClick={() => openCramModal(deck)}>
-                      <div className="cram-left">
-                        <i className="fa-solid fa-bolt"></i>
-                        <span style={{ color: "var(--text-dark)" }}>Cram Mode</span>
-                      </div>
-                      <div className="cram-right">
-                        <span className="cram-status">{deck.is_cram_active ? "Bật" : "Tắt"}</span>
-                        <div className="compact-switch"></div>
-                      </div>
-                    </div>
-
-                    <div className="mdc-footer">
-                      <button className="mdc-btn-study" onClick={() => handleStudyClick(deck.id)}>
-                        Ôn luyện
-                      </button>
-                      <button className="mdc-btn-settings" style={{ backgroundColor: "var(--bg-main)", color: "var(--text-gray)" }} onClick={() => openManageModal(deck)} title="Cài đặt bộ thẻ">
-                        <i className="fa-solid fa-gear"></i>
+                    <div className="vdc-footer">
+                      <button 
+                        className={`vdc-btn-study ${isCompleted && !deck.is_cram_active ? "completed" : ""}`} 
+                        style={deck.is_cram_active ? { background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)", boxShadow: "0 4px 12px rgba(245, 158, 11, 0.3)", color: "white", border: "none", fontWeight: "800" } : {}}
+                        onClick={() => {
+                          if (deck.is_cram_active) {
+                            onNavigate("cram-review", deck.id);
+                          } else {
+                            handleStudyClick(deck.id);
+                          }
+                        }}
+                      >
+                        {deck.is_cram_active ? "🔥 Vào lò luyện" : (dueCount > 0 ? "Ôn luyện" : "👁 Xem lại")}
                       </button>
                     </div>
                   </div>
@@ -448,7 +474,6 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
         </div>
       </main>
 
-      {/* MODAL VƯỢT RÀO */}
       {forceModal.isOpen && (
         <div className="cram-modal-overlay" style={{ zIndex: 1000 }}>
           <div className="cram-modal" style={{ textAlign: "center", padding: "40px 30px", maxWidth: "420px" }}>
@@ -489,7 +514,6 @@ const MyDecksPage = ({ onNavigate, onStudy }) => {
         onNavigate={onNavigate}
       />
 
-      {/* KÍCH HOẠT RE-FETCH KHI ĐÓNG QUẢN LÝ */}
       <ManageDeckModal
         isOpen={isManageModalOpen}
         onClose={() => {

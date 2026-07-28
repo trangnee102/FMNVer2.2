@@ -1,7 +1,7 @@
 // frontend/src/pages/ReviewPage.jsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Sidebar from "../components/Layout/Sidebar";
-import StatCard from "../components/Cards/StatCard";
+import CramModeModal from "../components/Modals/ManageDeckModal"; 
 import Button from "../components/common/Button";
 import api from "../services/api"; 
 import "./ReviewPage.css";
@@ -14,12 +14,12 @@ const ActiveStudySession = ({ deckId, forceReview, onFinish }) => {
   const [initialTotal, setInitialTotal] = useState(0);
   const [sessionStats, setSessionStats] = useState({ passed: 0, forgotten: 0 });
   const [isSessionFinished, setIsSessionFinished] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false); // 👉 State chờ đồng bộ mượt mà
+  const [isSyncing, setIsSyncing] = useState(false); 
 
   const actualDeckId = String(deckId).split('?')[0];
   const isForce = String(deckId).includes('force=true') || forceReview;
 
-  const pendingRequests = useRef([]); // 👉 Hàng đợi lưu trữ các request gửi lên Server
+  const pendingRequests = useRef([]); 
 
   const [currentIndex, setCurrentIndex] = useState(() => {
     const savedIndex = localStorage.getItem(`review_progress_${actualDeckId}`);
@@ -42,7 +42,7 @@ const ActiveStudySession = ({ deckId, forceReview, onFinish }) => {
 
     try {
       const todayString = new Date().toISOString();
-      const t = new Date().getTime(); // Ép bỏ cache
+      const t = new Date().getTime(); 
       const response = await api.get(`/study/deck/${actualDeckId}/due-cards?force=true&currentDate=${encodeURIComponent(todayString)}&t=${t}`);
       
       const loadedCards = response.data || [];
@@ -60,7 +60,7 @@ const ActiveStudySession = ({ deckId, forceReview, onFinish }) => {
     const fetchDueCards = async () => {
       try {
         const todayString = new Date().toISOString();
-        const t = new Date().getTime(); // Bắt buộc lấy dữ liệu tươi nhất
+        const t = new Date().getTime(); 
         const endpoint = isForce
           ? `/study/deck/${actualDeckId}/due-cards?force=true&currentDate=${encodeURIComponent(todayString)}&t=${t}`
           : `/study/deck/${actualDeckId}/due-cards?currentDate=${encodeURIComponent(todayString)}&t=${t}`;
@@ -101,17 +101,17 @@ const ActiveStudySession = ({ deckId, forceReview, onFinish }) => {
     const currentCard = cards[currentIndex];
     const durationMs = Date.now() - startTime;
 
-    // 👉 ĐÃ SỬA: Đưa request vào hàng đợi để chắc chắn không mất dữ liệu thời gian học
     const req = api.post("/study/review", {
       flashcard_id: currentCard.id,
       rating: rating,
-      duration_ms: durationMs > 500 ? durationMs : 500, // Đảm bảo tốn ít nhất 0.5s để hệ thống ghi nhận
+      duration_ms: durationMs > 500 ? durationMs : 500, 
     }).catch((err) => console.error("Lỗi đồng bộ dữ liệu ngầm:", err));
     
     pendingRequests.current.push(req);
 
     if (rating === 1) {
       setSessionStats((prev) => ({ ...prev, forgotten: prev.forgotten + 1 }));
+      setCards(prevCards => [...prevCards, currentCard]); 
     } else {
       setSessionStats((prev) => ({ ...prev, passed: prev.passed + 1 }));
     }
@@ -127,7 +127,6 @@ const ActiveStudySession = ({ deckId, forceReview, onFinish }) => {
     }
   };
 
-  // 👉 ĐÃ SỬA: Đợi API lưu xong 100% rồi mới cho thoát, tránh lỗi 0 phút bên Thống kê
   const handleFinishSession = async () => {
     setIsSyncing(true);
     await Promise.allSettled(pendingRequests.current); 
@@ -184,21 +183,20 @@ const ActiveStudySession = ({ deckId, forceReview, onFinish }) => {
     );
   }
 
-  // 👉 ĐÃ SỬA: Giao diện kết thúc học tập siêu mượt và chuyên nghiệp (Giống y hệt bản thiết kế)
   if (isSessionFinished) {
     return (
       <div className="review-page-container" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "80vh" }}>
         <div style={{ background: "var(--bg-card)", padding: "40px", borderRadius: "20px", boxShadow: "0 10px 30px rgba(0,0,0,0.08)", textAlign: "center", maxWidth: "450px", width: "100%", border: "1px solid var(--border)" }}>
           <h2 style={{ color: "#10b981", fontSize: "2rem", marginBottom: "15px", fontWeight: "bold" }}>Hoàn thành phiên học</h2>
-          <p style={{ color: "var(--text-gray)", fontSize: "1.1rem", marginBottom: "30px" }}>Bạn đã xem xét xong {initialTotal} thẻ.</p>
+          <p style={{ color: "var(--text-gray)", fontSize: "1.1rem", marginBottom: "30px" }}>Bạn đã xem xét xong {initialTotal} thẻ độc lập.</p>
           <div style={{ display: "flex", justifyContent: "space-between", gap: "20px", marginBottom: "35px" }}>
              <div style={{ flex: 1, background: "rgba(16, 185, 129, 0.1)", padding: "20px", borderRadius: "16px", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
                  <div style={{ fontSize: "2.5rem", fontWeight: "900", color: "#10b981" }}>{sessionStats.passed}</div>
-                 <div style={{ color: "#059669", fontSize: "0.95rem", fontWeight: "700", marginTop: "5px" }}>Thẻ đã nhớ</div>
+                 <div style={{ color: "#059669", fontSize: "0.95rem", fontWeight: "700", marginTop: "5px" }}>Đánh giá Tốt/Dễ</div>
              </div>
              <div style={{ flex: 1, background: "rgba(239, 68, 68, 0.1)", padding: "20px", borderRadius: "16px", border: "1px solid rgba(239, 68, 68, 0.2)" }}>
                  <div style={{ fontSize: "2.5rem", fontWeight: "900", color: "#ef4444" }}>{sessionStats.forgotten}</div>
-                 <div style={{ color: "#b91c1c", fontSize: "0.95rem", fontWeight: "700", marginTop: "5px" }}>Thẻ đã quên</div>
+                 <div style={{ color: "#b91c1c", fontSize: "0.95rem", fontWeight: "700", marginTop: "5px" }}>Lần bấm Quên</div>
              </div>
           </div>
           <button 
@@ -254,7 +252,7 @@ const ActiveStudySession = ({ deckId, forceReview, onFinish }) => {
 
 
 // =====================================================================
-// COMPONENT 2: GIAO DIỆN DASHBOARD TỔNG QUAN ÔN TẬP
+// COMPONENT 2: GIAO DIỆN DASHBOARD TỔNG QUAN ÔN TẬP (NẰM NGANG)
 // =====================================================================
 const ReviewDashboard = ({ onNavigate }) => {
   const [decks, setDecks] = useState([]);
@@ -262,174 +260,170 @@ const ReviewDashboard = ({ onNavigate }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterMode, setFilterMode] = useState("all"); 
   const [sortMode, setSortMode] = useState("newest");
-  const [openMenuId, setOpenMenuId] = useState(null); 
   
-  // 👉 Custom Modal cho vụ "Vượt rào"
+  const [isCramModalOpen, setIsCramModalOpen] = useState(false);
+  const [selectedDeck, setSelectedDeck] = useState(null);
   const [forceModal, setForceModal] = useState({ isOpen: false, deck: null });
 
-  const menuRef = useRef(null);
+  const fetchDecksData = useCallback(async () => {
+    try {
+      const todayString = new Date().toISOString().split('T')[0];
+      const t = new Date().getTime(); 
+      
+      const [decksRes, summaryRes] = await Promise.all([
+        api.get(`/decks?t=${t}`),
+        api.get(`/dashboard/summary?currentDate=${encodeURIComponent(todayString)}&t=${t}`).catch(() => null)
+      ]);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setOpenMenuId(null);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+      let rawDecks = decksRes.success ? (decksRes.data || []) : (Array.isArray(decksRes) ? decksRes : []);
+      const summaryData = (summaryRes && summaryRes.success !== false) ? (summaryRes.data || summaryRes) : null;
+      const summaryDecks = summaryData?.decks || [];
 
-  // 👉 ĐÃ SỬA: Ép loại bỏ cache mỗi lần Component này hiện lên
-  useEffect(() => {
-    const fetchDecksData = async () => {
-      try {
-        const todayString = new Date().toISOString();
-        const t = new Date().getTime(); // Timestamp phá vỡ Cache của Browser
+      const augmentedDecks = rawDecks.map(deck => {
+        const sDeck = summaryDecks.find(sd => sd.id === deck.id) || {};
         
-        const [decksRes, summaryRes] = await Promise.all([
-          api.get(`/decks?t=${t}`),
-          api.get(`/dashboard/summary?currentDate=${encodeURIComponent(todayString)}&t=${t}`).catch(() => null)
-        ]);
-
-        let rawDecks = [];
-        if (decksRes.success) {
-          rawDecks = decksRes.data || [];
+        const totalCards = sDeck.totalCards ?? sDeck._count?.Flashcards ?? deck.totalCards ?? deck.cards?.length ?? deck._count?.Flashcards ?? 0;
+        let dueCount = sDeck.dueCount ?? sDeck.dueCards ?? deck.dueCount ?? deck.dueCards ?? 0;
+        let masteredCount = sDeck.masteredCount ?? sDeck.masteredCards ?? deck.masteredCount ?? deck.masteredCards ?? 0;
+        let overdueCount = sDeck.overdueCount ?? deck.overdueCount ?? 0;
+        
+        if (masteredCount === 0 && totalCards > 0) {
+          masteredCount = Math.max(0, totalCards - dueCount - overdueCount);
         }
 
-        if (summaryRes && summaryRes.success !== false) {
-          const summaryData = summaryRes.data || summaryRes;
-          if (summaryData.decks) {
-            rawDecks = rawDecks.map(deck => {
-              const summaryDeck = summaryData.decks.find(sd => sd.id === deck.id);
-              if (summaryDeck) {
-                return {
-                  ...deck,
-                  dueCount: summaryDeck.dueCount ?? summaryDeck.dueCards ?? deck.dueCount ?? 0,
-                  totalCards: summaryDeck.totalCards ?? summaryDeck._count?.Flashcards ?? deck.totalCards ?? 0,
-                  masteredCount: summaryDeck.masteredCount ?? summaryDeck.masteredCards ?? deck.masteredCount ?? 0,
-                  overdueCount: summaryDeck.overdueCount ?? deck.overdueCount ?? 0
-                };
+        const cramSettingsStr = localStorage.getItem(`cram_settings_${deck.id}`);
+        let isCramActive = deck.is_cram_active || false;
+        let activeExamDate = deck.exam_date || null;
+        let isDeckOverdue = false;
+
+        if (cramSettingsStr) {
+          isCramActive = true; 
+          try {
+            const settings = JSON.parse(cramSettingsStr);
+            if (settings.examDate) {
+              activeExamDate = settings.examDate;
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const exam = new Date(settings.examDate);
+              exam.setHours(0, 0, 0, 0);
+              if (today > exam) {
+                isDeckOverdue = true; 
               }
-              return deck;
-            });
-          }
+            }
+          } catch(e){}
         }
 
-        const augmentedDecks = rawDecks.map(deck => {
-          const savedSettings = JSON.parse(localStorage.getItem(`cram_settings_${deck.id}`));
-          
-          let activeExamDate = null;
-          if (savedSettings && savedSettings.examDate) {
-            activeExamDate = savedSettings.examDate;
-          } else if (deck.is_cram_active === true && deck.exam_date) {
-            activeExamDate = deck.exam_date;
-          }
+        let daysLeft = null;
+        if (activeExamDate) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const exam = new Date(activeExamDate);
+          exam.setHours(0, 0, 0, 0);
+          const diff = Math.ceil((exam - today) / (1000 * 60 * 60 * 24));
+          daysLeft = diff > 0 ? diff : 0;
+        }
 
-          let daysLeft = null;
-          if (activeExamDate) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const exam = new Date(activeExamDate);
-            exam.setHours(0, 0, 0, 0);
-            const diff = Math.ceil((exam - today) / (1000 * 60 * 60 * 24));
-            daysLeft = diff > 0 ? diff : 0;
-          }
+        if (isDeckOverdue && overdueCount === 0) {
+          overdueCount = 1; 
+        }
 
-          const total = deck.totalCards ?? deck.cards?.length ?? 0;
-          const due = deck.dueCount ?? 0;
-          const mastered = deck.masteredCount ?? 0;
-          const overdue = deck.overdueCount ?? 0;
+        return {
+          ...deck,
+          totalCards,
+          masteredCount,
+          dueCount,
+          overdueCount,
+          is_cram_active: isCramActive,
+          examDateToUse: activeExamDate,
+          daysLeft
+        };
+      });
 
-          return { 
-            ...deck, 
-            examDateToUse: activeExamDate,
-            daysLeft: daysLeft,
-            calculatedMastered: mastered,
-            calculatedTotal: total,
-            calculatedDue: due,
-            calculatedOverdue: overdue,
-            createdAtDate: deck.createdAt ? new Date(deck.createdAt) : new Date(0)
-          };
-        });
-
-        setDecks(augmentedDecks);
-      } catch (error) {
-        console.error("Lỗi khi tải bộ thẻ:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchDecksData();
+      setDecks(augmentedDecks);
+    } catch (error) {
+      console.error("Lỗi khi tải bộ thẻ:", error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const handleStudyClick = (deck) => {
-    const total = parseInt(deck.calculatedTotal) || 0;
-    const due = parseInt(deck.calculatedDue) || 0;
+  useEffect(() => {
+    fetchDecksData();
+  }, [fetchDecksData]);
 
-    if (total === 0) {
+  const openCramModal = (deck) => {
+    setSelectedDeck(deck);
+    setIsCramModalOpen(true);
+  };
+
+  const handleStudyClick = (deckId) => {
+    const targetDeck = decks.find(d => d.id === deckId);
+    if (!targetDeck) return;
+
+    if (targetDeck.totalCards === 0) {
       if (onNavigate) onNavigate("create"); 
       return;
     }
 
-    if (due === 0) {
-      // 👉 GỌI CUSTOM MODAL THAY CHO WINDOW.CONFIRM
-      setForceModal({ isOpen: true, deck: deck });
+    if (targetDeck.dueCount === 0) {
+      setForceModal({ isOpen: true, deck: targetDeck });
     } else {
-      if (onNavigate) onNavigate("review", deck.id);
+      if (onNavigate) onNavigate("review", deckId);
     }
   };
 
   const totalDecks = decks.length;
-  const totalCards = decks.reduce((sum, d) => sum + (d.calculatedTotal || 0), 0);
-  const totalDue = decks.reduce((sum, d) => sum + (d.calculatedDue || 0), 0);
-  const totalOverdue = decks.reduce((sum, d) => sum + (d.calculatedOverdue || 0), 0); 
+  const totalCards = decks.reduce((sum, d) => sum + (d.totalCards || 0), 0);
+  const totalDue = decks.reduce((sum, d) => sum + (d.dueCount || 0), 0);
+  const totalOverdue = decks.reduce((sum, d) => sum + (d.overdueCount || 0), 0); 
 
   let displayDecks = decks.filter(d => (d.title || d.name || "").toLowerCase().includes(searchTerm.toLowerCase()));
-  if (filterMode === 'due') displayDecks = displayDecks.filter(d => d.calculatedDue > 0);
-  if (filterMode === 'overdue') displayDecks = displayDecks.filter(d => d.calculatedOverdue > 0); 
-  if (filterMode === 'cram') displayDecks = displayDecks.filter(d => d.examDateToUse);
+  if (filterMode === 'due') displayDecks = displayDecks.filter(d => d.dueCount > 0);
+  if (filterMode === 'overdue') displayDecks = displayDecks.filter(d => d.overdueCount > 0); 
+  if (filterMode === 'cram') displayDecks = displayDecks.filter(d => d.is_cram_active);
 
+  // 👉 ĐÃ SỬA: Ưu tiên đưa các bộ thẻ đang bật Cram Mode lên vị trí đầu tiên
   displayDecks.sort((a, b) => {
+    const aCram = a.is_cram_active ? 1 : 0;
+    const bCram = b.is_cram_active ? 1 : 0;
+    if (aCram !== bCram) return bCram - aCram; // Đưa Cram Mode lên trên cùng
+
     if (sortMode === "priority") {
-      return b.calculatedDue - a.calculatedDue;
+      return b.dueCount - a.dueCount;
     }
-    return b.createdAtDate - a.createdAtDate;
+    const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+    const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+    return dateB - dateA;
   });
 
   const renderEmptyState = () => {
-    if (filterMode === 'due') {
-      return (
-        <div className="empty-review-state">
-          <div className="empty-icon"><i className="fa-solid fa-champagne-glasses" style={{color: "#10b981"}}></i></div>
-          <h3>Tuyệt vời!</h3>
-          <p>Bạn đã hoàn thành toàn bộ mục tiêu ôn tập của ngày hôm nay.</p>
-        </div>
-      );
-    }
-    if (filterMode === 'overdue') {
-      return (
-        <div className="empty-review-state">
-          <div className="empty-icon"><i className="fa-solid fa-face-smile-wink" style={{color: "#3b82f6"}}></i></div>
-          <h3>Không có thẻ bị trễ</h3>
-          <p>Bạn đang duy trì tiến độ học tập rất tốt. Hãy tiếp tục phát huy nhé!</p>
-        </div>
-      );
-    }
-    if (filterMode === 'cram') {
-      return (
-        <div className="empty-review-state">
-          <div className="empty-icon"><i className="fa-solid fa-bolt" style={{color: "#f59e0b"}}></i></div>
-          <h3>Chưa có thẻ Cấp Tốc</h3>
-          <p>Bật chế độ Cram Mode để nhồi nhét kiến thức trước kỳ thi.</p>
-        </div>
-      );
-    }
+    if (filterMode === 'due') return (
+      <div className="modern-empty-state" style={{ marginTop: "40px" }}>
+        <div className="empty-illustration"><i className="fa-solid fa-champagne-glasses" style={{color: "#10b981"}}></i></div>
+        <h2 style={{ color: "var(--text-dark)" }}>Tuyệt vời!</h2>
+        <p style={{ color: "var(--text-gray)" }}>Bạn đã hoàn thành toàn bộ mục tiêu ôn tập của ngày hôm nay.</p>
+      </div>
+    );
+    if (filterMode === 'overdue') return (
+      <div className="modern-empty-state" style={{ marginTop: "40px" }}>
+        <div className="empty-illustration"><i className="fa-solid fa-face-smile-wink" style={{color: "#3b82f6"}}></i></div>
+        <h2 style={{ color: "var(--text-dark)" }}>Không có thẻ bị trễ</h2>
+        <p style={{ color: "var(--text-gray)" }}>Bạn đang duy trì tiến độ học tập rất tốt. Hãy tiếp tục phát huy nhé!</p>
+      </div>
+    );
+    if (filterMode === 'cram') return (
+      <div className="modern-empty-state" style={{ marginTop: "40px" }}>
+        <div className="empty-illustration"><i className="fa-solid fa-bolt" style={{color: "#f59e0b"}}></i></div>
+        <h2 style={{ color: "var(--text-dark)" }}>Chưa có thẻ Cấp Tốc</h2>
+        <p style={{ color: "var(--text-gray)" }}>Bật chế độ Cram Mode để nhồi nhét kiến thức trước kỳ thi.</p>
+      </div>
+    );
     return (
-      <div className="empty-review-state">
-        <div className="empty-icon"><i className="fa-solid fa-box-open"></i></div>
-        <h3>Không có bộ thẻ nào</h3>
-        <p>Tạo bộ thẻ mới để bắt đầu hành trình học tập ngay!</p>
-        <Button text="+ Tạo bộ thẻ mới" variant="primary" onClick={() => onNavigate("create")} />
+      <div className="modern-empty-state" style={{ marginTop: "40px" }}>
+        <div className="empty-illustration"><i className="fa-solid fa-box-open" style={{color: "var(--border)"}}></i></div>
+        <h2 style={{ color: "var(--text-dark)" }}>Không có bộ thẻ nào</h2>
+        <p style={{ color: "var(--text-gray)" }}>Tạo bộ thẻ mới để bắt đầu hành trình học tập ngay!</p>
+        <button className="btn-create-primary" onClick={() => onNavigate("create")}>+ Tạo bộ thẻ ngay</button>
       </div>
     );
   };
@@ -437,41 +431,56 @@ const ReviewDashboard = ({ onNavigate }) => {
   return (
     <div className="dashboard-layout">
       <Sidebar currentView="review" onNavigate={onNavigate} />
-      <main className="dashboard-content" style={{ backgroundColor: "var(--bg-main)" }}>
-        <div className="page-wrapper" style={{ maxWidth: "1200px", margin: "0 auto" }}>
+      <main className="dashboard-content scrollable-content" style={{ backgroundColor: "var(--bg-main)" }}>
+        <div className="page-wrapper" style={{ maxWidth: "1300px", margin: "0 auto", padding: "30px 40px" }}>
           
-          <header className="review-dashboard-header">
-            <div>
-              <h1 style={{ color: "var(--text-dark)", fontSize: "2rem", marginBottom: "5px", fontWeight: "bold" }}>Ôn tập</h1>
-              <p style={{ color: "var(--text-gray)" }}>Tiếp tục học với các bộ thẻ đến hạn hôm nay.</p>
+          <div className="modern-page-header">
+            <div className="header-title-group">
+              <h1 style={{ color: "var(--text-dark)", fontSize: "2rem", fontWeight: "800", display: "flex", alignItems: "center", gap: "10px" }}>
+                Ôn tập 🧠
+              </h1>
+              <p style={{ color: "var(--text-gray)", marginTop: "5px" }}>Tiếp tục học với các bộ thẻ đến hạn hôm nay.</p>
             </div>
-            <div className="top-due-badge">
-              🔥 <span>{totalDue}</span> thẻ cần ôn hôm nay
-            </div>
-          </header>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px", marginBottom: "30px" }}>
-            <StatCard icon="fa-layer-group" label="Bộ thẻ" value={totalDecks} colorClass="bg-blue" />
-            <StatCard icon="fa-file-lines" label="Flashcards" value={totalCards} colorClass="bg-green" />
-            <StatCard icon="fa-clock" label="Cần ôn" value={totalDue} colorClass="bg-orange" />
-            <StatCard icon="fa-circle-exclamation" label="Quá hạn" value={totalOverdue} colorClass="bg-red" />
+            
+            <div className="header-actions-group"></div>
           </div>
 
-          <div className="review-filter-bar">
-            <div className="search-box">
-              <i className="fa-solid fa-magnifying-glass"></i>
-              <input type="text" placeholder="Tìm kiếm bộ thẻ..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          <div className="modern-stats-grid">
+            <div className="modern-stat-card stat-blue" style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
+              <div className="stat-icon"><i className="fa-solid fa-layer-group"></i></div>
+              <div className="stat-info">
+                <h2 style={{ color: "var(--text-dark)" }}>{totalDecks}</h2>
+                <p style={{ color: "var(--text-gray)" }}>Bộ thẻ</p>
+              </div>
             </div>
-            <div className="filter-buttons">
-              <button className={filterMode === 'all' ? 'active' : ''} onClick={() => setFilterMode('all')}>Tất cả</button>
-              <button className={filterMode === 'due' ? 'active' : ''} onClick={() => setFilterMode('due')}>Đến hạn</button>
-              <button className={filterMode === 'overdue' ? 'active' : ''} onClick={() => setFilterMode('overdue')}>Quá hạn</button>
-              <button className={filterMode === 'cram' ? 'active' : ''} onClick={() => setFilterMode('cram')}>Cấp tốc</button>
+            <div className="modern-stat-card stat-green" style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
+              <div className="stat-icon"><i className="fa-solid fa-file-lines"></i></div>
+              <div className="stat-info">
+                <h2 style={{ color: "var(--text-dark)" }}>{totalCards}</h2>
+                <p style={{ color: "var(--text-gray)" }}>Flashcards</p>
+              </div>
             </div>
-            <select className="sort-dropdown" value={sortMode} onChange={(e) => setSortMode(e.target.value)}>
-              <option value="newest">Sắp xếp: Mới nhất</option>
-              <option value="priority">Sắp xếp: Ưu tiên ôn</option>
-            </select>
+            <div className="modern-stat-card stat-orange" style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
+              <div className="stat-icon"><i className="fa-solid fa-clock"></i></div>
+              <div className="stat-info">
+                <h2 style={{ color: "var(--text-dark)" }}>{totalDue}</h2>
+                <p style={{ color: "var(--text-gray)" }}>Cần ôn</p>
+              </div>
+            </div>
+            <div className="modern-stat-card stat-red" style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
+              <div className="stat-icon"><i className="fa-solid fa-circle-exclamation"></i></div>
+              <div className="stat-info">
+                <h2 style={{ color: "var(--text-dark)" }}>{totalOverdue}</h2>
+                <p style={{ color: "var(--text-gray)" }}>Quá hạn</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="modern-tabs-container">
+            <button className={`modern-tab ${filterMode === 'all' ? "active" : ""}`} onClick={() => setFilterMode('all')}>Tất cả</button>
+            <button className={`modern-tab ${filterMode === 'due' ? "active" : ""}`} onClick={() => setFilterMode('due')}>Đến hạn</button>
+            <button className={`modern-tab ${filterMode === 'overdue' ? "active" : ""}`} onClick={() => setFilterMode('overdue')}>Quá hạn</button>
+            <button className={`modern-tab ${filterMode === 'cram' ? "active" : ""}`} onClick={() => setFilterMode('cram')}>Cấp tốc</button>
           </div>
 
           {isLoading ? (
@@ -482,11 +491,11 @@ const ReviewDashboard = ({ onNavigate }) => {
           ) : displayDecks.length === 0 ? (
             renderEmptyState()
           ) : (
-            <div className="review-list-container" ref={menuRef}>
+            <div className="review-list-container" style={{ display: "flex", flexDirection: "column", gap: "20px", paddingBottom: "50px" }}>
               {displayDecks.map(deck => {
-                const total = deck.calculatedTotal;
-                const due = deck.calculatedDue;
-                const mastered = deck.calculatedMastered;
+                const total = deck.totalCards || 0;
+                const due = deck.dueCount || 0;
+                const mastered = deck.masteredCount || 0;
                 const progress = total === 0 ? 0 : Math.round((mastered / total) * 100);
                 const isCompleted = total > 0 && due === 0;
 
@@ -495,79 +504,98 @@ const ReviewDashboard = ({ onNavigate }) => {
                 const displayTitle = isAIGenerated ? originalTitle.replace(/\(ai generated\)/i, "").trim() : originalTitle;
 
                 let btnText = "Ôn tập";
-                let btnVariant = "primary";
                 
-                if (total === 0) {
+                if (deck.is_cram_active) {
+                  btnText = "🔥 Vào lò luyện";
+                } else if (total === 0) {
                   btnText = "Thêm thẻ";
-                  btnVariant = "gray"; 
                 } else if (isCompleted) {
                   btnText = "👁 Xem lại";
-                  btnVariant = "outline";
                 }
 
                 return (
-                  <div key={deck.id} className="review-list-item">
-                    <div className="rli-col-main">
-                      <div className="rli-title-row">
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <h3>{displayTitle}</h3>
+                  <div 
+                    key={deck.id} 
+                    className="review-list-item" 
+                    style={{ 
+                      backgroundColor: "var(--bg-card)", 
+                      borderColor: deck.is_cram_active ? "#f59e0b" : "var(--border)", 
+                      borderWidth: deck.is_cram_active ? "1.5px" : "1px", 
+                      borderStyle: "solid",
+                      borderRadius: "16px",
+                      padding: "20px 25px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "20px",
+                      boxShadow: "0 4px 15px rgba(0, 0, 0, 0.02)",
+                      transition: "all 0.2s ease"
+                    }}
+                  >
+                    <div className="rli-col-main" style={{ flex: 1 }}>
+                      <div className="rli-title-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <h3 style={{ color: "var(--text-dark)", margin: 0, fontWeight: "800", fontSize: "1.2rem" }}>{displayTitle}</h3>
                           {isAIGenerated && (
                             <i className="fa-solid fa-robot" title="Tạo bằng AI" style={{ color: "#a855f7", fontSize: "1.1rem" }}></i>
                           )}
                         </div>
-                        <div className="rli-badges">
-                          {deck.examDateToUse && <span className="badge-cram">🔥 CẤP TỐC</span>}
-                          {isCompleted && <span className="badge-done"><i className="fa-solid fa-check"></i> Hoàn thành</span>}
+                        <div className="rli-badges" style={{ display: "flex", gap: "8px" }}>
+                          {deck.is_cram_active && <span className="badge-cram" style={{ background: "rgba(245, 158, 11, 0.15)", color: "#d97706", padding: "4px 10px", borderRadius: "20px", fontSize: "0.75rem", fontWeight: "700" }}>🔥 CẤP TỐC</span>}
+                          {isCompleted && !deck.is_cram_active && <span className="badge-done" style={{ background: "#dcfce7", color: "#166534", padding: "4px 10px", borderRadius: "20px", fontSize: "0.75rem", fontWeight: "700" }}><i className="fa-solid fa-check"></i> Hoàn thành</span>}
                         </div>
                       </div>
                       
-                      <div className="rli-progress-wrapper">
-                        <div className="rli-progress-track">
-                          <div className="rli-progress-fill" style={{ width: `${progress}%`, background: isCompleted ? '#10b981' : 'var(--primary)' }}></div>
+                      <div className="rli-progress-wrapper" style={{ display: "flex", alignItems: "center", gap: "15px", margin: "12px 0" }}>
+                        <div className="rli-progress-track" style={{ flex: 1, height: "8px", background: "var(--border)", borderRadius: "10px", overflow: "hidden" }}>
+                          <div className="rli-progress-fill" style={{ height: "100%", width: `${progress}%`, background: isCompleted ? '#10b981' : 'var(--primary)' }}></div>
                         </div>
-                        <span className="rli-progress-text">{progress}%</span>
+                        <span className="rli-progress-text" style={{ fontWeight: "800", color: isCompleted ? '#10b981' : 'var(--text-dark)', fontSize: "0.95rem" }}>{progress}%</span>
                       </div>
 
-                      <div className="rli-stats-row">
-                        <div className="stat-item"><i className="fa-solid fa-file-lines" style={{color: '#8b5cf6'}}></i> <strong>{total}</strong> Thẻ</div>
-                        <div className="stat-item"><i className="fa-solid fa-book-open" style={{color: '#10b981'}}></i> <strong>{mastered}</strong> Đã học</div>
-                        <div className="stat-item"><i className="fa-solid fa-clock" style={{color: '#f59e0b'}}></i> <strong>{due}</strong> Cần ôn</div>
+                      <div className="rli-stats-row" style={{ display: "flex", gap: "25px", color: "var(--text-gray)", fontSize: "0.9rem" }}>
+                        <div className="stat-item"><i className="fa-solid fa-file-lines" style={{color: '#8b5cf6'}}></i> <strong style={{color: "var(--text-dark)"}}>{total}</strong> Thẻ</div>
+                        <div className="stat-item"><i className="fa-solid fa-book-open" style={{color: '#10b981'}}></i> <strong style={{color: "var(--text-dark)"}}>{mastered}</strong> Đã học</div>
+                        <div className="stat-item"><i className="fa-solid fa-clock" style={{color: '#f59e0b'}}></i> <strong style={{color: "var(--text-dark)"}}>{due}</strong> Cần ôn</div>
                       </div>
                     </div>
 
-                    <div className="rli-col-exam">
+                    <div className="rli-col-exam" style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--text-gray)", fontSize: "0.9rem", minWidth: "140px", borderLeft: "1px solid var(--border)", borderRight: "1px solid var(--border)", padding: "0 20px" }}>
                       {deck.examDateToUse ? (
                         <>
-                          <i className="fa-regular fa-calendar"></i>
+                          <i className="fa-regular fa-calendar" style={{ fontSize: "1.3rem", color: "#f59e0b" }}></i>
                           <div>
-                            <span className="exam-days-left">Thi sau {deck.daysLeft} ngày</span><br/>
-                            <span className="exam-date">{new Date(deck.examDateToUse).toLocaleDateString('vi-VN')}</span>
+                            <span className="exam-days-left" style={{ fontWeight: "700", color: "#d97706" }}>Thi sau {deck.daysLeft} ngày</span><br/>
+                            <span className="exam-date" style={{ fontSize: "0.8rem" }}>{new Date(deck.examDateToUse).toLocaleDateString('vi-VN')}</span>
                           </div>
                         </>
                       ) : (
-                        <span style={{color: 'var(--border)'}}>---</span>
+                        <span style={{color: 'var(--border)'}}>Không có lịch thi</span>
                       )}
                     </div>
 
-                    <div className="rli-col-actions">
-                      <Button 
-                        text={btnText} 
-                        variant={btnVariant} 
-                        onClick={() => handleStudyClick(deck)} 
-                      />
+                    <div className="rli-col-actions" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <button 
+                        className="rli-study-btn"
+                        style={deck.is_cram_active ? { background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)", color: "white", border: "none", padding: "12px 22px", borderRadius: "10px", fontWeight: "700", cursor: "pointer", boxShadow: "0 4px 10px rgba(245, 158, 11, 0.3)", whiteSpace: "nowrap" } : { background: "var(--primary)", color: "white", border: "none", padding: "12px 22px", borderRadius: "10px", fontWeight: "700", cursor: "pointer", whiteSpace: "nowrap" }}
+                        onClick={() => {
+                          if (deck.is_cram_active) {
+                            if (onNavigate) onNavigate("cram-review", deck.id);
+                          } else {
+                            handleStudyClick(deck.id);
+                          }
+                        }}
+                      >
+                        {btnText}
+                      </button>
                       
-                      <div className="rli-menu-wrapper">
-                        <button className="rli-more-btn" onClick={() => setOpenMenuId(openMenuId === deck.id ? null : deck.id)}>...</button>
-                        {openMenuId === deck.id && (
-                          <div className="rli-dropdown">
-                            <button><i className="fa-regular fa-eye"></i> Xem chi tiết</button>
-                            <button><i className="fa-solid fa-pen"></i> Sửa bộ thẻ</button>
-                            <button><i className="fa-regular fa-calendar-plus"></i> Đặt ngày thi</button>
-                            <div className="divider"></div>
-                            <button className="text-red"><i className="fa-regular fa-trash-can"></i> Xóa bộ thẻ</button>
-                          </div>
-                        )}
-                      </div>
+                      <button 
+                        style={{ background: deck.is_cram_active ? "rgba(245, 158, 11, 0.15)" : "var(--bg-main)", border: "1px solid var(--border)", color: deck.is_cram_active ? "#f59e0b" : "var(--text-gray)", width: "42px", height: "42px", borderRadius: "10px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}
+                        onClick={() => openCramModal(deck)}
+                        title="Bật/Tắt Cram Mode"
+                      >
+                        <i className="fa-solid fa-bolt"></i>
+                      </button>
                     </div>
                   </div>
                 );
@@ -577,13 +605,14 @@ const ReviewDashboard = ({ onNavigate }) => {
         </div>
       </main>
 
-      {/* 👉 CUSTOM MODAL THAY THẾ CHO WINDOW.CONFIRM THÔ KỆCH */}
       {forceModal.isOpen && (
         <div className="cram-modal-overlay" style={{ zIndex: 1000 }}>
           <div className="cram-modal" style={{ textAlign: "center", padding: "40px 30px", maxWidth: "420px" }}>
-            <div style={{ fontSize: "3.5rem", marginBottom: "20px" }}>✨</div>
-            <h3 style={{ color: "var(--text-dark)", fontSize: "1.5rem", marginBottom: "15px", fontWeight: "800" }}>Tuyệt vời!</h3>
-            <p style={{ color: "var(--text-gray)", lineHeight: "1.6", marginBottom: "30px", fontSize: "1.05rem" }}>
+            <div style={{ fontSize: "3.5rem", margin: "0 auto 20px auto", display: "inline-block", background: "rgba(16, 185, 129, 0.1)", padding: "15px", borderRadius: "50%" }}>
+              ✨
+            </div>
+            <h3 style={{ color: "var(--text-dark)", fontSize: "1.5rem", margin: "0 0 15px 0", fontWeight: "800" }}>Tuyệt vời!</h3>
+            <p style={{ color: "var(--text-gray)", lineHeight: "1.6", margin: "0 0 30px 0", fontSize: "1.05rem" }}>
               Cậu đã học xong bài môn này rồi!<br/>Cậu có muốn <strong>'vượt rào'</strong> ôn trước các thẻ chưa đến hạn không?
             </p>
             <div style={{ display: "flex", gap: "15px", justifyContent: "center" }}>
@@ -607,10 +636,16 @@ const ReviewDashboard = ({ onNavigate }) => {
           </div>
         </div>
       )}
+
+      <CramModeModal
+        isOpen={isCramModalOpen}
+        onClose={() => setIsCramModalOpen(false)}
+        selectedDeck={selectedDeck}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 };
-
 
 // =====================================================================
 // BỘ ĐIỀU HƯỚNG CHÍNH CỦA TRANG (ROUTER)

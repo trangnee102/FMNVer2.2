@@ -52,6 +52,30 @@ const useChatManager = () => {
 
   const isFetchingMessages = useRef(false);
 
+  const getActiveUserId = () => {
+    let id = user?.id || user?.user_id || user?.userId;
+    if (id) return parseInt(id);
+
+    try {
+      const storedUser = JSON.parse(localStorage.getItem("user"));
+      id = storedUser?.id || storedUser?.user_id;
+      if (id) return parseInt(id);
+    } catch (e) {}
+
+    try {
+      const token = localStorage.getItem("token");
+      if (token) {
+        const payload = JSON.parse(atob(token.split(".")[1]));
+        id = payload.id || payload.user_id;
+        if (id) return parseInt(id);
+      }
+    } catch (e) {}
+
+    return null;
+  };
+
+  const activeUserId = getActiveUserId();
+
   useEffect(() => {
     selectedChatRef.current = selectedChat;
     setTypingUsers([]);
@@ -61,9 +85,8 @@ const useChatManager = () => {
     groupsRef.current = groups;
   }, [groups]);
 
-  const BACKEND_URL = import.meta.env.VITE_API_URL
-    ? import.meta.env.VITE_API_URL.replace("/api", "")
-    : "http://localhost:5000";
+  // 👉 ÉP CỨNG LUÔN LINK RENDER, KHÔNG ĐỂ NÓ NHÌN FILE .ENV NỮA CHO CHẮC CỐP
+  const BACKEND_URL = "https://fmn-backend.onrender.com";
 
   const getFullUrl = (fileUrl) => {
     if (!fileUrl) return null;
@@ -74,7 +97,7 @@ const useChatManager = () => {
   const getReceiverId = (chat) => {
     if (!chat || chat.isGroup || chat.is_group) return null;
     if (chat.Participants) {
-      const friend = chat.Participants.find((p) => p.user_id !== user.id);
+      const friend = chat.Participants.find((p) => p.user_id !== activeUserId);
       return friend ? friend.user_id : null;
     }
     return chat.id;
@@ -82,6 +105,7 @@ const useChatManager = () => {
 
   const getConvoId = (chat) => {
     if (!chat) return null;
+    if (chat.conversation_id) return chat.conversation_id;
     if (chat.Participants || chat.isGroup || chat.is_group) return chat.id;
     const existing = groupsRef.current.find(
       (g) =>
@@ -110,17 +134,43 @@ const useChatManager = () => {
     });
   };
 
+  // ==========================================
+  // KHỞI TẠO ĂNG-TEN SOCKET.IO
+  // ==========================================
   useEffect(() => {
-    if (!user || !user.id) return;
+    if (!activeUserId) {
+      console.log(
+        "❌ [CẢNH BÁO] Không tìm thấy User ID, ăng-ten Socket bị vô hiệu hóa!",
+      );
+      return;
+    }
 
     if (!socketRef.current) {
+      console.log(
+        `🔌 [TIẾN HÀNH] Đang cắm cáp Socket tới ${BACKEND_URL} cho User ID: ${activeUserId}`,
+      );
       socketRef.current = io(BACKEND_URL, {
-        query: { userId: user.id },
+        query: { userId: activeUserId },
         reconnection: true,
+        reconnectionAttempts: 10,
+        transports: ["polling", "websocket"],
+        secure: true,
+      });
+
+      socketRef.current.on("connect", () => {
+        console.log(
+          `🟢 [THÀNH CÔNG] Đã cắm ăng-ten Socket! ID Của Tôi: ${socketRef.current.id}`,
+        );
+      });
+
+      socketRef.current.on("connect_error", (error) => {
+        console.error("🔴 [LỖI] Đứt cáp Socket:", error.message);
       });
     }
 
     socketRef.current.on("receiveNewMessage", (newMessage) => {
+      console.log("🚨 [TIN NHẮN ĐẾN] Đã bắt được sóng từ Server:", newMessage);
+
       const safeMessage = {
         ...newMessage,
         Sender: newMessage.Sender || {
@@ -139,15 +189,43 @@ const useChatManager = () => {
         prev.filter((name) => name !== safeMessage.Sender.full_name),
       );
 
-      setMessages((prevMessages) => {
-        const isExist = prevMessages.find((msg) => msg.id === safeMessage.id);
-        if (isExist) return prevMessages;
+      let isMatch = false;
+      const isGroupMsg = safeMessage.is_group || !!safeMessage.group_id;
 
-        if (currentConvoId === safeMessage.conversation_id) {
-          return [...prevMessages, safeMessage];
+      if (isGroupMsg) {
+        if (currentConvoId && safeMessage.conversation_id === currentConvoId) {
+          isMatch = true;
         }
-        return prevMessages;
-      });
+      } else {
+        const friendId = getReceiverId(currentChat);
+        if (currentConvoId && safeMessage.conversation_id === currentConvoId) {
+          isMatch = true;
+        } else if (friendId && safeMessage.sender_id === friendId) {
+          isMatch = true;
+        } else if (safeMessage.sender_id === activeUserId) {
+          isMatch = true;
+        }
+      }
+
+      if (isMatch) {
+        setMessages((prevMessages) => {
+          const isExist = prevMessages.find((msg) => msg.id === safeMessage.id);
+          if (isExist) return prevMessages;
+
+          if (safeMessage.sender_id === activeUserId) {
+            const cleanMessages = prevMessages.filter(
+              (msg) =>
+                !(
+                  msg.id.toString().startsWith("temp-") &&
+                  msg.content === safeMessage.content
+                ),
+            );
+            return [...cleanMessages, { ...safeMessage, isMine: true }];
+          }
+
+          return [...prevMessages, safeMessage];
+        });
+      }
 
       setGroups((prevGroups) => {
         const idx = prevGroups.findIndex(
@@ -155,14 +233,9 @@ const useChatManager = () => {
         );
         if (idx === -1) return prevGroups;
 
-        const isCurrentlyViewing =
-          currentConvoId === safeMessage.conversation_id;
-
         const updatedGroup = {
           ...prevGroups[idx],
-          unread_count: isCurrentlyViewing
-            ? 0
-            : (prevGroups[idx].unread_count || 0) + 1,
+          unread_count: isMatch ? 0 : (prevGroups[idx].unread_count || 0) + 1,
           last_message_preview:
             safeMessage.message_type === "image"
               ? "[Hình ảnh]"
@@ -199,8 +272,13 @@ const useChatManager = () => {
       },
     );
 
+    // 👉 BẮT SÓNG ĐỒNG BỘ DATA BẠN BÈ
     socketRef.current.on("friend_request_updated", async (data) => {
-      if (data && user && (data.user1 === user.id || data.user2 === user.id)) {
+      if (
+        data &&
+        activeUserId &&
+        (data.user1 === activeUserId || data.user2 === activeUserId)
+      ) {
         try {
           const [contactsRes, requestsRes] = await Promise.all([
             communityAPI.getContacts(),
@@ -212,10 +290,24 @@ const useChatManager = () => {
           );
           setContacts(uniqueContacts);
           setPendingRequests(extractData(requestsRes));
+
+          // 🛠️ BẢN VÁ LỖI HIỂN THỊ KẾT QUẢ TÌM KIẾM Ở ĐÂY
+          setSearchResult((prev) => {
+            // Nếu người được cập nhật chính là người đang hiển thị ở ô tìm kiếm
+            if (prev && (prev.id === data.user1 || prev.id === data.user2)) {
+              return { ...prev, friendship_status: "accepted" }; // Đổi trạng thái ngay!
+            }
+            return prev;
+          });
         } catch (error) {
           console.error("Lỗi cập nhật danh sách bạn bè:", error);
         }
       }
+    });
+
+    socketRef.current.on("new_friend_request_received", (data) => {
+      console.log("💌 [THÔNG BÁO] Có lời mời kết bạn mới:", data);
+      alert(data.message || "Bạn có lời mời kết bạn mới!");
     });
 
     return () => {
@@ -224,9 +316,10 @@ const useChatManager = () => {
         socketRef.current.off("userTyping");
         socketRef.current.off("userStoppedTyping");
         socketRef.current.off("friend_request_updated");
+        socketRef.current.off("new_friend_request_received");
       }
     };
-  }, [BACKEND_URL, user?.id]);
+  }, [BACKEND_URL, activeUserId]); // Thêm ID vào dependency để tránh lỗi vòng lặp
 
   const handleTyping = () => {
     if (!selectedChat || !socketRef.current) return;
@@ -241,7 +334,7 @@ const useChatManager = () => {
     socketRef.current.emit("typing", {
       targetId: targetId.toString(),
       isGroup: !!isGroup,
-      userName: user.full_name || "Người dùng",
+      userName: user?.full_name || "Người dùng",
       conversationId: convoId,
     });
 
@@ -250,7 +343,7 @@ const useChatManager = () => {
       socketRef.current.emit("stopTyping", {
         targetId: targetId.toString(),
         isGroup: !!isGroup,
-        userName: user.full_name || "Người dùng",
+        userName: user?.full_name || "Người dùng",
         conversationId: convoId,
       });
     }, 2000);
@@ -305,6 +398,13 @@ const useChatManager = () => {
         const safeMessages = extractData(res);
         setMessages(Array.isArray(safeMessages) ? safeMessages : []);
 
+        const firstMsgConvoId = safeMessages[0]?.conversation_id;
+        if (firstMsgConvoId && !selectedChat?.conversation_id) {
+          setSelectedChat((prev) =>
+            prev ? { ...prev, conversation_id: firstMsgConvoId } : null,
+          );
+        }
+
         const convoId = getConvoId(selectedChat);
         if (convoId) {
           communityAPI
@@ -320,9 +420,9 @@ const useChatManager = () => {
 
     fetchMessagesAndMarkRead();
 
-    const isGroup = selectedChat.isGroup || selectedChat.is_group;
-    if (socketRef.current && isGroup) {
-      socketRef.current.emit("joinRoom", selectedChat.id.toString());
+    const convoIdForSocket = getConvoId(selectedChat);
+    if (socketRef.current && convoIdForSocket) {
+      socketRef.current.emit("joinRoom", convoIdForSocket.toString());
     }
   }, [selectedChat?.id]);
 
@@ -352,7 +452,7 @@ const useChatManager = () => {
     try {
       const res = await communityAPI.renameGroup(selectedChat.id, newName);
       if (res.success) {
-        alert("🎉 Đổi tên nhóm thành công!");
+        alert("Đổi tên nhóm thành công!");
         setIsRenameModalOpen(false);
         setSelectedChat((prev) => ({ ...prev, name: newName }));
 
@@ -365,8 +465,7 @@ const useChatManager = () => {
         );
       } else alert(res.message || "Lỗi khi đổi tên nhóm.");
     } catch (error) {
-      // 👉 ĐÃ SỬA: Hiển thị lỗi chuẩn từ Backend
-      alert(error.message || "Lỗi kết nối.");
+      alert("Lỗi kết nối.");
     }
   };
 
@@ -393,12 +492,11 @@ const useChatManager = () => {
     try {
       const res = await communityAPI.addGroupMember(selectedChat.id, email);
       if (res.success) {
-        alert("✅ Thêm thành viên thành công!");
+        alert("Thêm thành viên thành công!");
         fetchGroupMembers();
       } else alert(res.message || "Lỗi khi thêm thành viên.");
     } catch (error) {
-      // 👉 ĐÃ SỬA
-      alert(error.message || "Lỗi kết nối.");
+      alert("Lỗi kết nối.");
     }
   };
 
@@ -412,8 +510,7 @@ const useChatManager = () => {
           setMessages([]);
         } else alert(res.message || "Lỗi xóa lịch sử.");
       } catch (error) {
-        // 👉 ĐÃ SỬA
-        alert(error.message || "Lỗi kết nối.");
+        alert("Lỗi kết nối.");
       }
     }
   };
@@ -421,7 +518,6 @@ const useChatManager = () => {
   const handleSendMessage = async () => {
     if (!selectedChat || (!message.trim() && !attachedFile)) return;
 
-    const currentUserId = user?.id || 0;
     const textContent = message.trim();
     const currentFile = attachedFile;
     const tempId = `temp-${Date.now()}`;
@@ -432,7 +528,7 @@ const useChatManager = () => {
       id: tempId,
       content: textContent,
       isMine: true,
-      sender_id: currentUserId,
+      sender_id: activeUserId,
       created_at: timestamp,
       isSending: true,
       message_type: currentFile
@@ -446,7 +542,7 @@ const useChatManager = () => {
           ? URL.createObjectURL(currentFile)
           : null,
       Sender: {
-        id: currentUserId,
+        id: activeUserId,
         full_name: user?.full_name || "Tôi",
         avatar_text: user?.full_name
           ? user.full_name.charAt(0).toUpperCase()
@@ -468,7 +564,7 @@ const useChatManager = () => {
       socketRef.current.emit("stopTyping", {
         targetId: targetIdForTyping.toString(),
         isGroup: !!isGroup,
-        userName: user.full_name || "Người dùng",
+        userName: user?.full_name || "Người dùng",
         conversationId: convoIdForTyping,
       });
     }
@@ -513,9 +609,12 @@ const useChatManager = () => {
           );
         });
 
-        if (!convoId) {
-          const groupsRes = await communityAPI.getMyGroups();
-          setGroups(extractData(groupsRes));
+        if (!convoId && res.data.conversation_id) {
+          setSelectedChat((prev) =>
+            prev
+              ? { ...prev, conversation_id: res.data.conversation_id }
+              : null,
+          );
         }
       }
     } catch (error) {
@@ -573,14 +672,13 @@ const useChatManager = () => {
     if (!window.confirm("Rời nhóm này?")) return;
     try {
       const res = await communityAPI.leaveGroup(selectedChat.id);
-      if (res.success) {
+      if (res.res) {
         alert("Đã rời nhóm.");
         setGroups((prev) => prev.filter((g) => g.id !== selectedChat.id));
         setSelectedChat(null);
       } else alert(res.message);
-    } catch (error) {
-      // 👉 ĐÃ SỬA
-      alert(error.message || "Lỗi.");
+    } catch {
+      alert("Lỗi.");
     }
   };
 
@@ -589,7 +687,6 @@ const useChatManager = () => {
     if (file) setAttachedFile(file);
   };
 
-  // 👉 ĐÃ SỬA: Bắt đúng lỗi 404 từ API trả về
   const handleSearchFriend = async () => {
     if (!searchEmail.trim()) return setSearchError("Vui lòng nhập Email!");
     setIsSearching(true);
@@ -599,9 +696,8 @@ const useChatManager = () => {
       const res = await communityAPI.searchUser(searchEmail);
       if (res.success && res.data) setSearchResult(res.data);
       else setSearchError(res.message || "Không tìm thấy!");
-    } catch (error) {
-      // Bóc tách lỗi chi tiết từ Backend
-      setSearchError(error.message || "Không tìm thấy người dùng này!");
+    } catch {
+      setSearchError("Lỗi kết nối.");
     } finally {
       setIsSearching(false);
     }
@@ -621,9 +717,8 @@ const useChatManager = () => {
         alert("Đã gửi lời mời!");
         setSearchResult((prev) => ({ ...prev, friendship_status: "pending" }));
       } else setSearchError(res.message);
-    } catch (error) {
-      // 👉 ĐÃ SỬA
-      setSearchError(error.message || "Lỗi.");
+    } catch {
+      setSearchError("Lỗi.");
     } finally {
       setIsSendingRequest(false);
     }
@@ -684,9 +779,8 @@ const useChatManager = () => {
         setGroupName("");
         setGroupDesc("");
       } else setGroupError(res.message);
-    } catch (error) {
-      // 👉 ĐÃ SỬA
-      setGroupError(error.message || "Lỗi.");
+    } catch {
+      setGroupError("Lỗi.");
     }
   };
 
@@ -702,9 +796,8 @@ const useChatManager = () => {
         setShowGroupAction(null);
         setInviteCode("");
       } else setGroupError(res.message);
-    } catch (error) {
-      // 👉 ĐÃ SỬA
-      setGroupError(error.message || "Lỗi.");
+    } catch {
+      setGroupError("Lỗi.");
     }
   };
 

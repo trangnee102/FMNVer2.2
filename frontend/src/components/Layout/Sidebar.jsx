@@ -1,27 +1,23 @@
 // frontend/src/components/Layout/Sidebar.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext"; // 👉 ĐÃ THÊM: Lấy thông tin user chuẩn xác từ Context
+import { useAuth } from "../../context/AuthContext";
 import "./Sidebar.css";
 
 const Sidebar = ({ currentView, onNavigate }) => {
-  // Lấy trạng thái từ localStorage để giữ nguyên khi chuyển trang
   const [isCollapsed, setIsCollapsed] = useState(() => {
     const savedState = localStorage.getItem("sidebar_collapsed");
     return savedState !== null ? JSON.parse(savedState) : false;
   });
 
   const navigate = useNavigate(); 
-  const { user, logoutUser } = useAuth(); // 👉 Lấy user và hàm đăng xuất từ Context
+  const { user, logoutUser } = useAuth(); 
 
-  // 👉 CẬP NHẬT: State quản lý thông tin User không còn bị fix cứng
   const [userName, setUserName] = useState("Đang tải...");
   const [userEmail, setUserEmail] = useState("...");
   const [userAvatar, setUserAvatar] = useState(null);
 
-  // 👉 CẬP NHẬT: Tự động lấy dữ liệu và đồng bộ chuẩn xác
   useEffect(() => {
-    // 1. Đồng bộ tên và email từ Context hoặc LocalStorage
     let currentUser = user;
     if (!currentUser) {
       try {
@@ -33,35 +29,35 @@ const Sidebar = ({ currentView, onNavigate }) => {
     }
 
     if (currentUser) {
-      // Ưu tiên tên thật từ DB, nếu không có mới lấy tên lưu cục bộ ở Settings
+      // 👉 ĐÃ FIX: Thuật toán lấy tên thông minh, không bao giờ bị lỗi trống tên
+      const emailPrefix = currentUser.email ? currentUser.email.split('@')[0] : "Người dùng";
       setUserName(
         currentUser.full_name || 
         currentUser.name || 
         currentUser.username || 
         localStorage.getItem("current_user_name") || 
-        "Người dùng"
+        emailPrefix
       );
+      
       setUserEmail(
         currentUser.email || 
         localStorage.getItem("current_user_email") || 
         "Chưa cập nhật email"
       );
+      
+      setUserAvatar(currentUser.avatar || localStorage.getItem("user_avatar"));
     }
 
-    // 2. Load Avatar
-    setUserAvatar(localStorage.getItem("user_avatar"));
-
-    // 3. Lắng nghe sự kiện nếu bên trang Settings có cập nhật thì Sidebar cũng đổi theo ngay lập tức
     const handleStorageChange = () => {
       setUserAvatar(localStorage.getItem("user_avatar"));
       const updatedName = localStorage.getItem("current_user_name");
       if (updatedName) setUserName(updatedName);
     };
+    
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, [user]); // Chạy lại nếu user từ Context thay đổi
+  }, [user]); 
 
-  // Hàm xử lý đóng/mở và lưu lại trạng thái vào bộ nhớ
   const toggleSidebar = () => {
     const newState = !isCollapsed;
     setIsCollapsed(newState);
@@ -104,11 +100,7 @@ const Sidebar = ({ currentView, onNavigate }) => {
   };
 
   const handleSubMenuClick = (parentId, subId) => {
-    // 1. Chuyển view chính sang "community" trước
     handleMenuClick(parentId);
-    
-    // 2. Dùng setTimeout (50ms) để đợi trang Cộng Đồng load lên xong xuôi, 
-    // sau đó mới bắn tín hiệu chuyển sang tab con.
     setTimeout(() => {
       window.dispatchEvent(
         new CustomEvent("changeCommunityTab", { detail: subId }),
@@ -116,10 +108,22 @@ const Sidebar = ({ currentView, onNavigate }) => {
     }, 50); 
   };
 
+  // 👉 ĐÃ FIX TẬN GỐC LỖI DÍNH DATA: Quét sạch rác bộ nhớ khi đăng xuất
   const handleLogout = () => {
     if (window.confirm("Bạn có chắc chắn muốn đăng xuất không?")) {
-      logoutUser(); // Xóa sạch token và thông tin user trong Két sắt
-      navigate("/login"); // Đá thẳng về trang Đăng nhập mượt mà
+      // Giữ lại trạng thái đóng mở Sidebar
+      const savedSidebarState = localStorage.getItem("sidebar_collapsed");
+      
+      // Quét sạch toàn bộ dữ liệu (Streak, user name, cache thẻ...)
+      localStorage.clear(); 
+      
+      // Phục hồi lại trạng thái Sidebar
+      if (savedSidebarState !== null) {
+        localStorage.setItem("sidebar_collapsed", savedSidebarState);
+      }
+
+      logoutUser(); 
+      navigate("/login"); 
     }
   };
 
@@ -135,7 +139,6 @@ const Sidebar = ({ currentView, onNavigate }) => {
         }}
       >
         {!isCollapsed && (
-          /* 👉 ĐÃ SỬA: Logo "FORGETMENOT" chuyên nghiệp, gradient màu sắc rực rỡ */
           <span 
             className="logo"
             style={{
@@ -155,7 +158,7 @@ const Sidebar = ({ currentView, onNavigate }) => {
         <i
           className="fa-solid fa-bars hamburger"
           onClick={toggleSidebar}
-          style={{ cursor: "pointer", fontSize: "1.2rem", color: "#64748b" }}
+          style={{ cursor: "pointer", fontSize: "1.2rem", color: "var(--text-gray, #64748b)" }}
         ></i>
       </div>
 
@@ -185,7 +188,7 @@ const Sidebar = ({ currentView, onNavigate }) => {
                       key={sub.id}
                       className="submenu-item"
                       onClick={(e) => {
-                        e.stopPropagation(); // Chặn sự kiện click nảy lên thẻ cha
+                        e.stopPropagation();
                         handleSubMenuClick(item.id, sub.id);
                       }}
                     >
@@ -199,34 +202,36 @@ const Sidebar = ({ currentView, onNavigate }) => {
           ))}
         </div>
 
-        {/* Khu vực Profile và Đăng xuất ở cuối Sidebar */}
         <div className={`sidebar-footer ${isCollapsed ? "footer-collapsed" : ""}`}>
           <div className="sidebar-user-profile">
             {userAvatar ? (
-              <img src={userAvatar} alt="User Avatar" className="sidebar-avatar-img" />
+              <img
+                src={userAvatar}
+                alt="User Avatar"
+                className="sidebar-avatar-img"
+              />
             ) : (
               <div className="sidebar-avatar-placeholder">
                 <i className="fa-solid fa-user"></i>
               </div>
             )}
-            
+
             {!isCollapsed && (
               <div className="sidebar-user-info">
-                <span className="sidebar-user-name" style={{ fontWeight: "700" }}>{userName}</span>
-                <span className="sidebar-user-email">{userEmail}</span>
+                <span className="sidebar-user-name" style={{ fontWeight: "700", color: "var(--text-dark)" }}>{userName}</span>
+                <span className="sidebar-user-email" style={{ color: "var(--text-gray)" }}>{userEmail}</span>
               </div>
             )}
           </div>
-          
-          <button 
-            className="sidebar-logout-icon-btn" 
+
+          <button
+            className="sidebar-logout-icon-btn"
             onClick={handleLogout}
             title="Đăng xuất"
           >
             <i className="fa-solid fa-arrow-right-from-bracket"></i>
           </button>
         </div>
-
       </nav>
     </div>
   );

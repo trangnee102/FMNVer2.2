@@ -7,8 +7,6 @@ import "./SettingsPage.css";
 const SettingsPage = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState("general");
   const { user, loginUser } = useAuth(); // 👉 ĐÃ SỬA: Lôi thêm hàm loginUser để cập nhật lại Két sắt khi đổi tên thành công
-
-  // 1. QUẢN LÝ NGÔN NGỮ
   const [currentLang, setCurrentLang] = useState(
     localStorage.getItem("language") || "vi",
   );

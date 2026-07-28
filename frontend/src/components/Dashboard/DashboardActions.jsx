@@ -1,45 +1,50 @@
+// frontend/src/components/Dashboard/DashboardActions.jsx
 import React from "react";
 
-const DashboardActions = ({ totalDueCards, onNavigate, onOpenCramModal }) => {
-  
-  // 👉 THÊM: Hàm xử lý thông báo chuyên nghiệp khi bật Cram Mode
+const DashboardActions = ({ totalDueCards, onNavigate, onOpenCramModal, onStartStudy }) => {
+
   const handleOpenCramMode = () => {
-    alert("⚡ Chế độ Cram Mode đã sẵn sàng!\nHãy tập trung cao độ để bứt phá giới hạn học tập của bạn nhé.");
-    onOpenCramModal();
+    // 👉 ĐÃ FIX: Loại bỏ alert thô kệch, việc hiển thị Modal là đủ để mang lại UX/UI tốt nhất
+    if (onOpenCramModal) onOpenCramModal();
+  };
+
+  const handleStudyClick = () => {
+    if (onStartStudy) {
+      onStartStudy();
+    } else {
+      onNavigate("my-decks");
+    }
   };
 
   return (
     <div className="action-grid">
-      
-      {/* Thẻ 1: Ôn tập ngay */}
       <div className="action-card">
         <div>
           <h3>Ôn tập ngay</h3>
-          <p>Bắt đầu với {totalDueCards > 0 ? totalDueCards : 0} thẻ cần ôn hôm nay</p>
+          <p>Bắt đầu với {typeof totalDueCards === 'number' && totalDueCards > 0 ? totalDueCards : 0} thẻ cần ôn hôm nay</p>
         </div>
         <button 
           className="action-btn-primary btn-action-blue"
-          onClick={() => onNavigate("my-decks")} 
+          onClick={handleStudyClick} 
         >
           Bắt đầu học →
         </button>
       </div>
 
-      {/* Thẻ 2: Tạo Flashcard */}
       <div className="action-card">
         <div>
           <h3>Tạo Flashcard</h3>
           <p>Tải tài liệu lên, AI sẽ giúp bạn tạo thẻ nhanh chóng</p>
         </div>
+        {/* 👉 ĐÃ FIX: Chuyển sang class btn-action-gray để ăn mã màu Tím Pastel cực đẹp đã viết ở CSS */}
         <button 
           className="action-btn-primary btn-action-gray"
           onClick={() => onNavigate("create")}
         >
-          Tạo ngay →
+          ✨ Tạo ngay →
         </button>
       </div>
 
-      {/* Thẻ 3: Ôn thi cấp tốc */}
       <div className="action-card">
         <div>
           <h3>Ôn thi cấp tốc</h3>
@@ -52,7 +57,6 @@ const DashboardActions = ({ totalDueCards, onNavigate, onOpenCramModal }) => {
           Bật Cram Mode ⚡
         </button>
       </div>
-
     </div>
   );
 };

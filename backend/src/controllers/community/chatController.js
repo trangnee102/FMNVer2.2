@@ -131,12 +131,10 @@ const markMessagesAsRead = async (req, res) => {
     });
 
     if (latestMessage) {
-      await prisma.participants.update({
+      await prisma.participants.updateMany({
         where: {
-          conversation_id_user_id: {
-            conversation_id: conversationId,
-            user_id: currentUserId,
-          },
+          conversation_id: conversationId,
+          user_id: currentUserId,
         },
         data: { last_read_message_id: latestMessage.id },
       });
@@ -350,7 +348,7 @@ const sendMessage = async (req, res) => {
         .status(400)
         .json({ success: false, message: "Tin nhắn trống!" });
 
-    // LƯU TIN NHẮN (Việc nặng nhất cần làm ngay)
+    // LƯU TIN NHẮN VÀO DATABASE
     const newMessage = await prisma.messages.create({
       data: messageData,
       include: {
@@ -365,49 +363,61 @@ const sendMessage = async (req, res) => {
       },
     });
 
+    // ==========================================
+    // 👉 ĐÃ FIX CHÍ TỬ: Tách riêng từng lệnh io.to() để chống nuốt sự kiện
+    // ==========================================
+    try {
+      const io = req.app.get("io");
+      if (io) {
+        const emitPayload = { ...newMessage, broadcast_from: currentUserId };
+
+        // 1. Nếu chat 1-1, gọi đích danh điện thoại người nhận!
+        if (receiverId) {
+          io.to(receiverId.toString()).emit("receiveNewMessage", emitPayload);
+        }
+
+        // 2. Phóng loa vào phòng hội thoại chung
+        if (targetConversationId) {
+          io.to(targetConversationId.toString()).emit(
+            "receiveNewMessage",
+            emitPayload,
+          );
+        }
+
+        // 3. Phóng loa về lại chính người gửi (Trường hợp họ đăng nhập 2 máy tính)
+        if (currentUserId) {
+          io.to(currentUserId.toString()).emit(
+            "receiveNewMessage",
+            emitPayload,
+          );
+        }
+
+        console.log(
+          `✅ [SOCKET] Đã gửi tin thành công từ ${currentUserId} tới ${receiverId || "Nhóm"}`,
+        );
+      }
+    } catch (socketErr) {
+      console.error("❌ Lỗi khi phát loa Socket:", socketErr);
+    }
+
+    // Cập nhật CSDL
+    try {
+      await prisma.participants.updateMany({
+        where: {
+          conversation_id: targetConversationId,
+          user_id: currentUserId,
+        },
+        data: { last_read_message_id: newMessage.id },
+      });
+    } catch (dbErr) {
+      console.error("Lỗi khi cập nhật Database:", dbErr);
+    }
+
     res
       .status(201)
       .json({ success: true, data: { ...newMessage, isMine: true } });
-
-    // ==========================================
-    // CHẠY NGẦM (FIRE AND FORGET)
-    // ==========================================
-    setTimeout(async () => {
-      try {
-        await prisma.participants.update({
-          where: {
-            conversation_id_user_id: {
-              conversation_id: targetConversationId,
-              user_id: currentUserId,
-            },
-          },
-          data: { last_read_message_id: newMessage.id },
-        });
-
-        // 👉 ĐÃ THÊM: LỚP BỌC AN TOÀN CHO SOCKET (SAFE CHECK)
-        const io = req.app.get("io");
-        if (io && typeof io.to === "function") { 
-          if (req.originalUrl.includes("/groups/")) {
-            io.to(targetConversationId.toString()).emit("receiveNewMessage", {
-              ...newMessage,
-              broadcast_from: currentUserId,
-            });
-          } else if (receiverId) {
-            io.to(receiverId.toString())
-              .to(currentUserId.toString())
-              .emit("receiveNewMessage", {
-                ...newMessage,
-                broadcast_from: currentUserId,
-              });
-          }
-        } else {
-             console.warn("⚠️ CẢNH BÁO TỪ BACKEND: Socket.io chưa được cấu hình đúng chuẩn Express ở file server.js. Hệ thống đang hoạt động ở chế độ Offline Message.");
-        }
-      } catch (err) {
-        console.error("Lỗi khi chạy tiến trình ngầm gửi tin nhắn:", err);
-      }
-    }, 50);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ success: false, message: "Lỗi gửi tin nhắn" });
   }
 };

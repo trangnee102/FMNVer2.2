@@ -14,16 +14,15 @@ import api from "../services/api";
 import "./DashboardPage.css";
 
 const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
-  const { user } = useAuth();
+  const { user, logoutUser } = useAuth();
+  const navigate = useNavigate();
 
   const getInitialName = () => {
     let currentUser = user;
     if (!currentUser) {
       try {
         const userStr = localStorage.getItem("user");
-        if (userStr) {
-          currentUser = JSON.parse(userStr);
-        }
+        if (userStr) currentUser = JSON.parse(userStr);
       } catch (e) {
         console.error("Lỗi đọc localStorage:", e);
       }
@@ -71,7 +70,8 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
       today.setHours(0, 0, 0, 0);
       
       const lastCheckInStr = localStorage.getItem("lastCheckInDate");
-      let currentLocalStreak = parseInt(localStorage.getItem("localStreak") || "0", 10);
+      const localStreakRaw = localStorage.getItem("localStreak");
+      let currentLocalStreak = localStreakRaw ? parseInt(localStreakRaw, 10) : 0;
 
       if (lastCheckInStr) {
         const lastCheckInDate = new Date(lastCheckInStr);
@@ -80,6 +80,7 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
         const diffTime = today - lastCheckInDate;
         const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
 
+        // Nếu quá 1 ngày chưa điểm danh thì reset về 0
         if (diffDays > 1) {
           currentLocalStreak = 0;
           localStorage.setItem("localStreak", "0");
@@ -95,7 +96,10 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const todayString = new Date().toISOString();
+        // Chỉ lấy ngày tháng chuẩn YYYY-MM-DD để tránh lỗi Backend Strict Validation
+        const todayString = new Date().toISOString().split('T')[0]; 
+        
+        // 👉 ĐÃ SỬA: Loại bỏ hoàn toàn &t=... để không bị lỗi 400 Bad Request
         const response = await api.get(`/dashboard/summary?currentDate=${encodeURIComponent(todayString)}`);
 
         if (response && response.success !== false) {
@@ -103,12 +107,21 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
           
           if (data.user) {
             setUserData((prev) => {
-              const localStreak = parseInt(localStorage.getItem("localStreak") || "0", 10);
+              // LOGIC STREAK THÔNG MINH HƠN: Luôn ưu tiên Backend nếu Backend có dữ liệu chuẩn hơn Local
+              const localStreakRaw = localStorage.getItem("localStreak");
+              const localStreak = localStreakRaw ? parseInt(localStreakRaw, 10) : null;
+              const backendStreak = data.user.streak || 0;
+              
+              // Nếu localStreak bị kẹt (tài khoản cũ) nhưng backend báo = 0, thì lấy số 0
+              const finalStreak = (localStreak !== null && localStreak >= backendStreak) ? localStreak : backendStreak;
+              
+              localStorage.setItem("localStreak", finalStreak.toString());
+
               return {
                 ...prev,
                 ...data.user,
                 name: user?.full_name || data.user.full_name || data.user.name || prev.name,
-                streak: localStreak > 0 ? localStreak : (data.user.streak || 0),
+                streak: finalStreak,
               };
             });
 
@@ -173,11 +186,23 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
         }
       } catch (error) {
         console.error("Lỗi đứt cáp, không gọi được Backend:", error);
+        
+        // 👉 ĐÃ FIX: Tự động "bắt" lỗi Token hết hạn dù Backend trả về mã 400
+        const errorMsg = error.message?.toLowerCase() || "";
+        if (errorMsg.includes("token") || errorMsg.includes("hết hạn") || errorMsg.includes("invalid")) {
+          showToast("Phiên đăng nhập đã hết hạn! Vui lòng đăng nhập lại.", "error");
+          
+          setTimeout(() => {
+            if (logoutUser) logoutUser();
+            localStorage.clear();
+            navigate("/login");
+          }, 2000);
+        }
       }
     };
 
     fetchDashboardData();
-  }, [user]);
+  }, [user, logoutUser, navigate]);
 
   const totalDecks = decks.length;
   const totalDueCards = decks.reduce((sum, deck) => sum + deck.calculatedDue, 0);
@@ -217,13 +242,11 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
     }
   };
 
-  // 👉 ĐÃ NÂNG CẤP: Điểm danh chuyên nghiệp với thông báo tùy chỉnh mượt mà
   const handleCheckIn = async () => {
     const todayStr = new Date().toDateString();
     const lastCheckIn = localStorage.getItem("lastCheckInDate");
-    let currentStreak = parseInt(localStorage.getItem("localStreak") || userData.streak || "0", 10);
+    let currentStreak = parseInt(userData.streak || "0", 10);
 
-    // Chặn nếu hôm nay đã điểm danh (Đúng câu lệnh bạn yêu cầu)
     if (lastCheckIn === todayStr) {
       showToast("Hôm nay bạn đã điểm danh rồi nhé, ngày mai quay lại nha! 😉", "info");
       return;
@@ -237,15 +260,7 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
     showToast(`🔥 Điểm danh thành công! Chuỗi học tập hiện tại: ${newStreak} ngày.`, "success");
 
     try {
-      const token = localStorage.getItem("token") || "";
-      await fetch("http://localhost:5000/api/dashboard/checkin", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ streak: newStreak })
-      });
+      await api.post("/dashboard/checkin", { streak: newStreak });
     } catch (error) {
       console.warn("Lưu ý: Backend chưa mở hoặc lỗi mạng. Streak đã được lưu an toàn tại Local Storage.");
     }
@@ -255,7 +270,7 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
     <div className="dashboard-layout">
       <Sidebar currentView="dashboard" onNavigate={onNavigate} />
 
-      <main className="dashboard-content scrollable-content" style={{ backgroundColor: "#f8fafc", overflowY: "auto", height: "100vh" }}>
+      <main className="dashboard-content scrollable-content" style={{ backgroundColor: "var(--bg-main)", overflowY: "auto", height: "100vh" }}>
         <div className="page-wrapper" style={{ maxWidth: "1300px", margin: "0 auto", padding: "30px 40px" }}>
           
           <DashboardHeader userName={userData.name} />
@@ -315,13 +330,12 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
         onNavigate={onNavigate}
       />
 
-      {/* 👉 HỆ THỐNG TOAST NOTIFICATION CHUYÊN NGHIỆP */}
       {toast.show && (
         <div style={{
           position: "fixed",
           bottom: "30px",
           right: "30px",
-          backgroundColor: toast.type === "success" ? "#10b981" : "#3b82f6",
+          backgroundColor: toast.type === "success" ? "#10b981" : "#ef4444",
           color: "#fff",
           padding: "16px 24px",
           borderRadius: "14px",
@@ -334,7 +348,7 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
           fontSize: "0.95rem",
           animation: "slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards"
         }}>
-          <span style={{ fontSize: "1.2rem" }}>{toast.type === "success" ? "🎉" : "✨"}</span>
+          <span style={{ fontSize: "1.2rem" }}>{toast.type === "success" ? "🎉" : "🚨"}</span>
           <span>{toast.message}</span>
         </div>
       )}

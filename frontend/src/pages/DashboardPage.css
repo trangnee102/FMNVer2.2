@@ -7,7 +7,7 @@
   display: flex;
   height: 100vh;
   overflow: hidden;
-  background-color: #f8fafc;
+  background-color: var(--bg-main); /* 👉 Hỗ trợ Dark Mode */
 }
 
 .dashboard-content {
@@ -23,11 +23,11 @@
   background: transparent;
 }
 .scrollable-content::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--border);
   border-radius: 10px;
 }
 .scrollable-content::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--text-gray);
 }
 
 /* ========================================= */
@@ -71,14 +71,14 @@
 }
 
 .stat-card {
-  background: white;
+  background: var(--bg-card); /* 👉 Hỗ trợ Dark Mode */
   border-radius: 20px;
   padding: 20px 22px;
   display: flex;
   align-items: center;
   gap: 15px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-  border: 1px solid #f1f5f9;
+  border: 1px solid var(--border);
   transition: all 0.3s ease;
   position: relative;
   min-height: 95px;
@@ -87,7 +87,7 @@
 .stat-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.04);
-  border-color: #e2e8f0;
+  border-color: var(--primary);
 }
 
 .stat-icon {
@@ -101,9 +101,10 @@
   flex-shrink: 0;
 }
 
-.bg-purple { background: #f3e8ff; color: #a855f7; }
-.bg-green { background: #dcfce7; color: #10b981; }
-.bg-blue { background: #eff6ff; color: #3b82f6; }
+/* Biến tấu màu sắc Icon trong suốt để phù hợp cả Sáng & Tối */
+.bg-purple { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+.bg-green { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+.bg-blue { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
 
 .stat-info {
   display: flex;
@@ -112,7 +113,7 @@
 }
 
 .stat-info h3 {
-  color: #1e293b;
+  color: var(--text-dark); /* 👉 Hỗ trợ Dark Mode */
   font-size: 1.6rem;
   font-weight: 800;
   margin: 0 0 2px 0;
@@ -120,7 +121,7 @@
 }
 
 .stat-info p {
-  color: #64748b;
+  color: var(--text-gray);
   font-size: 0.85rem;
   margin: 0;
   font-weight: 500;
@@ -136,12 +137,12 @@
 }
 
 .action-card {
-  background: white;
+  background: var(--bg-card); /* 👉 Hỗ trợ Dark Mode */
   border-radius: 20px;
   padding: 25px 20px;
   text-align: center;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-  border: 1px solid #f1f5f9;
+  border: 1px solid var(--border);
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
@@ -153,14 +154,14 @@
 .action-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05);
-  border-color: #e2e8f0;
+  border-color: var(--primary);
 }
 
 .action-card h3 { 
-  color: #1e293b; margin: 0 0 5px 0; font-size: 1.15rem; font-weight: 800;
+  color: var(--text-dark); margin: 0 0 5px 0; font-size: 1.15rem; font-weight: 800;
 }
 .action-card p { 
-  color: #64748b; font-size: 0.85rem; margin: 0 0 15px 0; line-height: 1.4;
+  color: var(--text-gray); font-size: 0.85rem; margin: 0 0 15px 0; line-height: 1.4;
 }
 
 .action-btn-primary {
@@ -169,10 +170,21 @@
 }
 .btn-action-blue { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3); }
 .btn-action-blue:hover { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); transform: translateY(-2px); box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4); }
-.btn-action-gray { background: #f8fafc; color: #1e293b; border: 1px solid #e2e8f0; }
-.btn-action-gray:hover { background: #f1f5f9; border-color: #cbd5e1; transform: translateY(-2px); }
-.btn-action-orange { background: #fffbeb; color: #d97706; border: 1px solid #fde68a; }
-.btn-action-orange:hover { background: #fef3c7; border-color: #fcd34d; transform: translateY(-2px); }
+
+/* 👉 ĐÃ FIX: Biến nút Tạo Ngay thành màu tím bắt mắt thay vì màu xám xịt */
+.btn-action-gray { 
+  background: rgba(147, 51, 234, 0.1); 
+  color: #a855f7; 
+  border: 1px solid rgba(147, 51, 234, 0.2); 
+}
+.btn-action-gray:hover { 
+  background: rgba(147, 51, 234, 0.15); 
+  border-color: #a855f7; 
+  transform: translateY(-2px); 
+}
+
+.btn-action-orange { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+.btn-action-orange:hover { background: rgba(245, 158, 11, 0.15); border-color: #f59e0b; transform: translateY(-2px); }
 
 /* ========================================= */
 /* 5. KHU VỰC DANH SÁCH THẺ (DECK LIST)      */
@@ -181,25 +193,25 @@
   display: flex;
   flex-direction: column;
   gap: 15px;
-  background: white;
+  background: var(--bg-card); /* 👉 Hỗ trợ Dark Mode */
   border-radius: 20px;
   padding: 25px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
-  border: 1px solid #f1f5f9;
+  border: 1px solid var(--border);
 }
 
 .deck-list-header {
   display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;
 }
-.deck-list-header h3 { font-size: 1.25rem; color: #1e293b; margin: 0; font-weight: 800; }
+.deck-list-header h3 { font-size: 1.25rem; color: var(--text-dark); margin: 0; font-weight: 800; }
 
 .deck-search-box { position: relative; width: 100%; margin-bottom: 10px; }
-.deck-search-box i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+.deck-search-box i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-gray); }
 .deck-search-box input {
-  width: 100%; padding: 12px 15px 12px 45px; border-radius: 12px; border: 1px solid #e2e8f0;
-  background: #f8fafc; color: #1e293b; outline: none; font-size: 0.95rem; transition: all 0.3s ease;
+  width: 100%; padding: 12px 15px 12px 45px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--bg-main); color: var(--text-dark); outline: none; font-size: 0.95rem; transition: all 0.3s ease;
 }
-.deck-search-box input:focus { border-color: #3b82f6; background: white; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+.deck-search-box input:focus { border-color: var(--primary); background: var(--bg-card); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
 
 .deck-list-scroll {
   max-height: 420px; 
@@ -209,24 +221,25 @@
 
 .deck-list-scroll::-webkit-scrollbar { width: 6px; }
 .deck-list-scroll::-webkit-scrollbar-track { background: transparent; }
-.deck-list-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-.deck-list-scroll::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+.deck-list-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+.deck-list-scroll::-webkit-scrollbar-thumb:hover { background: var(--text-gray); }
 
+/* 👉 ĐÃ FIX: Chỉnh cột cuối cùng thành minmax(130px, auto) để chữ Ôn Tập không bị xẹp */
 .deck-item {
-  background: white; 
+  background: var(--bg-card); 
   padding: 16px 20px; 
   border-radius: 14px; 
   display: grid !important;
-  grid-template-columns: 1.5fr 1.5fr 130px;
+  grid-template-columns: 1.5fr 1.5fr minmax(130px, auto);
   align-items: center;
   gap: 15px;
-  border: 1px solid #e2e8f0; 
+  border: 1px solid var(--border); 
   transition: all 0.3s ease;
 }
 
 .deck-item:hover { 
   transform: translateX(4px); 
-  border-color: #3b82f6; 
+  border-color: var(--primary); 
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.08); 
 }
 
@@ -242,6 +255,8 @@
 
 .deck-item-action {
   text-align: right;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .btn-deck-action {
@@ -256,6 +271,7 @@
   transition: all 0.2s ease;
   box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25);
   width: 100%;
+  max-width: 150px;
 }
 
 .btn-deck-action:hover {
@@ -263,13 +279,28 @@
   box-shadow: 0 6px 15px rgba(59, 130, 246, 0.35);
 }
 
+/* Nút phụ cho trạng thái Xem lại (Bộ thẻ đã hoàn thành) */
+.btn-deck-action.completed {
+  background: var(--bg-main);
+  color: var(--primary);
+  border: 1px solid var(--border);
+  box-shadow: none;
+}
+.btn-deck-action.completed:hover {
+  border-color: var(--primary);
+  background: rgba(59, 130, 246, 0.05);
+}
+
 
 /* ========================================= */
 /* 6. CỘT PHẢI: KHỐI STREAK LỚN & LỊCH       */
 /* ========================================= */
 .widget-card {
-  background: white; border-radius: 20px; padding: 25px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02); border: 1px solid #f1f5f9;
+  background: var(--bg-card); /* 👉 Hỗ trợ Dark Mode */
+  border-radius: 20px; 
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02); 
+  border: 1px solid var(--border);
 }
 
 .streak-widget-large {
@@ -335,33 +366,58 @@
 }
 
 .widget-title {
-  color: #1e293b; font-size: 1.2rem; margin: 0 0 20px 0; font-weight: 800; text-align: center;
+  color: var(--text-dark); /* 👉 Hỗ trợ Dark Mode */
+  font-size: 1.2rem; 
+  margin: 0 0 20px 0; 
+  font-weight: 800; 
+  text-align: center;
 }
 
 /* ============================================= */
-/* 7. CUSTOM REACT-CALENDAR CHO SÁNG MÀU         */
+/* 7. CUSTOM REACT-CALENDAR ĐỒNG BỘ DARK MODE    */
 /* ============================================= */
 .react-calendar {
-  background-color: transparent !important; border: none !important; width: 100% !important;
-  color: #1e293b !important; font-family: inherit !important;
+  background-color: transparent !important; 
+  border: none !important; 
+  width: 100% !important;
+  color: var(--text-dark) !important; /* 👉 Hỗ trợ Dark Mode */
+  font-family: inherit !important;
 }
 .react-calendar__navigation { margin-bottom: 15px; }
-.react-calendar__navigation button { color: #1e293b !important; min-width: 40px; background: none; font-weight: 800; font-size: 1.1rem; }
-.react-calendar__navigation button:hover, .react-calendar__navigation button:focus { background-color: #f1f5f9 !important; border-radius: 10px; }
-.react-calendar__month-view__weekdays { color: #64748b !important; font-weight: 800; text-transform: uppercase; font-size: 0.8rem; margin-bottom: 10px; }
+.react-calendar__navigation button { 
+  color: var(--text-dark) !important; 
+  min-width: 40px; 
+  background: none; 
+  font-weight: 800; 
+  font-size: 1.1rem; 
+}
+.react-calendar__navigation button:hover, .react-calendar__navigation button:focus { 
+  background-color: var(--bg-main) !important; 
+  border-radius: 10px; 
+}
+.react-calendar__month-view__weekdays { 
+  color: var(--text-gray) !important; 
+  font-weight: 800; 
+  text-transform: uppercase; 
+  font-size: 0.8rem; 
+  margin-bottom: 10px; 
+}
 .react-calendar__month-view__weekdays__weekday abbr { text-decoration: none; }
-.react-calendar__month-view__days__day { color: #1e293b !important; font-weight: 600; }
-.react-calendar__month-view__days__day--neighboringMonth { color: #cbd5e1 !important; }
+.react-calendar__month-view__days__day { color: var(--text-dark) !important; font-weight: 600; }
+.react-calendar__month-view__days__day--neighboringMonth { color: var(--border) !important; }
 .react-calendar__tile {
   border-radius: 50% !important; aspect-ratio: 1/1; display: flex !important; justify-content: center;
   align-items: center; padding: 0 !important; transition: all 0.2s; font-size: 0.95rem; max-width: 40px !important; margin: 0 auto;
 }
-.react-calendar__tile:hover, .react-calendar__tile:focus { background-color: #f1f5f9 !important; transform: scale(1.1); }
-.react-calendar__tile--now { background: #eff6ff !important; color: #3b82f6 !important; font-weight: 900; }
+.react-calendar__tile:hover, .react-calendar__tile:focus { 
+  background-color: var(--bg-main) !important; 
+  transform: scale(1.1); 
+}
+.react-calendar__tile--now { background: rgba(59, 130, 246, 0.15) !important; color: #3b82f6 !important; font-weight: 900; }
 .react-calendar__tile--active { background: #3b82f6 !important; color: white !important; border: none !important; font-weight: bold; }
 
 .exam-day-highlight {
-  background-color: #fffbeb !important; color: #ea580c !important; font-weight: 900 !important;
+  background-color: rgba(245, 158, 11, 0.15) !important; color: #ea580c !important; font-weight: 900 !important;
   border: 2px solid #f59e0b !important; position: relative;
 }
 .exam-day-highlight::after {
@@ -370,7 +426,7 @@
 }
 
 /* ============================================= */
-/* 8. HIỆU ỨNG CHUYỂN ĐỘNG TOAST NOTIFICATION     */
+/* 8. HIỆU ỨNG CHUYỂN ĐỘNG TOAST NOTIFICATION    */
 /* ============================================= */
 @keyframes slideInUp {
   from {

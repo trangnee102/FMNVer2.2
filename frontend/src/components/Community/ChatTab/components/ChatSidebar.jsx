@@ -1,5 +1,5 @@
 import React from "react";
-import "./ChatSidebar.css"; // 👉 Thêm dòng này để nhận diện file CSS vừa tạo
+import "./ChatSidebar.css";
 
 const ChatSidebar = ({ logic }) => {
   // Rút gọn các biến cần dùng từ logic
@@ -32,7 +32,18 @@ const ChatSidebar = ({ logic }) => {
     handleChatWithFriend,
     handleCreateGroup,
     handleJoinGroup,
+    isInitialLoading,
   } = logic;
+
+  // 👉 Hàm con hỗ trợ định dạng thời gian tin nhắn cuối
+  const formatTime = (timeString) => {
+    if (!timeString) return "";
+    const date = new Date(timeString);
+    return date.toLocaleTimeString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   return (
     <div className="chat-sidebar">
@@ -65,7 +76,6 @@ const ChatSidebar = ({ logic }) => {
                 <div className="search-user-info">
                   <div
                     className="search-avatar"
-                    // Giữ inline CSS vì màu nền là dữ liệu động tải từ DB
                     style={{
                       backgroundColor: searchResult.avatar_color || "#10b981",
                     }}
@@ -209,8 +219,27 @@ const ChatSidebar = ({ logic }) => {
             setChatType("friends");
             setSelectedChat(null);
           }}
+          style={{ position: "relative" }}
         >
           Bạn bè
+          {/* 👉 ĐÃ THÊM: Hiển thị chấm đỏ số lượng lời mời ngay trên Tab */}
+          {pendingRequests?.length > 0 && (
+            <span
+              style={{
+                position: "absolute",
+                top: "2px",
+                right: "5px",
+                backgroundColor: "#ef4444",
+                color: "white",
+                fontSize: "10px",
+                fontWeight: "bold",
+                padding: "2px 6px",
+                borderRadius: "10px",
+              }}
+            >
+              {pendingRequests.length}
+            </span>
+          )}
         </button>
         <button
           className={chatType === "groups" ? "active" : ""}
@@ -225,9 +254,25 @@ const ChatSidebar = ({ logic }) => {
       </div>
 
       <div className="contact-list">
-        {chatType === "friends" ? (
+        {isInitialLoading ? (
+          <div
+            style={{
+              padding: "30px 20px",
+              textAlign: "center",
+              color: "#64748b",
+            }}
+          >
+            <i
+              className="fa-solid fa-circle-notch fa-spin"
+              style={{ fontSize: "1.5rem", marginBottom: "10px" }}
+            ></i>
+            <p style={{ margin: 0, fontSize: "0.95rem" }}>
+              Đang tải danh bạ...
+            </p>
+          </div>
+        ) : chatType === "friends" ? (
           <>
-            {pendingRequests.length > 0 && (
+            {pendingRequests?.length > 0 && (
               <div className="pending-requests-box">
                 <h4 className="pending-title">
                   Lời mời ({pendingRequests.length})
@@ -239,14 +284,14 @@ const ChatSidebar = ({ logic }) => {
                         className="request-avatar"
                         style={{
                           backgroundColor:
-                            req.Requester.avatar_color || "#3b82f6",
+                            req.Requester?.avatar_color || "#3b82f6",
                         }}
                       >
-                        {req.Requester.avatar_text}
+                        {req.Requester?.avatar_text || "U"}
                       </div>
                       <b>
-                        {req.Requester.full_name ||
-                          req.Requester.email ||
+                        {req.Requester?.full_name ||
+                          req.Requester?.email ||
                           "Người dùng"}
                       </b>
                     </div>
@@ -268,63 +313,240 @@ const ChatSidebar = ({ logic }) => {
                 ))}
               </div>
             )}
-            {contacts.map((contact) => (
-              <div
-                key={contact.id}
-                className={`contact-item ${selectedChat?.id === contact.id && !selectedChat?.isGroup ? "active" : ""}`}
-                onClick={() => setSelectedChat(contact)}
-              >
-                <div
-                  className="contact-avatar"
-                  style={{ backgroundColor: contact.avatar_color || "#10b981" }}
-                >
-                  {contact.avatar_text || "U"}
-                  {contact.is_online && <div className="online-dot"></div>}
-                </div>
-                <div className="contact-info">
-                  <div className="contact-name-row">
-                    <h4>
-                      {contact.full_name || contact.email || "Người dùng"}
-                    </h4>
+
+            {/* 👉 ĐÃ SỬA: Ẩn chữ "Chưa có bạn bè" nếu đang có lời mời kết bạn để tránh đè giao diện */}
+            {contacts?.length > 0
+              ? contacts.map((contact) => (
+                  <div
+                    key={contact.id}
+                    className={`contact-item ${
+                      !selectedChat?.isGroup &&
+                      ((selectedChat?.conversation_id &&
+                        selectedChat?.conversation_id === contact.conversation_id) ||
+                        (!selectedChat?.conversation_id &&
+                          selectedChat?.id === contact.id))
+                        ? "active"
+                        : ""
+                    }`}
+                    onClick={() => setSelectedChat({ ...contact, isGroup: false })}
+                  >
+                    <div
+                      className="contact-avatar"
+                      style={{
+                        backgroundColor: contact.avatar_color || "#10b981",
+                      }}
+                    >
+                      {contact.avatar_text || "U"}
+                      {contact.is_online && <div className="online-dot"></div>}
+                    </div>
+
+                    <div
+                      className="contact-info"
+                      style={{ flex: 1, minWidth: 0 }}
+                    >
+                      <div
+                        className="contact-name-row"
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                        }}
+                      >
+                        <h4
+                          style={{
+                            margin: 0,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {contact.full_name || contact.email || "Người dùng"}
+                        </h4>
+                        {contact.last_message_time && (
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              color: "#94a3b8",
+                              whiteSpace: "nowrap",
+                              marginLeft: "8px",
+                            }}
+                          >
+                            {formatTime(contact.last_message_time)}
+                          </span>
+                        )}
+                      </div>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          marginTop: "4px",
+                        }}
+                      >
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: "13px",
+                            color:
+                              contact.unread_count > 0 ? "#1e293b" : "#64748b",
+                            fontWeight:
+                              contact.unread_count > 0 ? "600" : "400",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            flex: 1,
+                          }}
+                        >
+                          {contact.last_message_preview}
+                        </p>
+
+                        {/* Cục chấm đỏ 🔴 */}
+                        {contact.unread_count > 0 && (
+                          <div
+                            style={{
+                              backgroundColor: "#ef4444",
+                              color: "white",
+                              fontSize: "11px",
+                              fontWeight: "bold",
+                              padding: "2px 6px",
+                              borderRadius: "10px",
+                              minWidth: "18px",
+                              textAlign: "center",
+                              marginLeft: "8px",
+                            }}
+                          >
+                            {contact.unread_count > 99
+                              ? "99+"
+                              : contact.unread_count}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ))}
+                ))
+              : pendingRequests?.length === 0 && (
+                  <p
+                    style={{
+                      textAlign: "center",
+                      color: "#94a3b8",
+                      marginTop: "30px",
+                      fontSize: "0.9rem",
+                    }}
+                  >
+                    Chưa có bạn bè nào. <br /> Hãy tìm kiếm và kết bạn nhé!
+                  </p>
+                )}
           </>
         ) : (
           <>
-            {groups.map((group) => (
-              <div
-                key={group.id}
-                className={`contact-item ${selectedChat?.id === group.id && selectedChat?.isGroup ? "active" : ""}`}
-                onClick={() => setSelectedChat({ ...group, isGroup: true })}
-              >
+            {groups?.length > 0 ? (
+              groups.map((group) => (
                 <div
-                  className="contact-avatar"
-                  style={{ backgroundColor: "#8b5cf6" }}
+                  key={group.id}
+                  className={`contact-item ${selectedChat?.id === group.id && selectedChat?.isGroup ? "active" : ""}`}
+                  onClick={() => setSelectedChat({ ...group, isGroup: true })}
                 >
-                  <i className="fa-solid fa-users"></i>
-                </div>
-                <div className="contact-info">
-                  <div className="contact-name-row">
-                    <h4>{group.name}</h4>
+                  <div
+                    className="contact-avatar"
+                    style={{ backgroundColor: "#8b5cf6" }}
+                  >
+                    <i className="fa-solid fa-users"></i>
                   </div>
-                  <p className="contact-role-text">
-                    Vai trò:{" "}
-                    <span
-                      className="role-highlight"
-                      // Màu text của vai trò giữ inline vì thay đổi theo admin/member
+
+                  <div
+                    className="contact-info"
+                    style={{ flex: 1, minWidth: 0 }}
+                  >
+                    <div
+                      className="contact-name-row"
                       style={{
-                        color:
-                          group.my_role === "admin" ? "#d97706" : "#475569",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
                       }}
                     >
-                      {group.my_role === "admin" ? "Trưởng nhóm" : "Thành viên"}
-                    </span>
-                  </p>
+                      <h4
+                        style={{
+                          margin: 0,
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {group.name}
+                      </h4>
+                      {group.last_message_time && (
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            color: "#94a3b8",
+                            whiteSpace: "nowrap",
+                            marginLeft: "8px",
+                          }}
+                        >
+                          {formatTime(group.last_message_time)}
+                        </span>
+                      )}
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginTop: "4px",
+                      }}
+                    >
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: "13px",
+                          color: group.unread_count > 0 ? "#1e293b" : "#64748b",
+                          fontWeight: group.unread_count > 0 ? "600" : "400",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          flex: 1,
+                        }}
+                      >
+                        {group.last_message_preview}
+                      </p>
+
+                      {/* Cục chấm đỏ 🔴 */}
+                      {group.unread_count > 0 && (
+                        <div
+                          style={{
+                            backgroundColor: "#ef4444",
+                            color: "white",
+                            fontSize: "11px",
+                            fontWeight: "bold",
+                            padding: "2px 6px",
+                            borderRadius: "10px",
+                            minWidth: "18px",
+                            textAlign: "center",
+                            marginLeft: "8px",
+                          }}
+                        >
+                          {group.unread_count > 99 ? "99+" : group.unread_count}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p
+                style={{
+                  textAlign: "center",
+                  color: "#94a3b8",
+                  marginTop: "30px",
+                  fontSize: "0.9rem",
+                }}
+              >
+                Bạn chưa tham gia nhóm nào.
+              </p>
+            )}
           </>
         )}
       </div>

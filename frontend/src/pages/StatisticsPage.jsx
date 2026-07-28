@@ -1,6 +1,7 @@
 // frontend/src/pages/StatisticsPage.jsx
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom"; 
+import { useAuth } from "../context/AuthContext"; // 👉 THÊM: Quản lý đăng xuất nếu token hết hạn
 import Sidebar from "../components/Layout/Sidebar";
 import {
   BarChart,
@@ -20,12 +21,13 @@ import "./StatisticsPage.css";
 
 const StatisticsPage = ({ onNavigate }) => {
   const navigate = useNavigate();
+  const { logoutUser } = useAuth(); // Lấy hàm đăng xuất
   const [timeFilter, setTimeFilter] = useState("Tuần");
   const [statsData, setStatsData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
 
-  // 👉 Lấy và lưu Streak cao nhất từ LocalStorage
+  // Lấy và lưu Streak cao nhất từ LocalStorage
   const [highestStreak, setHighestStreak] = useState(() => {
     return parseInt(localStorage.getItem("highestStreak") || "0", 10);
   });
@@ -36,14 +38,25 @@ const StatisticsPage = ({ onNavigate }) => {
         setIsLoading(true);
         setErrorMsg(null);
 
-        // Fetch dữ liệu từ Backend
-        const json = await statisticsAPI.getStats(timeFilter);
+        // 👉 ĐÃ FIX LỖI 400: Dịch từ tiếng Việt (UI) sang tiếng Anh chuẩn (Backend)
+        const filterMap = {
+          "Tuần": "week",
+          "Tháng": "month",
+          "Năm": "year"
+        };
+        const backendFilter = filterMap[timeFilter] || "week";
 
-        if (json && json.success) {
-          setStatsData(json.data);
+        // Fetch dữ liệu từ Backend thông qua Trạm kiểm soát api.js
+        const json = await statisticsAPI.getStats(backendFilter);
+
+        // Axios trả về trực tiếp response.data nên mình linh hoạt xử lý
+        const dataPayload = json.data || json; 
+
+        if (json && (json.success !== false)) {
+          setStatsData(dataPayload);
           
           // Cập nhật kỷ lục Streak ngay khi có dữ liệu mới
-          const currentStreak = json.data.kpis?.streak || 0;
+          const currentStreak = dataPayload.kpis?.streak || 0;
           if (currentStreak > highestStreak) {
             setHighestStreak(currentStreak);
             localStorage.setItem("highestStreak", currentStreak.toString());
@@ -53,14 +66,26 @@ const StatisticsPage = ({ onNavigate }) => {
         }
       } catch (error) {
         console.error("Lỗi khi fetch thống kê:", error);
-        setErrorMsg("Đứt cáp! Không kết nối được với server Backend.");
+        
+        // 👉 Xử lý mượt mà lỗi Token hết hạn y như bên Dashboard
+        const errorText = (error.message || error.error || "").toLowerCase();
+        if (errorText.includes("token") || errorText.includes("hết hạn") || errorText.includes("invalid")) {
+          setErrorMsg("Phiên đăng nhập đã hết hạn! Đang chuyển hướng...");
+          setTimeout(() => {
+            if (logoutUser) logoutUser();
+            localStorage.clear();
+            navigate("/login");
+          }, 1500);
+        } else {
+          setErrorMsg(error.message || error.error || "Đứt cáp! Không kết nối được với server Backend.");
+        }
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchStatistics();
-  }, [timeFilter, highestStreak]);
+  }, [timeFilter, highestStreak, logoutUser, navigate]);
 
   if (isLoading) {
     return (
@@ -92,7 +117,7 @@ const StatisticsPage = ({ onNavigate }) => {
 
   const { kpis, dailyActivity, retentionByWeek, deckPerformance, recentHistory } = statsData || {};
 
-  // 👉 ĐÃ FIX: Tự động trích xuất Lịch sử ôn tập từ các bộ thẻ vừa học nếu Backend không trả về mảng recentHistory
+  // Tự động trích xuất Lịch sử ôn tập từ các bộ thẻ vừa học nếu Backend không trả về mảng recentHistory
   const activeHistory = recentHistory && recentHistory.length > 0 
     ? recentHistory 
     : (deckPerformance || []).filter(d => d.learned > 0).sort((a, b) => b.learned - a.learned).slice(0, 5);
@@ -213,7 +238,7 @@ const StatisticsPage = ({ onNavigate }) => {
             <div className="stats-chart-card">
               <div className="chart-header">
                 <h4><i className="fa-solid fa-brain" style={{ color: "#ec4899" }}></i> Tỷ lệ ghi nhớ</h4>
-                <div className="chart-dropdown">Tỷ lệ (%) <i className="fa-solid fa-chevron-down"></i></div>
+                
               </div>
               <div className="chart-body">
                 <ResponsiveContainer width="100%" height="100%">
@@ -249,7 +274,6 @@ const StatisticsPage = ({ onNavigate }) => {
                     <tr>
                       <th>Bộ thẻ</th>
                       <th style={{textAlign: 'center', width: '15%'}}>Đã học</th>
-                      {/* 👉 Cột tiến trình mới */}
                       <th style={{textAlign: 'center', width: '35%'}}>Tiến trình học tập</th>
                       <th style={{textAlign: 'center', width: '15%'}}>Thời gian</th>
                       <th style={{width: '5%'}}></th>
@@ -273,7 +297,6 @@ const StatisticsPage = ({ onNavigate }) => {
                             </td>
                             <td style={{textAlign: 'center', fontWeight: '600'}}>{deck.learned}/{deck.total || 0}</td>
                             
-                            {/* 👉 ĐÃ FIX: THANH TIẾN TRÌNH THỜI GIAN THỰC TRONG BẢNG */}
                             <td style={{textAlign: 'center'}}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
                                 <div style={{ flex: 1, height: '8px', background: 'var(--border)', borderRadius: '4px', overflow: 'hidden' }}>
@@ -285,9 +308,6 @@ const StatisticsPage = ({ onNavigate }) => {
 
                             <td style={{textAlign: 'center', color: 'var(--text-gray)'}}>{deck.time || 0} phút</td>
                             <td style={{textAlign: 'right'}}>
-                              <button style={{background: 'none', border: 'none', cursor: 'pointer', padding: '5px'}} onClick={() => { if(onNavigate) onNavigate("review", deck.id) }}>
-                                <i className="fa-solid fa-circle-play" style={{ color: isDone ? "var(--text-gray)" : "var(--primary)", fontSize: "1.2rem" }}></i>
-                              </button>
                             </td>
                           </tr>
                         );
@@ -313,7 +333,6 @@ const StatisticsPage = ({ onNavigate }) => {
                 <h4><i className="fa-solid fa-fire text-orange"></i> Lịch sử ôn tập gần đây</h4>
               </div>
               
-              {/* 👉 ĐÃ FIX: CHÈN LOGIC HIỂN THỊ LỊCH SỬ NẾU CÓ DỮ LIỆU THAY VÌ LUÔN HIỆN TRỐNG */}
               {activeHistory.length > 0 ? (
                 <div style={{ padding: "10px 25px 25px 25px" }}>
                   {activeHistory.map((item, idx) => {

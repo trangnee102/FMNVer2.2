@@ -63,12 +63,10 @@
   font-size: 14.5px;
   line-height: 1.4;
 
-  /* 👉 ĐÃ SỬA: Dùng fit-content để tự động co giãn êm ái, nhường bước khi chạm max-width */
   width: fit-content;
   max-width: 100%;
   white-space: pre-wrap;
 
-  /* 👉 ĐÃ SỬA: Chặt đứt các chuỗi spam dài ngoằng (như "Ahhhhhh") để ép xuống dòng */
   word-break: break-word;
   overflow-wrap: break-word;
 
@@ -81,31 +79,37 @@
 .message-wrapper.mine .message-bubble {
   background-color: #3b82f6;
   color: #ffffff;
-  border-bottom-right-radius: 4px;
+  border-bottom-right-radius: 6px; /* Bo mềm hơn chút */
 }
 
 /* Bong bóng của người khác (Màu xám, bo góc nhọn bên trái) */
 .message-wrapper.theirs .message-bubble {
   background-color: #f1f5f9;
   color: #1e293b;
-  border-bottom-left-radius: 4px;
+  border-bottom-left-radius: 6px;
 }
 
-/* Dòng hiển thị thời gian gửi */
-.message-time {
-  font-size: 10px;
+/* 👉 ĐÃ SỬA: Cụm Trạng thái + Thời gian BÊN NGOÀI bong bóng */
+.message-meta-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-top: 4px;
-  opacity: 0.7;
+  font-size: 0.75rem; /* Chữ nhỏ nhắn, không làm phiền */
+  color: #94a3b8; /* Màu xám nhạt trung tính */
+  padding: 0 4px; /* Cách mép bong bóng một chút */
 }
 
-/* Mình thì giờ hiển thị bên phải, bạn bè thì giờ bên trái */
-.message-wrapper.mine .message-time {
-  text-align: right;
-  color: #dbeafe; /* Màu xanh nhạt cho dễ nhìn trên nền đậm */
+/* Ép cụm meta dạt lề chuẩn phe */
+.message-wrapper.mine .message-meta-footer {
+  justify-content: flex-end;
 }
-.message-wrapper.theirs .message-time {
-  text-align: left;
-  color: #64748b;
+.message-wrapper.theirs .message-meta-footer {
+  justify-content: flex-start;
+}
+
+.message-time {
+  font-size: 0.75rem;
 }
 
 /* Ảnh đính kèm trong chat */
@@ -114,4 +118,49 @@
   border-radius: 12px;
   margin-bottom: 8px;
   cursor: pointer;
+}
+
+/* --- BỔ SUNG CHO GIAO DIỆN ZALO CHAT --- */
+
+.chat-main-wrapper {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background-color: white; /* Đảm bảo nền trắng */
+}
+
+.chat-conversation-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 400px; /* Giữ khung chat không bị bóp quá nhỏ */
+}
+
+/* Tinh chỉnh lại nút mở thông tin nhóm */
+.group-info-toggle-btn {
+  background: none;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.group-info-toggle-btn:hover {
+  background-color: #f1f5f9;
+}
+
+.group-info-toggle-btn.active {
+  background-color: #e0e7ff;
+}
+
+.group-info-toggle-btn.active i {
+  color: #4f46e5 !important; /* Đổi màu xanh khi đang mở */
 }

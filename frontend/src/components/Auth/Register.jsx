@@ -1,8 +1,9 @@
-// frontend/src/pages/Login/Register.jsx
+// frontend/src/components/Auth/Register.jsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import "./Login.css"; // 👉 Dùng chung file CSS siêu xịn của Login
+import api from "../../services/api"; // 👉 ĐÃ CẬP NHẬT: Import Kẻ vận chuyển ngầm
+import "./Login.css"; 
 
 const Register = () => {
   const [name, setName] = useState("");
@@ -20,43 +21,35 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        // Gửi bao vây cả 3 trường hợp tên để Backend hết đường "chối cãi"
-        body: JSON.stringify({ 
-          name: name,           // Dành cho Backend nhận 'name'
-          full_name: name,      // Dành cho Backend nhận 'full_name'
-          fullName: name,       // Dành cho Backend nhận 'fullName'
-          email: email, 
-          password: password 
-        }),
+      // 👉 ĐÃ SỬA LỖI 400: Dùng api.post và chỉ gửi chuẩn 3 trường dữ liệu. 
+      // Việc gửi thừa trường (full_name, fullName) sẽ bị Backend chặn lại vì Strict Validation.
+      const data = await api.post("/auth/register", {
+        name: name,
+        email: email, 
+        password: password 
       });
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || "Đăng ký thất bại! Vui lòng thử lại.");
-      }
+      // Trạm kiểm soát api.js đã tự động trả về response.data
+      if (data && data.token) {
+        // Lưu Token và Cập nhật Context ngay lập tức
+        localStorage.setItem("token", data.token);
+        
+        // Đảm bảo ghi đè tên thật vào dữ liệu trả về phòng trường hợp Backend vẫn trả sai
+        const perfectUser = {
+          ...data.user,
+          name: name,
+          full_name: name
+        };
+        
+        if (loginUser) {
+          loginUser(perfectUser);
+        }
 
-      // Lưu Token và Cập nhật Context ngay lập tức
-      localStorage.setItem("token", data.token);
-      
-      // Đảm bảo ghi đè tên thật vào dữ liệu trả về phòng trường hợp Backend vẫn trả sai
-      const perfectUser = {
-        ...data.user,
-        name: name,
-        full_name: name
-      };
-      
-      if (loginUser) {
-        loginUser(perfectUser);
+        navigate("/dashboard");
       }
-
-      navigate("/dashboard");
     } catch (err) {
-      setError(err.message);
+      // Axios đã cấu hình sẵn bắt lỗi trả về từ Backend
+      setError(err.message || err.error || "Đăng ký thất bại! Vui lòng kiểm tra lại thông tin.");
     } finally {
       setIsLoading(false);
     }

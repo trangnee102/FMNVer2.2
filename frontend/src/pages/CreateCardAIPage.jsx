@@ -26,8 +26,9 @@ const CreateCardAIPage = ({ onNavigate }) => {
   useEffect(() => {
     const fetchMyDecks = async () => {
       try {
+        // Axios interceptor đã trả về response.data, nên chỉ cần lấy dữ liệu trực tiếp
         const res = await api.get("/decks");
-        const decksList = res.data?.data || res.data || [];
+        const decksList = res.data || res || [];
         setExistingDecks(Array.isArray(decksList) ? decksList : []);
       } catch (err) {
         console.error("Lỗi khi kéo dữ liệu bộ thẻ:", err);
@@ -62,8 +63,10 @@ const CreateCardAIPage = ({ onNavigate }) => {
 
     try {
       const formData = new FormData();
-      formData.append("topic", topic);
-      formData.append("text", text);
+      
+      // 👉 ĐÃ FIX: Chỉ append vào FormData NẾU CÓ DỮ LIỆU để tránh lỗi 400 từ Backend
+      if (topic.trim()) formData.append("topic", topic.trim());
+      if (text.trim()) formData.append("text", text.trim());
       if (file) formData.append("file", file);
 
       const mathInstruction = `LƯU Ý TỐI QUAN TRỌNG VỀ ĐỊNH DẠNG:
@@ -79,18 +82,18 @@ const CreateCardAIPage = ({ onNavigate }) => {
 
       const res = await api.post("/ai/generate", formData);
 
-      const responseData = res.data?.data || res.data;
+      const responseData = res.data || res;
       const cards = responseData?.cards || responseData || [];
 
       setGeneratedCards(Array.isArray(cards) ? cards : []);
-      if (res.data?.message || responseData?.message) {
-        setAiMessage(res.data.message || responseData.message);
+      if (responseData?.message) {
+        setAiMessage(responseData.message);
       }
     } catch (err) {
       setError(
-        err.response?.data?.message ||
-          err.message ||
-          "Không thể kết nối đến máy chủ AI.",
+        err.message ||
+        err.error ||
+        "Không thể kết nối đến máy chủ AI."
       );
     } finally {
       setLoading(false);
@@ -117,34 +120,38 @@ const CreateCardAIPage = ({ onNavigate }) => {
     setError("");
 
     try {
-      // 👉 ĐÃ FIX: Tự động đính kèm mác (AI Generated) khi tạo bộ thẻ mới
       let finalTitle = undefined;
       if (isNewTopic) {
         const cleanTopic = topic.trim();
-        // Kiểm tra xem đã có đuôi này chưa để tránh lặp (AI Generated) (AI Generated)
         finalTitle = cleanTopic.includes("(AI Generated)") 
           ? cleanTopic 
           : `${cleanTopic} (AI Generated)`;
       }
 
+      // 👉 ĐÃ FIX LỖI 400: Không gán cứng "deck_id: undefined" vào JSON để tránh Backend chặn
       const payload = {
-        title: finalTitle,
-        deck_id: !isNewTopic ? topic : undefined,
         description: "Tạo tự động bằng AI",
         is_public: false,
         cards: generatedCards,
       };
 
+      // Tùy theo việc tạo mới hay thêm vào bộ cũ mà gán Key hợp lý
+      if (isNewTopic) {
+        payload.title = finalTitle;
+        payload.name = finalTitle; // Backup phòng hờ Backend xài field name
+      } else {
+        payload.deck_id = topic;
+      }
+
       const res = await api.post("/decks/bulk", payload);
-      const successMsg = res.data?.message || "Lưu thẻ thành công!";
+      const successMsg = res.message || "Lưu thẻ thành công!";
 
       alert("🎉 " + successMsg);
       setGeneratedCards([]);
       setAiMessage("");
       if (onNavigate) onNavigate("my-decks");
     } catch (err) {
-      const errorMsg =
-        err.response?.data?.message || err.message || "Lỗi khi lưu thẻ!";
+      const errorMsg = err.message || err.error || "Lỗi khi lưu thẻ!";
       alert("🚨 Lỗi từ Server: " + errorMsg);
       setError(errorMsg);
     } finally {
@@ -156,11 +163,11 @@ const CreateCardAIPage = ({ onNavigate }) => {
     <div className="dashboard-layout">
       <Sidebar currentView="create" onNavigate={onNavigate} />
 
-      <main className="dashboard-content">
-        <div className="create-content-wrapper">
+      <main className="dashboard-content scrollable-content" style={{ backgroundColor: "var(--bg-main)" }}>
+        <div className="create-content-wrapper" style={{ padding: "30px" }}>
           <header className="create-header">
-            <h1>Tạo thẻ thông minh AI</h1>
-            <p>
+            <h1 style={{ color: "var(--text-dark)", fontWeight: "800" }}>Tạo thẻ thông minh AI ✨</h1>
+            <p style={{ color: "var(--text-gray)" }}>
               Tải tài liệu PDF/Word lên, AI sẽ tự động trích xuất ý chính và vẽ
               công thức Toán học thành Flashcard
             </p>
@@ -173,7 +180,7 @@ const CreateCardAIPage = ({ onNavigate }) => {
               flexDirection: "column",
               gap: "30px",
               width: "100%",
-              maxWidth: "900px",
+              maxWidth: "1000px",
               margin: "0 auto",
             }}
           >

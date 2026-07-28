@@ -63,7 +63,6 @@ const searchUserByEmail = async (req, res) => {
 const sendFriendRequest = async (req, res) => {
   try {
     const currentUserId = getUserId(req);
-    // 🛠️ CHỐT CHẶN BẢO VỆ: Ép kiểu targetUserId chặt chẽ tránh bị lệch sóng
     const targetUserId = parseInt(req.body.targetUserId, 10);
 
     if (!targetUserId || isNaN(targetUserId))
@@ -104,13 +103,21 @@ const sendFriendRequest = async (req, res) => {
       },
     });
 
-    // 📢 KÍCH HOẠT LOA PHƯỜNG SOCKET.IO
+    // 📢 ĐÃ SỬA: KÍCH HOẠT ĐIỆN THOẠI MẬT SOCKET.IO (Chỉ gọi đúng 2 người)
     const io = req.app.get("io");
     if (io) {
-      // Gửi tín hiệu báo cho tất cả client để reload danh sách chờ (Frontend sẽ tự check ID)
-      io.emit("friend_request_updated", {
-        user1: currentUserId,
-        user2: targetUserId,
+      // 1. Phát tín hiệu cho cả 2 người để sync danh sách
+      io.to(currentUserId.toString())
+        .to(targetUserId.toString())
+        .emit("friend_request_updated", {
+          user1: currentUserId,
+          user2: targetUserId,
+        });
+
+      // 2. Gửi thông điệp trực tiếp riêng cho người nhận (targetUserId)
+      io.to(targetUserId.toString()).emit("new_friend_request_received", {
+        fromUserId: currentUserId,
+        message: "Bạn có lời mời kết bạn mới!",
       });
     }
 
@@ -181,7 +188,7 @@ const getPendingRequests = async (req, res) => {
             full_name: true,
             email: true,
             avatar_text: true,
-            avatar_color: true,
+            avatar_color: true, // Đã xóa dòng lặp thừa
           },
         },
       },
@@ -197,7 +204,6 @@ const getPendingRequests = async (req, res) => {
 const respondFriendRequest = async (req, res) => {
   try {
     const currentUserId = getUserId(req);
-    // 🛠️ CHỐT CHẶN BẢO VỆ: Ép kiểu requestId
     const requestId = parseInt(req.body.requestId, 10);
     const { action } = req.body;
 
@@ -212,22 +218,24 @@ const respondFriendRequest = async (req, res) => {
     });
 
     if (!request || request.addressee_id !== currentUserId)
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Không tìm thấy lời mời hoặc không có quyền!",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy lời mời hoặc không có quyền!",
+      });
+
+    const io = req.app.get("io");
 
     if (action === "declined") {
       await prisma.friendships.delete({ where: { id: requestId } });
 
-      const io = req.app.get("io");
+      // ĐÃ SỬA: Gọi riêng 2 người
       if (io) {
-        io.emit("friend_request_updated", {
-          user1: currentUserId,
-          user2: request.requester_id,
-        });
+        io.to(currentUserId.toString())
+          .to(request.requester_id.toString())
+          .emit("friend_request_updated", {
+            user1: currentUserId,
+            user2: request.requester_id,
+          });
       }
 
       return res
@@ -269,12 +277,14 @@ const respondFriendRequest = async (req, res) => {
       });
     }
 
-    const io = req.app.get("io");
+    // ĐÃ SỬA: Gọi riêng 2 người
     if (io) {
-      io.emit("friend_request_updated", {
-        user1: currentUserId,
-        user2: request.requester_id,
-      });
+      io.to(currentUserId.toString())
+        .to(request.requester_id.toString())
+        .emit("friend_request_updated", {
+          user1: currentUserId,
+          user2: request.requester_id,
+        });
     }
 
     res.status(200).json({ success: true, message: "Đã kết bạn thành công!" });

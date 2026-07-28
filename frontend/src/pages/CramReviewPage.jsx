@@ -1,3 +1,4 @@
+// frontend/src/pages/CramReviewPage.jsx
 import React from "react";
 import useCramMode from "../hooks/useCramMode";
 import "./ReviewPage.css";
@@ -16,22 +17,26 @@ const CramReviewPage = ({ deckId, onFinish }) => {
 
   if (isLoading)
     return (
-      <div style={{ padding: "50px", textAlign: "center", fontSize: "1.2rem" }}>
-        Đang tải dữ liệu...
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', minHeight: '80vh', color: "var(--text-gray)" }}>
+        <i className="fa-solid fa-fire fa-bounce" style={{ fontSize: "3rem", color: "#f59e0b", marginBottom: "15px" }}></i>
+        <div style={{ fontSize: "1.2rem", fontWeight: "600" }}>Đang nung nóng lò luyện... 🔥</div>
       </div>
     );
 
+  // 👉 ĐÃ SỬA: Thông báo chuẩn xác hơn. Khi đã sửa hook ở bước sau, 
+  // nó chỉ báo rỗng nếu bộ thẻ THỰC SỰ chưa có cái thẻ nào được tạo.
   if (fullBatch.length === 0)
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
-        <div style={{ background: "white", padding: "40px", borderRadius: "16px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", textAlign: "center", maxWidth: "500px", width: "100%" }}>
-          <h2 style={{ color: "#1e293b", fontSize: "1.5rem", marginBottom: "15px" }}>Không có dữ liệu phù hợp</h2>
+        <div style={{ background: "white", padding: "40px", borderRadius: "16px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", textAlign: "center", maxWidth: "500px", width: "100%", border: "1px dashed var(--border)" }}>
+          <div style={{ fontSize: "4rem", marginBottom: "15px", color: "var(--border)" }}>📭</div>
+          <h2 style={{ color: "#1e293b", fontSize: "1.5rem", marginBottom: "15px", fontWeight: "800" }}>Bộ thẻ này đang trống!</h2>
           <p style={{ color: "#475569", fontSize: "1rem", lineHeight: "1.5", marginBottom: "30px" }}>
-            Bộ thẻ này hiện tại không có dữ liệu phù hợp để ôn tập cấp tốc.
+            Bạn không thể bật lò luyện cấp tốc cho một bộ thẻ chưa có Flashcard nào. Hãy thêm thẻ mới trước nhé!
           </p>
           <button
             onClick={onFinish}
-            style={{ padding: "12px 24px", cursor: "pointer", background: "#3b82f6", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold" }}
+            style={{ padding: "12px 24px", cursor: "pointer", background: "var(--primary)", color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", transition: "all 0.2s" }}
           >
             Trở về Trang chủ
           </button>
@@ -42,24 +47,18 @@ const CramReviewPage = ({ deckId, onFinish }) => {
   if (cramQueue.length === 0)
     return (
       <div className="review-page-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
-        <div style={{ background: "white", padding: "40px", borderRadius: "16px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", textAlign: "center", maxWidth: "400px", width: "100%" }}>
-          <h2 style={{ color: "#10b981", fontSize: "1.8rem", marginBottom: "10px" }}>Hoàn thành phiên học</h2>
-          <p style={{ color: "#475569", fontSize: "1rem", marginBottom: "30px" }}>
-            Bạn đã xuất sắc ghi nhớ toàn bộ danh sách trong vòng lặp số {cycleCount}.
+        <div style={{ background: "white", padding: "40px", borderRadius: "16px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", textAlign: "center", maxWidth: "450px", width: "100%", borderTop: "5px solid #10b981" }}>
+          <div style={{ fontSize: "4rem", marginBottom: "10px" }}>🏆</div>
+          <h2 style={{ color: "#10b981", fontSize: "1.8rem", marginBottom: "10px", fontWeight: "800" }}>Sống sót thành công!</h2>
+          <p style={{ color: "#475569", fontSize: "1rem", marginBottom: "30px", lineHeight: "1.5" }}>
+            Cậu đã xuất sắc nhồi nhét và ghi nhớ toàn bộ <strong style={{color: "var(--text-dark)"}}>{fullBatch.length} thẻ</strong> trong vòng lặp số {cycleCount}. Tự tin đi thi thôi!
           </p>
           
-          <div style={{ display: "flex", justifyContent: "space-around", marginBottom: "30px" }}>
-            <div style={{ background: "#ecfdf5", padding: "15px", borderRadius: "12px", width: "100%" }}>
-              <div style={{ fontSize: "2rem", fontWeight: "bold", color: "#059669" }}>{fullBatch.length}</div>
-              <div style={{ color: "#047857", fontSize: "0.9rem", fontWeight: "bold" }}>Tổng số thẻ đã hoàn thành</div>
-            </div>
-          </div>
-
           <button
             onClick={onFinish}
-            style={{ width: "100%", padding: "14px", background: "#3b82f6", color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", fontSize: "1rem", cursor: "pointer" }}
+            style={{ width: "100%", padding: "14px", background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", color: "white", border: "none", borderRadius: "10px", fontWeight: "bold", fontSize: "1.05rem", cursor: "pointer", boxShadow: "0 4px 15px rgba(16, 185, 129, 0.3)" }}
           >
-            Trở về Trang chủ
+            Kết thúc phiên học
           </button>
         </div>
       </div>
@@ -68,23 +67,31 @@ const CramReviewPage = ({ deckId, onFinish }) => {
   const currentCard = cramQueue[0];
 
   return (
-    <div className="review-page-container">
-      <div className="review-header" style={{ marginBottom: "10px" }}>
-        <button className="btn-back" onClick={onFinish}>
-          ← Hủy ôn tập
+    <div className="review-page-container" style={{ maxWidth: "800px", margin: "0 auto", padding: "20px" }}>
+      <div className="review-header" style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <button 
+          className="btn-back" 
+          onClick={onFinish}
+          style={{ background: "white", border: "1px solid var(--border)", padding: "10px 15px", borderRadius: "10px", fontWeight: "600", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px", color: "var(--text-dark)" }}
+        >
+          <i className="fa-solid fa-arrow-left"></i> Rút lui
         </button>
         {isBossMode && (
           <div
             style={{
-              background: "#ef4444",
+              background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
               color: "white",
-              padding: "4px 12px",
-              borderRadius: "12px",
+              padding: "6px 16px",
+              borderRadius: "20px",
               fontSize: "0.85rem",
-              fontWeight: "bold",
+              fontWeight: "800",
+              boxShadow: "0 2px 10px rgba(239, 68, 68, 0.3)",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px"
             }}
           >
-            CHẾ ĐỘ CẤP TỐC: ĐÊM TRƯỚC NGÀY THI
+            <i className="fa-solid fa-skull"></i> CHẾ ĐỘ BOSS: ĐÊM TRƯỚC NGÀY THI
           </div>
         )}
       </div>
@@ -94,23 +101,21 @@ const CramReviewPage = ({ deckId, onFinish }) => {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "20px",
-          background: "#fffbeb",
-          padding: "12px 20px",
-          borderRadius: "8px",
-          border: "1px solid #fde68a",
+          marginBottom: "25px",
+          background: isBossMode ? "#fef2f2" : "#fffbeb",
+          padding: "16px 24px",
+          borderRadius: "14px",
+          border: `1px solid ${isBossMode ? "#fca5a5" : "#fde68a"}`,
         }}
       >
-        <div
-          style={{ fontWeight: "bold", color: "#d97706", fontSize: "1.1rem" }}
-        >
-          VÒNG LẶP SỐ {cycleCount}
+        <div style={{ fontWeight: "800", color: isBossMode ? "#dc2626" : "#d97706", fontSize: "1.1rem", display: "flex", alignItems: "center", gap: "8px" }}>
+          <i className="fa-solid fa-rotate-right"></i> VÒNG LẶP SỐ {cycleCount}
         </div>
-        <div style={{ color: "#4b5563", fontWeight: "600" }}>
+        <div style={{ color: "#475569", fontWeight: "700", fontSize: "0.95rem" }}>
           Lượt chạy hiện tại:{" "}
-          <span style={{ color: "#ef4444" }}>{cramQueue.length} thẻ</span>
-          <span style={{ margin: "0 8px", color: "#cbd5e1" }}>|</span>
-          Tổng bài: {fullBatch.length} thẻ
+          <span style={{ color: "#ef4444", fontSize: "1.1rem" }}>{cramQueue.length} thẻ</span>
+          <span style={{ margin: "0 12px", color: "#cbd5e1" }}>|</span>
+          Tổng: <span style={{ color: "var(--primary)" }}>{fullBatch.length} thẻ</span>
         </div>
       </div>
 
@@ -118,47 +123,53 @@ const CramReviewPage = ({ deckId, onFinish }) => {
         className={`flashcard-container ${isFlipped ? "flipped" : ""}`}
         onClick={() => !isFlipped && setIsFlipped(true)}
         style={{
-          border: isBossMode ? "2.5px solid #ef4444" : "2.5px solid #f59e0b",
+          minHeight: "400px",
+          border: isBossMode ? "3px solid #ef4444" : "3px solid #f59e0b",
+          boxShadow: isBossMode ? "0 15px 35px rgba(239, 68, 68, 0.15)" : "0 15px 35px rgba(245, 158, 11, 0.15)",
+          cursor: isFlipped ? "default" : "pointer"
         }}
       >
-        <div className="card-face card-front">
-          <h3>{currentCard.question || currentCard.front_content}</h3>
+        <div className="card-face card-front" style={{ padding: "40px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+          <h3 style={{ fontSize: "1.6rem", lineHeight: "1.5", color: "var(--text-dark)", textAlign: "center" }}>
+            {currentCard.question || currentCard.front_content}
+          </h3>
           {!isFlipped && (
-            <p className="hint-text">(Click vào thẻ để xem đáp án)</p>
+            <p className="hint-text" style={{ marginTop: "40px", color: "#94a3b8", fontWeight: "600", animation: "pulse 2s infinite" }}>
+              (Click vào thẻ để lật xem đáp án)
+            </p>
           )}
         </div>
 
-        <div className="card-face card-back">
-          <p className="answer-text">
-            {currentCard.answer || currentCard.back_content}
-          </p>
+        <div className="card-face card-back" style={{ padding: "40px", display: "flex", flexDirection: "column" }}>
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", overflowY: "auto" }}>
+            <p className="answer-text" style={{ fontSize: "1.3rem", lineHeight: "1.6", color: "var(--text-dark)", textAlign: "center", margin: 0 }}>
+              {currentCard.answer || currentCard.back_content}
+            </p>
+          </div>
 
-          <div className="rating-section" onClick={(e) => e.stopPropagation()}>
-            <div
-              className="rating-buttons"
-              style={{ display: "flex", gap: "20px", width: "100%" }}
-            >
+          <div className="rating-section" onClick={(e) => e.stopPropagation()} style={{ marginTop: "30px", paddingTop: "20px", borderTop: "1px dashed var(--border)" }}>
+            <div style={{ display: "flex", gap: "20px", width: "100%" }}>
               <button
                 className="btn-rating btn-again"
                 onClick={() => handleCramRating(false)}
                 style={{
-                  padding: "16px",
-                  fontSize: "1.1rem",
-                  background: "#ef4444",
+                  flex: 1, padding: "18px", fontSize: "1.1rem", background: "#ef4444", color: "white",
+                  border: "none", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", transition: "all 0.2s",
+                  boxShadow: "0 4px 10px rgba(239, 68, 68, 0.3)"
                 }}
               >
-                Quên (Làm lại sau)
+                <i className="fa-solid fa-xmark" style={{marginRight: "8px"}}></i> Quên (Bỏ vào cuối hàng)
               </button>
               <button
                 className="btn-rating btn-easy"
                 onClick={() => handleCramRating(true)}
                 style={{
-                  padding: "16px",
-                  fontSize: "1.1rem",
-                  background: "#10b981",
+                  flex: 1, padding: "18px", fontSize: "1.1rem", background: "#10b981", color: "white",
+                  border: "none", borderRadius: "12px", fontWeight: "bold", cursor: "pointer", transition: "all 0.2s",
+                  boxShadow: "0 4px 10px rgba(16, 185, 129, 0.3)"
                 }}
               >
-                Nhớ (Loại khỏi lượt)
+                <i className="fa-solid fa-check" style={{marginRight: "8px"}}></i> Nhớ (Loại khỏi lượt)
               </button>
             </div>
           </div>

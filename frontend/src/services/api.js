@@ -4,7 +4,8 @@ import axios from "axios";
 // 1. KHỞI TẠO "KẺ VẬN CHUYỂN NGẦM"
 // =========================================
 const api = axios.create({
-  baseURL: "http://localhost:5000/api",
+  // 👉 Tự động đọc link Render từ file .env. Nếu không có file .env thì mới dự phòng bằng localhost
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
 });
 
 // =========================================
@@ -65,7 +66,6 @@ export const communityAPI = {
   getContacts: () => api.get("/community/contacts"),
   getMessages: (friendId) => api.get(`/community/messages/${friendId}`),
 
-  // 👉 File này code quá chuẩn xác, chứng nhận 100% Passed!
   sendMessage: (formData) => api.post("/community/messages", formData),
 
   searchUser: (email) =>
