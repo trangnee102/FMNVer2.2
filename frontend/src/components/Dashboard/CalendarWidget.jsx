@@ -24,9 +24,6 @@ const CalendarWidget = ({ examDates = [] }) => {
 
   return (
     <div style={{ width: "100%" }}>
-      {/* KHÔNG CÒN THẺ STREAK BỊ LẶP Ở ĐÂY NỮA NHÉ! 🎉 */}
-      
-      {/* CHỈ GIỮ LẠI RUỘT LỊCH VÀ CHÚ THÍCH */}
       <Calendar
         onChange={setDate}
         value={date}

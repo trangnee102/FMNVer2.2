@@ -34,11 +34,9 @@ const CommunityPage = ({ onNavigate }) => {
             }}
           >
             <h1 style={{ color: "var(--text-dark)", transition: "color 0.3s ease" }}>
-              <i className="fa-solid fa-users-rays"></i> Cộng đồng
+              <i className="fa-solid fa-users-rays"></i> Cộng đồng,nơi giao lưu với những thiên tài
             </h1>
-            <div className="streak-widget">
-              <i className="fa-solid fa-fire"></i> <span>12 Ngày</span>
-            </div>
+            
           </header>
 
           <div className="tab-container">

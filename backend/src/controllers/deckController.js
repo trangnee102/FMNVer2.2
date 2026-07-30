@@ -3,14 +3,68 @@ const prisma = require("../services/prisma");
 // 1. LẤY DANH SÁCH BỘ THẺ CỦA NGƯỜI DÙNG
 const getMyDecks = async (req, res) => {
   try {
-    const userId = parseInt(req.user.id) || req.user.id;
+    const userId = parseInt(req.user.id, 10);
 
     const decks = await prisma.decks.findMany({
       where: { user_id: userId },
       orderBy: { id: "desc" },
+      include: {
+        _count: { select: { Flashcards: true } },
+        Flashcards: {
+          include: {
+            StudyProgress: {
+              where: { user_id: userId },
+              select: { ease_factor: true, next_review_date: true },
+            },
+          },
+        },
+      },
     });
 
-    res.json({ success: true, data: decks });
+    const formattedDecks = decks.map((deck) => {
+      const totalCards = deck._count?.Flashcards ?? 0;
+      let dueCount = 0;
+      let learnedCount = 0;
+      const today = new Date();
+
+      deck.Flashcards.forEach((card) => {
+        const progress = card.StudyProgress?.[0];
+
+        if (!progress) {
+          dueCount += 1;
+          return;
+        }
+
+        const nextReview = progress.next_review_date
+          ? new Date(progress.next_review_date)
+          : null;
+
+        if (!nextReview || nextReview <= today) {
+          dueCount += 1;
+        } else {
+          learnedCount += 1;
+        }
+      });
+
+      return {
+        id: deck.id,
+        title: deck.title,
+        description: deck.description,
+        is_public: deck.is_public,
+        is_anonymous: deck.is_anonymous,
+        user_id: deck.user_id,
+        clone_count: deck.clone_count,
+        _count: deck._count,
+        totalCards,
+        dueCards: dueCount,
+        progressPercent:
+          totalCards > 0
+            ? Math.round(((totalCards - dueCount) / totalCards) * 100)
+            : 0,
+      };
+    });
+
+    res.json({ success: true, data: formattedDecks });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -24,7 +78,7 @@ const getMyDecks = async (req, res) => {
 const createDeck = async (req, res) => {
   try {
     const { title, description, is_public, is_anonymous } = req.body;
-    const userId = parseInt(req.user.id) || req.user.id;
+    const userId = parseInt(req.user.id, 10);
 
     if (!title) {
       return res
@@ -57,108 +111,65 @@ const createDeck = async (req, res) => {
 };
 
 // =========================================
-// 👉 ĐÃ NÂNG CẤP: HÀM LƯU NHIỀU THẺ TỪ AI (Chống lỗi diện rộng)
+// 👉 ĐÃ THÊM: HÀM MỚI - TẠO BỘ THẺ KÈM NHIỀU THẺ CÙNG LÚC
 // =========================================
 const createDeckWithCards = async (req, res) => {
   try {
-    const { title, deck_id, description, is_public, is_anonymous, cards } =
-      req.body;
-    const userId = parseInt(req.user.id) || req.user.id;
+    const { title, description, is_public, is_anonymous, cards } = req.body;
+    const userId = parseInt(req.user.id, 10);
 
-    // 1. Kiểm tra xem user có gửi mảng thẻ (cards) lên không
-    if (!Array.isArray(cards) || cards.length === 0) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Vui lòng nhập ít nhất 1 thẻ!" });
-    }
-
-    // 2. Bộ lọc thông minh: Quét mọi key mà AI có thể nghĩ ra và chuẩn hóa thành chuỗi
-    const validCards = cards
-      .map((c) => {
-        const q = c.question || c.front || c.cau_hoi || c.CauHoi || c.q || "";
-        const a = c.answer || c.back || c.dap_an || c.DapAn || c.a || "";
-        return {
-          question: String(q).trim(),
-          answer: String(a).trim(),
-        };
-      })
-      .filter((c) => c.question !== "" && c.answer !== "");
-
-    if (validCards.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Thẻ AI tạo ra bị lỗi định dạng hoặc trống nội dung!",
-      });
-    }
-
-    // ----------------------------------------------------
-    // KỊCH BẢN A: LƯU VÀO BỘ THẺ ĐÃ CÓ TỪ TRƯỚC (Nhận được deck_id)
-    // ----------------------------------------------------
-    if (deck_id) {
-      const parsedDeckId = parseInt(deck_id);
-
-      const existingDeck = await prisma.decks.findFirst({
-        where: { id: parsedDeckId, user_id: userId },
-      });
-
-      if (!existingDeck) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Không tìm thấy bộ thẻ bạn chọn!" });
-      }
-
-      // Tạo thẻ mới và nhét vào bộ thẻ cũ
-      await prisma.flashcards.createMany({
-        data: validCards.map((card) => ({
-          question: card.question,
-          answer: card.answer,
-          deck_id: parsedDeckId,
-        })),
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: `Tuyệt vời! Đã thêm ${validCards.length} thẻ vào bộ "${existingDeck.title}".`,
-      });
-    }
-
-    // ----------------------------------------------------
-    // KỊCH BẢN B: TẠO BỘ THẺ MỚI HOÀN TOÀN (Nhận được title)
-    // ----------------------------------------------------
     if (!title) {
       return res
         .status(400)
         .json({ success: false, message: "Tên bộ thẻ không được để trống!" });
     }
 
-    // Tách làm 2 bước để không bị lỗi tên Relation (Flashcards vs flashcards)
+    if (!Array.isArray(cards) || cards.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Vui lòng nhập ít nhất 1 thẻ!" });
+    }
+
+    // 🛠️ CHỐT CHẶN DỮ LIỆU: Tự động tương thích cả 2 chuẩn {question, answer} và {front, back}
+    const validCards = cards.filter((c) => {
+      const q = c.question || c.front || "";
+      const a = c.answer || c.back || "";
+      return q.trim() !== "" && a.trim() !== "";
+    });
+
+    if (validCards.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Các thẻ đều trống nội dung, vui lòng nhập chữ!",
+      });
+    }
+
     const newDeck = await prisma.decks.create({
       data: {
         title: title,
-        description: description || "Tạo tự động bằng AI",
+        description: description || null,
         is_public: is_public || false,
         is_anonymous: is_anonymous || false,
         user_id: userId,
+        Flashcards: {
+          create: validCards.map((card) => ({
+            // Trích xuất thông minh để Database không bao giờ bị nhận dữ liệu rỗng
+            question: card.question || card.front || "Nội dung trống",
+            answer: card.answer || card.back || "Nội dung trống",
+          })),
+        },
+      },
+      include: {
+        Flashcards: true,
       },
     });
 
-    await prisma.flashcards.createMany({
-      data: validCards.map((card) => ({
-        question: card.question,
-        answer: card.answer,
-        deck_id: newDeck.id,
-      })),
-    });
-
-    return res.status(201).json({
+    res.status(201).json({
       success: true,
-      message: `Tạo bộ thẻ "${title}" thành công cùng với ${validCards.length} thẻ!`,
+      message: `Tạo bộ thẻ thành công cùng với ${validCards.length} thẻ!`,
       data: newDeck,
     });
   } catch (error) {
-    // 👉 ĐÃ THÊM: Loa phường báo lỗi! Chữ này sẽ in thẳng ra Terminal để bắt bệnh
-    console.error("🚨 [LỖI NGHIÊM TRỌNG] Sập Server khi lưu thẻ AI:", error);
-
     res.status(500).json({
       success: false,
       message: "Lỗi hệ thống khi lưu nguyên bộ thẻ!",
@@ -170,9 +181,9 @@ const createDeckWithCards = async (req, res) => {
 // 3. CẬP NHẬT/SỬA TÊN BỘ THẺ
 const updateDeck = async (req, res) => {
   try {
-    const deckId = parseInt(req.params.id);
+    const deckId = parseInt(req.params.id, 10);
     const { title, description, is_public, is_anonymous } = req.body;
-    const userId = parseInt(req.user.id) || req.user.id;
+    const userId = parseInt(req.user.id, 10);
 
     const existingDeck = await prisma.decks.findFirst({
       where: { id: deckId, user_id: userId },
@@ -214,8 +225,8 @@ const updateDeck = async (req, res) => {
 // 4. XÓA BỘ THẺ
 const deleteDeck = async (req, res) => {
   try {
-    const deckId = parseInt(req.params.id);
-    const userId = parseInt(req.user.id) || req.user.id;
+    const deckId = parseInt(req.params.id, 10);
+    const userId = parseInt(req.user.id, 10);
 
     const existingDeck = await prisma.decks.findFirst({
       where: { id: deckId, user_id: userId },

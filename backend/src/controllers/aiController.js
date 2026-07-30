@@ -179,7 +179,8 @@ HÃY TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
 const saveGeneratedCards = async (req, res) => {
   try {
     const { topic, cards } = req.body;
-    const userId = req.user.id;
+    // 🛠️ CHỐT CHẶN POSTGRESQL: Ép kiểu user.id về số nguyên tuyệt đối
+    const userId = parseInt(req.user.id, 10);
 
     if (!cards || cards.length === 0)
       return res
@@ -202,8 +203,9 @@ const saveGeneratedCards = async (req, res) => {
       });
     }
 
+    // 🛠️ CHỐT CHẶN POSTGRESQL: Đảm bảo deck_id truyền vào bảng flashcards cũng là số nguyên
     const flashcardsData = cards.map((card) => ({
-      deck_id: deck.id,
+      deck_id: parseInt(deck.id, 10),
       question: card.front,
       answer: card.back,
     }));

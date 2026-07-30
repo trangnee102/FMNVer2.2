@@ -11,13 +11,17 @@ const Sidebar = ({ currentView, onNavigate }) => {
   });
 
   const navigate = useNavigate(); 
-  const { user, logoutUser } = useAuth(); 
+  // 👉 ĐÃ CẬP NHẬT: Lấy thêm isLoading từ AuthContext để biết khi nào dữ liệu tải xong
+  const { user, logoutUser, isLoading } = useAuth(); 
 
   const [userName, setUserName] = useState("Đang tải...");
   const [userEmail, setUserEmail] = useState("...");
   const [userAvatar, setUserAvatar] = useState(null);
 
   useEffect(() => {
+    // Nếu AuthContext đang tải dữ liệu từ API/LocalStorage, giữ nguyên chữ "Đang tải..."
+    if (isLoading) return;
+
     let currentUser = user;
     if (!currentUser) {
       try {
@@ -29,7 +33,7 @@ const Sidebar = ({ currentView, onNavigate }) => {
     }
 
     if (currentUser) {
-      // 👉 ĐÃ FIX: Thuật toán lấy tên thông minh, không bao giờ bị lỗi trống tên
+      // Thuật toán lấy tên thông minh, ưu tiên dữ liệu từ context mới nhất
       const emailPrefix = currentUser.email ? currentUser.email.split('@')[0] : "Người dùng";
       setUserName(
         currentUser.full_name || 
@@ -46,6 +50,10 @@ const Sidebar = ({ currentView, onNavigate }) => {
       );
       
       setUserAvatar(currentUser.avatar || localStorage.getItem("user_avatar"));
+    } else {
+      // Nếu không có user (bị lỗi hoặc chưa đăng nhập)
+      setUserName("Khách");
+      setUserEmail("Vui lòng đăng nhập");
     }
 
     const handleStorageChange = () => {
@@ -56,7 +64,7 @@ const Sidebar = ({ currentView, onNavigate }) => {
     
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, [user]); 
+  }, [user, isLoading]); // 👉 Cập nhật lại khi user hoặc isLoading thay đổi
 
   const toggleSidebar = () => {
     const newState = !isCollapsed;
@@ -66,7 +74,7 @@ const Sidebar = ({ currentView, onNavigate }) => {
 
   const menuItems = [
     { id: "dashboard", icon: "fa-house", text: "Trang chủ" },
-    { id: "my-decks", icon: "fa-book-bookmark", text: "Thư viện của tôi" },
+    { id: "my-decks", icon: "fa-book-bookmark", text: "Thư viện" },
     { id: "create", icon: "fa-square-plus", text: "Tạo thẻ" },
     { id: "review", icon: "fa-layer-group", text: "Ôn tập" },
     { id: "stats", icon: "fa-chart-simple", text: "Thống kê" },
@@ -91,7 +99,8 @@ const Sidebar = ({ currentView, onNavigate }) => {
       id === "review" ||
       id === "stats" ||
       id === "community" ||
-      id === "settings"
+      id === "settings" ||
+      id === "admin" // 👉 ĐÃ THÊM: Cho phép click vào menu Admin
     ) {
       if (onNavigate) onNavigate(id);
     } else {
@@ -108,7 +117,6 @@ const Sidebar = ({ currentView, onNavigate }) => {
     }, 50); 
   };
 
-  // 👉 ĐÃ FIX TẬN GỐC LỖI DÍNH DATA: Quét sạch rác bộ nhớ khi đăng xuất
   const handleLogout = () => {
     if (window.confirm("Bạn có chắc chắn muốn đăng xuất không?")) {
       // Giữ lại trạng thái đóng mở Sidebar
@@ -200,6 +208,19 @@ const Sidebar = ({ currentView, onNavigate }) => {
               )}
             </div>
           ))}
+
+          {/* 👉 MENU ADMIN (Chỉ hiển thị khi tài khoản có quyền ADMIN) */}
+          {user?.role === 'ADMIN' && (
+            <div className="menu-group" style={{ marginTop: "15px", borderTop: "1px solid var(--border)", paddingTop: "15px" }}>
+              <div
+                className={`menu-item ${currentView === "admin" ? "active" : ""}`}
+                onClick={() => handleMenuClick("admin")}
+              >
+                <i className="fa-solid fa-shield-halved" style={{ color: "#ef4444" }}></i>
+                {!isCollapsed && <span style={{ color: "#ef4444", fontWeight: "bold" }}>Quản trị hệ thống</span>}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className={`sidebar-footer ${isCollapsed ? "footer-collapsed" : ""}`}>

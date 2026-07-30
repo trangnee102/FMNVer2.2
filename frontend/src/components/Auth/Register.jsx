@@ -77,7 +77,6 @@ const Register = () => {
             </div>
             <input
               type="text"
-              placeholder="VD: DAT IT"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required

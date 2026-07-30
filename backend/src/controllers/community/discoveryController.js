@@ -1,6 +1,12 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
+// 👉 ĐÃ THÊM: Máy quét ID thông minh (Đồng bộ với các file controller khác)
+const getUserId = (req) => {
+  const id = req.user?.id || req.userId || req.user_id || req.user;
+  return parseInt(id);
+};
+
 const getDiscoveryDecks = async (req, res) => {
   try {
     const { category } = req.query;
@@ -63,9 +69,11 @@ const getLeaderboard = async (req, res) => {
 
 const cloneDeck = async (req, res) => {
   try {
-    const currentUserId = parseInt(req.user?.id);
+    // 👉 ĐÃ SỬA: Gọi máy quét ID để tránh rủi ro vỡ kiểu dữ liệu (NaN)
+    const currentUserId = getUserId(req);
     const deckId = parseInt(req.params.id);
-    if (!currentUserId)
+
+    if (!currentUserId || isNaN(currentUserId))
       return res
         .status(401)
         .json({ success: false, message: "Chưa đăng nhập!" });

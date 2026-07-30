@@ -153,10 +153,7 @@ const StatisticsPage = ({ onNavigate }) => {
                 ))}
               </div>
               
-              <div className="date-picker-mock">
-                <i className="fa-regular fa-calendar"></i>
-                <span>Phân tích theo {timeFilter}</span>
-              </div>
+              
             </div>
           </header>
 

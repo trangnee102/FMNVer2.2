@@ -1,20 +1,18 @@
 // frontend/src/components/Auth/Login.jsx
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom"; // 👉 Công cụ chuyển trang chuẩn
-import { useAuth } from "../../context/AuthContext"; // 👉 Chìa khóa mở Két sắt AuthContext
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 import Button from "../common/Button";
 import "./Login.css";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login } = useAuth(); // Lấy hàm login từ AuthContext nếu có
+  const { login } = useAuth(); 
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-
-  // Các state để quản lý Hộp thoại Quên Mật Khẩu (Modal)
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotStatus, setForgotStatus] = useState("");
@@ -25,41 +23,41 @@ const Login = () => {
     setErrorMessage("");
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
+      const API_URL = import.meta.env.VITE_API_URL || "https://fmn-backend.onrender.com/api";
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
       const data = await response.json();
+      console.log("Phản hồi từ Server khi đăng nhập:", data); 
 
       if (response.ok) {
-        // 🎉 THÀNH CÔNG: Lưu Token vào LocalStorage để làm "Thẻ căn cước"
+        // 🎉 THÀNH CÔNG
         localStorage.setItem("token", data.token);
 
-        // Lưu thông tin người dùng cơ bản nếu có
         const userIdentifier = data.user?.email || email;
         localStorage.setItem("current_user_email", userIdentifier);
 
-        // Gọi context login nếu tồn tại, đồng thời chuyển hướng sang dashboard
         if (login) {
           login(data.token, data.user);
         }
 
         navigate("/dashboard");
       } else {
-        // ❌ THẤT BẠI: Hiện lỗi đỏ
-        setErrorMessage(data.message || "Đăng nhập thất bại!");
+        // ❌ THẤT BẠI TỪ LOGIC BACKEND
+        setErrorMessage(data.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại!");
       }
     } catch (error) {
-      setErrorMessage("Không thể kết nối đến máy chủ Backend!");
-      console.error(error);
+      // ❌ BẮT LỖI 500 HOẶC SẬP SERVER
+      setErrorMessage("Máy chủ Backend đang gặp sự cố (Lỗi 500). Vui lòng kiểm tra Terminal Backend!");
+      console.error("Lỗi đăng nhập:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Hàm xử lý khi bấm nút "Gửi yêu cầu" khôi phục mật khẩu
   const handleForgotPasswordSubmit = (e) => {
     e.preventDefault();
     if (!forgotEmail) {
@@ -123,13 +121,13 @@ const Login = () => {
               style={{ width: "100%", boxSizing: "border-box" }}
             />
             
-            {/* Đưa nút "Quên mật khẩu?" xuống dưới ô nhập, căn sang phải và làm nhỏ lại */}
+            {/* Nút "Quên mật khẩu?" */}
             <div style={{ width: "100%", display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
               <span 
                 className="forgot-link" 
                 onClick={() => setShowForgotModal(true)}
                 style={{ 
-                  fontSize: "0.85rem", /* 👉 ĐÃ SỬA: Chữ nhỏ hơn */
+                  fontSize: "0.85rem", 
                   color: "var(--primary)", 
                   cursor: "pointer", 
                   fontWeight: "600" 
@@ -161,7 +159,7 @@ const Login = () => {
       </div>
 
       {/* =========================================================================
-          MODAL QUÊN MẬT KHẨU (Giao diện đè lên màn hình)
+          MODAL QUÊN MẬT KHẨU
       ========================================================================= */}
       {showForgotModal && (
         <div className="modal-overlay">
