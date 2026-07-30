@@ -10,8 +10,8 @@ const Sidebar = ({ currentView, onNavigate }) => {
     return savedState !== null ? JSON.parse(savedState) : false;
   });
 
-  const navigate = useNavigate(); 
-  const { user, logoutUser } = useAuth(); 
+  const navigate = useNavigate();
+  const { user, logoutUser } = useAuth();
 
   const [userName, setUserName] = useState("Đang tải...");
   const [userEmail, setUserEmail] = useState("...");
@@ -29,22 +29,23 @@ const Sidebar = ({ currentView, onNavigate }) => {
     }
 
     if (currentUser) {
-      // 👉 ĐÃ FIX: Thuật toán lấy tên thông minh, không bao giờ bị lỗi trống tên
-      const emailPrefix = currentUser.email ? currentUser.email.split('@')[0] : "Người dùng";
+      const emailPrefix = currentUser.email
+        ? currentUser.email.split("@")[0]
+        : "Người dùng";
       setUserName(
-        currentUser.full_name || 
-        currentUser.name || 
-        currentUser.username || 
-        localStorage.getItem("current_user_name") || 
-        emailPrefix
+        currentUser.full_name ||
+          currentUser.name ||
+          currentUser.username ||
+          localStorage.getItem("current_user_name") ||
+          emailPrefix,
       );
-      
+
       setUserEmail(
-        currentUser.email || 
-        localStorage.getItem("current_user_email") || 
-        "Chưa cập nhật email"
+        currentUser.email ||
+          localStorage.getItem("current_user_email") ||
+          "Chưa cập nhật email",
       );
-      
+
       setUserAvatar(currentUser.avatar || localStorage.getItem("user_avatar"));
     }
 
@@ -53,10 +54,10 @@ const Sidebar = ({ currentView, onNavigate }) => {
       const updatedName = localStorage.getItem("current_user_name");
       if (updatedName) setUserName(updatedName);
     };
-    
+
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, [user]); 
+  }, [user]);
 
   const toggleSidebar = () => {
     const newState = !isCollapsed;
@@ -66,8 +67,16 @@ const Sidebar = ({ currentView, onNavigate }) => {
 
   const menuItems = [
     { id: "dashboard", icon: "fa-house", text: "Trang chủ" },
-    { id: "my-decks", icon: "fa-book-bookmark", text: "Thư viện của tôi" },
-    { id: "create", icon: "fa-square-plus", text: "Tạo thẻ" },
+
+    // NHÓM 1: FLASHCARD TRUYỀN THỐNG
+    { id: "my-decks", icon: "fa-book-bookmark", text: "Thư viện Thẻ" },
+    { id: "create", icon: "fa-square-plus", text: "Tạo Thẻ Lật" },
+
+    // NHÓM 2: ĐỀ THI TRẮC NGHIỆM
+    { id: "my-exams", icon: "fa-file-invoice", text: "Kho Đề Thi" }, // 👉 ĐÃ THÊM
+    { id: "create-exam", icon: "fa-file-signature", text: "Tạo Đề Thi" },
+
+    // CÁC CHỨC NĂNG CHUNG
     { id: "review", icon: "fa-layer-group", text: "Ôn tập" },
     { id: "stats", icon: "fa-chart-simple", text: "Thống kê" },
     {
@@ -87,7 +96,9 @@ const Sidebar = ({ currentView, onNavigate }) => {
     if (
       id === "dashboard" ||
       id === "create" ||
+      id === "create-exam" ||
       id === "my-decks" ||
+      id === "my-exams" || // 👉 ĐÃ MỞ KHÓA
       id === "review" ||
       id === "stats" ||
       id === "community" ||
@@ -95,7 +106,9 @@ const Sidebar = ({ currentView, onNavigate }) => {
     ) {
       if (onNavigate) onNavigate(id);
     } else {
-      alert("Tính năng này đang được cật lực xây dựng! 🛠️ Vui lòng quay lại sau nhé!");
+      alert(
+        "Tính năng này đang được cật lực xây dựng! 🛠️ Vui lòng quay lại sau nhé!",
+      );
     }
   };
 
@@ -105,25 +118,18 @@ const Sidebar = ({ currentView, onNavigate }) => {
       window.dispatchEvent(
         new CustomEvent("changeCommunityTab", { detail: subId }),
       );
-    }, 50); 
+    }, 50);
   };
 
-  // 👉 ĐÃ FIX TẬN GỐC LỖI DÍNH DATA: Quét sạch rác bộ nhớ khi đăng xuất
   const handleLogout = () => {
     if (window.confirm("Bạn có chắc chắn muốn đăng xuất không?")) {
-      // Giữ lại trạng thái đóng mở Sidebar
       const savedSidebarState = localStorage.getItem("sidebar_collapsed");
-      
-      // Quét sạch toàn bộ dữ liệu (Streak, user name, cache thẻ...)
-      localStorage.clear(); 
-      
-      // Phục hồi lại trạng thái Sidebar
+      localStorage.clear();
       if (savedSidebarState !== null) {
         localStorage.setItem("sidebar_collapsed", savedSidebarState);
       }
-
-      logoutUser(); 
-      navigate("/login"); 
+      logoutUser();
+      navigate("/login");
     }
   };
 
@@ -139,17 +145,18 @@ const Sidebar = ({ currentView, onNavigate }) => {
         }}
       >
         {!isCollapsed && (
-          <span 
+          <span
             className="logo"
             style={{
-              background: "linear-gradient(90deg, #2563eb 0%, #9333ea 50%, #ea580c 100%)",
+              background:
+                "linear-gradient(90deg, #2563eb 0%, #9333ea 50%, #ea580c 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               fontWeight: "900",
               fontSize: "1.05rem",
               letterSpacing: "1.5px",
               margin: 0,
-              textShadow: "0px 4px 15px rgba(147, 51, 234, 0.15)"
+              textShadow: "0px 4px 15px rgba(147, 51, 234, 0.15)",
             }}
           >
             FORGETMENOT
@@ -158,7 +165,11 @@ const Sidebar = ({ currentView, onNavigate }) => {
         <i
           className="fa-solid fa-bars hamburger"
           onClick={toggleSidebar}
-          style={{ cursor: "pointer", fontSize: "1.2rem", color: "var(--text-gray, #64748b)" }}
+          style={{
+            cursor: "pointer",
+            fontSize: "1.2rem",
+            color: "var(--text-gray, #64748b)",
+          }}
         ></i>
       </div>
 
@@ -202,7 +213,9 @@ const Sidebar = ({ currentView, onNavigate }) => {
           ))}
         </div>
 
-        <div className={`sidebar-footer ${isCollapsed ? "footer-collapsed" : ""}`}>
+        <div
+          className={`sidebar-footer ${isCollapsed ? "footer-collapsed" : ""}`}
+        >
           <div className="sidebar-user-profile">
             {userAvatar ? (
               <img
@@ -218,8 +231,18 @@ const Sidebar = ({ currentView, onNavigate }) => {
 
             {!isCollapsed && (
               <div className="sidebar-user-info">
-                <span className="sidebar-user-name" style={{ fontWeight: "700", color: "var(--text-dark)" }}>{userName}</span>
-                <span className="sidebar-user-email" style={{ color: "var(--text-gray)" }}>{userEmail}</span>
+                <span
+                  className="sidebar-user-name"
+                  style={{ fontWeight: "700", color: "var(--text-dark)" }}
+                >
+                  {userName}
+                </span>
+                <span
+                  className="sidebar-user-email"
+                  style={{ color: "var(--text-gray)" }}
+                >
+                  {userEmail}
+                </span>
               </div>
             )}
           </div>

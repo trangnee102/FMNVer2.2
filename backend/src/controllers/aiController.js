@@ -3,52 +3,12 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const pdfParse = require("pdf-parse");
 const mammoth = require("mammoth");
 const prisma = require("../services/prisma");
-
-// 👉 KHIÊN BẢO VỆ JSON
-const safeParseJSON = (rawText) => {
-  try {
-    let cleanText = rawText
-      .replace(/```json/gi, "")
-      .replace(/```/gi, "")
-      .trim();
-    cleanText = cleanText.replace(/(?<!\\)\\(?!["\\/bfnrt])/g, "\\\\");
-    return JSON.parse(cleanText);
-  } catch (error) {
-    console.error("Lỗi parse JSON:", error);
-    return {
-      message: "Hệ thống AI xử lý xong nhưng bị lệch định dạng đôi chút!",
-      cards: [],
-    };
-  }
-};
-
-const shuffleArray = (array) => {
-  const newArray = [...array];
-  for (let i = newArray.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-  }
-  return newArray;
-};
-
-// 🛡️ VŨ KHÍ TỐI THƯỢNG: Tự động lùng sục mọi chữ có dấu gạch chéo (\) và bọc $ vào nếu chưa có
-const autoWrapMath = (text) => {
-  if (!text) return "";
-  let processed = text;
-
-  // Nếu chuỗi đã có dấu $ rồi thì giữ nguyên, còn nếu chứa các từ khóa toán học mà trần trụi thì tự động bọc $
-  // Quét các từ khóa phổ biến: \sin, \cos, \tan, \alpha, \beta, \pi, \frac, \left, \right
-  const mathKeywords =
-    /\\(sin|cos|tan|cot|arcsin|arccos|arctan|alpha|beta|gamma|theta|pi|varphi|sigma|frac|left|right|sqrt|sum|int|cdot|pm|mp|leq|geq|neq|approx|infty)/g;
-
-  if (mathKeywords.test(processed) && !processed.includes("$")) {
-    // Tạm thời bao toàn bộ chuỗi hoặc tách các cụm chứa lệnh latex để bọc $
-    // Cách an toàn nhất cho Flashcard học tập: Nếu có lệnh toán học mà chưa có $, bọc cả câu hoặc đoạn công thức đó vào $
-    processed = `$${processed}$`;
-  }
-
-  return processed;
-};
+// Nhúng các hàm phụ trợ vào
+const {
+  safeParseJSON,
+  shuffleArray,
+  autoWrapMath,
+} = require("../utils/aiHelpers");
 
 const generateFlashcards = async (req, res) => {
   try {
@@ -119,7 +79,7 @@ Dựa vào nội dung tài liệu phía trên, hãy thực hiện yêu cầu sau
 ⚠️ QUY TẮC ÉP BUỘC:
 1. Đa dạng hóa câu hỏi (So sánh, Điền khuyết, Tại sao...).
 2. CHỐNG ẢO GIÁC: CHỈ sử dụng kiến thức có trong tài liệu gốc, không tự bịa đặt.
-3. Cố gắng giữ lại các ký hiệu toán học LaTeX sẵn có từ tài liệu gốc.
+3. Cố gắng giữ lại các ký hiệu toán học LaTeX sẵn có.
 
 HÃY TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
 {
@@ -144,11 +104,13 @@ HÃY TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
       throw new Error("Phản hồi từ Google AI bị rỗng hoặc lỗi kết nối.");
     }
 
-    const aiResponse = safeParseJSON(result.response.text());
-
+    const fallback = {
+      message: "Hệ thống AI xử lý xong nhưng bị lệch định dạng!",
+      cards: [],
+    };
+    const aiResponse = safeParseJSON(result.response.text(), fallback);
     let generatedCards = aiResponse.cards || [];
 
-    // 🛡️ TỰ ĐỘNG BỌC TOÁN HỌC CHO TỪNG THẺ TRƯỚC KHI TRẢ VỀ FRONTEND
     generatedCards = generatedCards.map((card) => ({
       front: autoWrapMath(card.front),
       back: autoWrapMath(card.back),
@@ -158,21 +120,19 @@ HÃY TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
       generatedCards = shuffleArray(generatedCards);
     }
 
-    const finalMessage =
-      aiResponse.message || "Tớ đã tạo xong bộ thẻ liên kết chéo cho cậu!";
-
     return res.status(200).json({
       success: true,
-      message: finalMessage,
+      message: aiResponse.message || "Tớ đã tạo xong bộ thẻ cho cậu!",
       data: generatedCards,
     });
   } catch (error) {
     console.error("❌ Lỗi AI Generate:", error);
-    return res.status(500).json({
-      success: false,
-      message:
-        "Hệ thống AI đang kẹt mạng hoặc hết lượt dùng, cậu thử lại sau vài giây nhé!",
-    });
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message: "Hệ thống AI đang kẹt mạng, cậu thử lại sau nhé!",
+      });
   }
 };
 
@@ -188,7 +148,7 @@ const saveGeneratedCards = async (req, res) => {
 
     const deckName = topic || "Thẻ AI tự tạo";
     let deck = await prisma.decks.findFirst({
-      where: { title: deckName, user_id: userId },
+      where: { title: deckName, user_id: userId, is_exam: false }, // Đảm bảo không lưu lộn vào bảng đề thi
     });
 
     if (!deck) {
@@ -198,6 +158,7 @@ const saveGeneratedCards = async (req, res) => {
           user_id: userId,
           description: "Bộ thẻ tự động bởi AI",
           is_public: false,
+          is_exam: false,
         },
       });
     }
@@ -209,6 +170,7 @@ const saveGeneratedCards = async (req, res) => {
     }));
     await prisma.flashcards.createMany({ data: flashcardsData });
 
+    // ĐÃ SỬA: Bỏ các dấu gạch chéo ngược (\)
     return res
       .status(200)
       .json({ success: true, message: `Lưu thành công ${cards.length} thẻ!` });
@@ -263,31 +225,31 @@ JSON OUTPUT BẮT BUỘC:
       !result.response ||
       typeof result.response.text !== "function"
     ) {
-      throw new Error("Phản hồi từ Google AI bị rỗng hoặc lỗi kết nối.");
+      throw new Error("Phản hồi từ Google AI bị rỗng.");
     }
 
-    const aiResponse = safeParseJSON(result.response.text());
-
+    const fallback = { message: "Lỗi sửa chữa!", cards: [] };
+    const aiResponse = safeParseJSON(result.response.text(), fallback);
     let refinedCards = aiResponse.cards || [];
+
     refinedCards = refinedCards.map((card) => ({
       front: autoWrapMath(card.front),
       back: autoWrapMath(card.back),
     }));
 
-    const finalMessage =
-      aiResponse.message || `✨ Đã áp dụng lệnh '${refinePrompt}' thành công!`;
-
+    // ĐÃ SỬA: Bỏ các dấu gạch chéo ngược (\)
     return res.status(200).json({
       success: true,
-      message: finalMessage,
+      message:
+        aiResponse.message ||
+        `✨ Đã áp dụng lệnh '${refinePrompt}' thành công!`,
       data: refinedCards,
     });
   } catch (error) {
     console.error("❌ Lỗi AI Refine:", error);
-    return res.status(500).json({
-      success: false,
-      message: "AI đang kẹt mạng hoặc hết lượt dùng, thử lại sau vài giây nhé!",
-    });
+    return res
+      .status(500)
+      .json({ success: false, message: "AI đang kẹt mạng, thử lại sau nhé!" });
   }
 };
 

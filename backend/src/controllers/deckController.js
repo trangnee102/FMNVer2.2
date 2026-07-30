@@ -1,16 +1,59 @@
+// backend/src/controllers/deckController.js
 const prisma = require("../services/prisma");
 
-// 1. LẤY DANH SÁCH BỘ THẺ CỦA NGƯỜI DÙNG
+// =========================================
+// 1. LẤY DANH SÁCH BỘ THẺ HOẶC ĐỀ THI
+// =========================================
 const getMyDecks = async (req, res) => {
   try {
     const userId = parseInt(req.user.id) || req.user.id;
+    const { type } = req.query;
+
+    let whereClause = { user_id: userId };
+
+    if (type === "exam") {
+      whereClause.is_exam = true;
+    } else {
+      whereClause.is_exam = false;
+    }
 
     const decks = await prisma.decks.findMany({
-      where: { user_id: userId },
+      where: whereClause,
       orderBy: { id: "desc" },
+      // 👉 ĐÃ SỬA: Lấy độ khó của tất cả câu hỏi lên để đếm
+      include: {
+        Flashcards: {
+          select: { difficulty: true },
+        },
+      },
     });
 
-    res.json({ success: true, data: decks });
+    // 👉 ĐÃ THÊM: Quét và đếm chính xác số lượng Dễ/Vừa/Khó của từng đề
+    const augmentedDecks = decks.map((deck) => {
+      let easyCount = 0;
+      let mediumCount = 0;
+      let hardCount = 0;
+
+      deck.Flashcards.forEach((card) => {
+        const diff = (card.difficulty || "EASY").toUpperCase(); // Nếu null thì gom vào Dễ
+        if (diff === "HARD") hardCount++;
+        else if (diff === "MEDIUM") mediumCount++;
+        else easyCount++;
+      });
+
+      // Tách bỏ mảng Flashcards để gói tin gửi về Frontend được nhẹ nhàng
+      const { Flashcards, ...deckData } = deck;
+
+      return {
+        ...deckData,
+        totalCards: Flashcards.length,
+        easyCount,
+        mediumCount,
+        hardCount,
+      };
+    });
+
+    res.json({ success: true, data: augmentedDecks });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -20,7 +63,9 @@ const getMyDecks = async (req, res) => {
   }
 };
 
+// =========================================
 // 2. TẠO BỘ THẺ MỚI (Tạo riêng lẻ không có thẻ)
+// =========================================
 const createDeck = async (req, res) => {
   try {
     const { title, description, is_public, is_anonymous } = req.body;
@@ -39,6 +84,7 @@ const createDeck = async (req, res) => {
         is_public: is_public || false,
         is_anonymous: is_anonymous || false,
         user_id: userId,
+        is_exam: false,
       },
     });
 
@@ -57,7 +103,7 @@ const createDeck = async (req, res) => {
 };
 
 // =========================================
-// 👉 ĐÃ NÂNG CẤP: HÀM LƯU NHIỀU THẺ TỪ AI (Chống lỗi diện rộng)
+// 3. TẠO NHIỀU THẺ CÙNG LÚC TỪ AI
 // =========================================
 const createDeckWithCards = async (req, res) => {
   try {
@@ -65,14 +111,12 @@ const createDeckWithCards = async (req, res) => {
       req.body;
     const userId = parseInt(req.user.id) || req.user.id;
 
-    // 1. Kiểm tra xem user có gửi mảng thẻ (cards) lên không
     if (!Array.isArray(cards) || cards.length === 0) {
       return res
         .status(400)
         .json({ success: false, message: "Vui lòng nhập ít nhất 1 thẻ!" });
     }
 
-    // 2. Bộ lọc thông minh: Quét mọi key mà AI có thể nghĩ ra và chuẩn hóa thành chuỗi
     const validCards = cards
       .map((c) => {
         const q = c.question || c.front || c.cau_hoi || c.CauHoi || c.q || "";
@@ -91,9 +135,6 @@ const createDeckWithCards = async (req, res) => {
       });
     }
 
-    // ----------------------------------------------------
-    // KỊCH BẢN A: LƯU VÀO BỘ THẺ ĐÃ CÓ TỪ TRƯỚC (Nhận được deck_id)
-    // ----------------------------------------------------
     if (deck_id) {
       const parsedDeckId = parseInt(deck_id);
 
@@ -107,7 +148,6 @@ const createDeckWithCards = async (req, res) => {
           .json({ success: false, message: "Không tìm thấy bộ thẻ bạn chọn!" });
       }
 
-      // Tạo thẻ mới và nhét vào bộ thẻ cũ
       await prisma.flashcards.createMany({
         data: validCards.map((card) => ({
           question: card.question,
@@ -122,16 +162,12 @@ const createDeckWithCards = async (req, res) => {
       });
     }
 
-    // ----------------------------------------------------
-    // KỊCH BẢN B: TẠO BỘ THẺ MỚI HOÀN TOÀN (Nhận được title)
-    // ----------------------------------------------------
     if (!title) {
       return res
         .status(400)
         .json({ success: false, message: "Tên bộ thẻ không được để trống!" });
     }
 
-    // Tách làm 2 bước để không bị lỗi tên Relation (Flashcards vs flashcards)
     const newDeck = await prisma.decks.create({
       data: {
         title: title,
@@ -139,6 +175,7 @@ const createDeckWithCards = async (req, res) => {
         is_public: is_public || false,
         is_anonymous: is_anonymous || false,
         user_id: userId,
+        is_exam: false,
       },
     });
 
@@ -156,7 +193,6 @@ const createDeckWithCards = async (req, res) => {
       data: newDeck,
     });
   } catch (error) {
-    // 👉 ĐÃ THÊM: Loa phường báo lỗi! Chữ này sẽ in thẳng ra Terminal để bắt bệnh
     console.error("🚨 [LỖI NGHIÊM TRỌNG] Sập Server khi lưu thẻ AI:", error);
 
     res.status(500).json({
@@ -167,7 +203,9 @@ const createDeckWithCards = async (req, res) => {
   }
 };
 
-// 3. CẬP NHẬT/SỬA TÊN BỘ THẺ
+// =========================================
+// 4. CẬP NHẬT/SỬA TÊN BỘ THẺ / ĐỀ THI
+// =========================================
 const updateDeck = async (req, res) => {
   try {
     const deckId = parseInt(req.params.id);
@@ -181,7 +219,7 @@ const updateDeck = async (req, res) => {
     if (!existingDeck) {
       return res.status(404).json({
         success: false,
-        message: "Không tìm thấy bộ thẻ hoặc bạn không có quyền sửa!",
+        message: "Không tìm thấy bộ dữ liệu hoặc bạn không có quyền sửa!",
       });
     }
 
@@ -205,13 +243,15 @@ const updateDeck = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Lỗi khi cập nhật bộ thẻ!",
+      message: "Lỗi khi cập nhật!",
       error: error.message,
     });
   }
 };
 
-// 4. XÓA BỘ THẺ
+// =========================================
+// 5. XÓA BỘ THẺ / ĐỀ THI
+// =========================================
 const deleteDeck = async (req, res) => {
   try {
     const deckId = parseInt(req.params.id);
@@ -224,7 +264,7 @@ const deleteDeck = async (req, res) => {
     if (!existingDeck) {
       return res.status(404).json({
         success: false,
-        message: "Không tìm thấy bộ thẻ hoặc bạn không có quyền xóa!",
+        message: "Không tìm thấy bộ dữ liệu hoặc bạn không có quyền xóa!",
       });
     }
 
@@ -232,11 +272,11 @@ const deleteDeck = async (req, res) => {
       where: { id: deckId },
     });
 
-    res.json({ success: true, message: "Đã xóa bộ thẻ thành công!" });
+    res.json({ success: true, message: "Đã xóa thành công!" });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Lỗi khi xóa bộ thẻ!",
+      message: "Lỗi khi xóa!",
       error: error.message,
     });
   }

@@ -1,11 +1,11 @@
+// frontend/src/services/api.js
 import axios from "axios";
 
 // =========================================
-// 1. KHỞI TẠO "KẺ VẬN CHUYỂN NGẦM"
+// 1. KHỞI TẠO "KẺ VẬN CHUYỂN NGẦM" (ÉP CỨNG LOCALHOST)
 // =========================================
 const api = axios.create({
-  // 👉 Tự động đọc link Render từ file .env. Nếu không có file .env thì mới dự phòng bằng localhost
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  baseURL: "http://localhost:5000/api",
 });
 
 // =========================================
@@ -54,6 +54,23 @@ export const deckAPI = {
 export const studyAPI = {
   getDueCards: (deckId) => api.get(`/study/deck/${deckId}/due-cards`),
   reviewCard: (cardId, grade) => api.post(`/study/${cardId}/review`, { grade }),
+
+  // 👉 ĐÃ NÂNG CẤP: Hỗ trợ bóc tách linh hoạt cấu hình chi tiết Dễ, Vừa, Khó
+  generateRandomExam: (deckId, config, difficulty) => {
+    let params = { difficulty };
+
+    if (typeof config === "object" && config !== null) {
+      // Nếu truyền vào object cấu hình từ Popup
+      params.easyCount = config.easyCount;
+      params.mediumCount = config.mediumCount;
+      params.hardCount = config.hardCount;
+    } else {
+      // Tương thích ngược nếu chỉ truyền số lượng limit đơn thuần
+      params.limit = config;
+    }
+
+    return api.get(`/study/exam/${deckId}/random`, { params });
+  },
 };
 
 export const statisticsAPI = {

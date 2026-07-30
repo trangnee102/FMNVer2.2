@@ -8,6 +8,28 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// =========================================
+// ENUMS CHO HỆ THỐNG THI TRẮC NGHIỆM
+// =========================================
+enum QuestionType {
+  FLASHCARD       // Chế độ thẻ nhớ lật truyền thống
+  TRUE_FALSE      // Câu hỏi Đúng/Sai
+  SINGLE_CHOICE   // Trắc nghiệm 1 đáp án (ABCD)
+  MULTIPLE_CHOICE // Trắc nghiệm nhiều đáp án đúng
+  FILL_BLANK      // 👉 ĐÃ THÊM: Câu hỏi Điền từ vào chỗ trống
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum QuestionCategory {
+  THEORY    // Lý thuyết
+  PRACTICE  // Thực hành
+}
+
 model Decks {
   id           Int          @id @default(autoincrement())
   title        String
@@ -16,6 +38,8 @@ model Decks {
   is_anonymous Boolean?     @default(false)
   clone_count  Int?         @default(0)
   category     String?
+  
+  is_exam      Boolean?     @default(false)
 
   user_id      Int
   Users        Users        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -24,13 +48,26 @@ model Decks {
 }
 
 model Flashcards {
-  id            Int             @id @default(autoincrement())
-  deck_id       Int
-  question      String
-  answer        String
-  Decks         Decks           @relation(fields: [deck_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  StudyProgress StudyProgress[]
-  StudyLogs     StudyLogs[]
+  id              Int               @id @default(autoincrement())
+  deck_id         Int
+  question        String
+  answer          String
+  
+  question_type   QuestionType?     @default(FLASHCARD)
+  difficulty      Difficulty?       @default(MEDIUM)
+  category        QuestionCategory? @default(THEORY)
+  
+  options         String?           
+  correct_answers String?           
+
+  // 👉 ĐÃ THÊM: Các cột đáp ứng chuẩn hệ thống học tập thông minh
+  source_reference String?          // Nguồn tham chiếu (chống AI Hallucination)
+  keywords         String?          // Từ khóa tìm kiếm/phân loại
+  explanation      String?          // Giải thích đáp án bằng AI
+
+  Decks           Decks             @relation(fields: [deck_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  StudyProgress   StudyProgress[]
+  StudyLogs       StudyLogs[]
 }
 
 model StudyProgress {
@@ -59,39 +96,33 @@ model StudyLogs {
 }
 
 // =========================================
-// HỆ SINH THÁI CHAT CHUẨN ZALO (GỘP CHUNG 1-1 VÀ NHÓM)
+// HỆ SINH THÁI CHAT CHUẨN ZALO
 // =========================================
-
-// Bảng 1: Cuộc trò chuyện (Đại diện cho 1 Nhóm hoặc 1 đoạn chat 2 người)
 model Conversations {
-  id          Int        @id @default(autoincrement())
-  name        String?    
-  is_group    Boolean    @default(false)  
-  invite_code String?    @unique 
-  created_at  DateTime   @default(now())
+  id          Int      @id @default(autoincrement())
+  name        String?  
+  is_group    Boolean  @default(false)  
+  invite_code String?  @unique 
+  created_at  DateTime @default(now())
 
   Messages     Messages[]
   Participants Participants[]
 }
 
-// Bảng 2: Người tham gia (Ai đang ở trong cuộc trò chuyện nào)
 model Participants {
   id                   Int      @id @default(autoincrement())
   conversation_id      Int
   user_id              Int
   role                 String   @default("member") 
   joined_at            DateTime @default(now())
-
-  // 👉 ĐÃ THÊM: Theo dõi ID tin nhắn cuối cùng mà user này đã xem
   last_read_message_id Int?     @default(0)
 
   Conversation  Conversations @relation(fields: [conversation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   User          Users         @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  @@unique([conversation_id, user_id]) // Một người chỉ tham gia 1 lần trong 1 box chat
+  @@unique([conversation_id, user_id])
 }
 
-// Bảng 3: Tin nhắn (Tất cả tin nhắn 1-1 hay Nhóm đều chui vào đây)
 model Messages {
   id              Int      @id @default(autoincrement())
   conversation_id Int
@@ -106,14 +137,11 @@ model Messages {
   Sender        Users         @relation(fields: [sender_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
-// =========================================
-// BẢNG LỜI MỜI KẾT BẠN (FRIENDSHIPS)
-// =========================================
 model Friendships {
   id           Int      @id @default(autoincrement())
-  requester_id Int      // ID người gửi lời mời
-  addressee_id Int      // ID người nhận lời mời
-  status       String   @default("pending") // pending, accepted, declined
+  requester_id Int      
+  addressee_id Int      
+  status       String   @default("pending") 
   created_at   DateTime @default(now()) 
 
   Requester    Users    @relation("SentRequests", fields: [requester_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
@@ -136,14 +164,17 @@ model Users {
   total_points  Int?            @default(0)
   is_online     Boolean?        @default(false)
 
+  created_at             DateTime? @default(now())
+  community_notification Boolean?  @default(true)
+  due_notification       Boolean?  @default(true)
+  study_reminder         Boolean?  @default(true)
+
   Decks         Decks[]
   StudyProgress StudyProgress[]
   StudyLogs     StudyLogs[]     
   
-  // Quan hệ cho hệ sinh thái Chat mới
   Participations         Participants[]
   MessagesSent           Messages[]
-
   FriendRequestsSent     Friendships[]   @relation("SentRequests")
   FriendRequestsReceived Friendships[]   @relation("ReceivedRequests")
 }
