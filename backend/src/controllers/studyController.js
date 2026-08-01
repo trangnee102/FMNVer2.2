@@ -1,11 +1,12 @@
+// backend/src/controllers/studyController.js
 const prisma = require("../services/prisma");
 const { calculateSM2 } = require("../algorithms/forgettingCurve");
 const jwt = require("jsonwebtoken");
+const { shuffleArray } = require("../utils/aiHelpers");
 
 const extractUserId = (req) => {
   let userId = req.user?.id || req.userId || req.user?.userId;
 
-  // 2. Nếu không có, tự động bắt Token từ Header và dịch ra ID
   if (!userId && req.headers.authorization?.startsWith("Bearer ")) {
     try {
       const token = req.headers.authorization.split(" ")[1];
@@ -17,6 +18,10 @@ const extractUserId = (req) => {
   }
   return userId;
 };
+
+// ==========================================
+// TÍNH NĂNG 1: HỌC FLASHCARD (THUẬT TOÁN SM-2 CŨ - GIỮ NGUYÊN)
+// ==========================================
 
 const reviewCard = async (req, res) => {
   try {
@@ -31,7 +36,6 @@ const reviewCard = async (req, res) => {
 
     const cardId = req.body.flashcard_id || parseInt(req.params.cardId);
 
-    // Bắt điểm đánh giá từ Frontend (1: Quên, 2: Khó, 3: Tốt, 4: Dễ)
     const frontendGrade =
       req.body.rating !== undefined ? req.body.rating : req.body.grade;
     const durationMs = req.body.duration_ms || 12000;
@@ -43,10 +47,8 @@ const reviewCard = async (req, res) => {
       });
     }
 
-    // 🌟 QUY ĐỔI ĐIỂM SỐ: Ép về chuẩn (0, 1, 2, 3) để đưa vào thuật toán SM-2
     const normalizedGrade = frontendGrade - 1;
 
-    // 🚀 TỐI ƯU TỐC ĐỘ: Cho 2 hàm tìm kiếm chạy SONG SONG
     const [card, progress] = await Promise.all([
       prisma.flashcards.findUnique({
         where: { id: cardId },
@@ -76,7 +78,6 @@ const reviewCard = async (req, res) => {
       });
     }
 
-    // 1. Khởi tạo tiến độ nếu thẻ này mới học lần đầu
     let currentProgress = progress;
     if (!currentProgress) {
       currentProgress = await prisma.studyProgress.create({
@@ -90,7 +91,6 @@ const reviewCard = async (req, res) => {
       });
     }
 
-    // 2. Tính toán SM-2
     const { newEaseFactor, newInterval, newRepetitions } = calculateSM2(
       normalizedGrade,
       currentProgress.ease_factor,
@@ -98,18 +98,14 @@ const reviewCard = async (req, res) => {
       currentProgress.repetitions,
     );
 
-    // 3. Tính ngày ôn tiếp theo
     let nextReviewDate = new Date();
     if (normalizedGrade === 0) {
-      // 🚨 BẤM QUÊN: Lùi 1 phút để học lại ngay
       nextReviewDate.setMinutes(nextReviewDate.getMinutes() - 1);
     } else {
-      // ✅ BẤM NHỚ: Hẹn ngày tiếp theo (Mặc định reset về đầu ngày mới)
       nextReviewDate.setDate(nextReviewDate.getDate() + newInterval);
       nextReviewDate.setHours(0, 0, 0, 0);
     }
 
-    // Cập nhật lại Tiến độ (StudyProgress) sau khi tính toán
     const updatedProgress = await prisma.studyProgress.update({
       where: { id: currentProgress.id },
       data: {
@@ -120,7 +116,6 @@ const reviewCard = async (req, res) => {
       },
     });
 
-    // 4. Ghi Log quá trình học
     await prisma.studyLogs.create({
       data: {
         user_id: userId,
@@ -176,7 +171,6 @@ const getDueCards = async (req, res) => {
 
     const clientDateString = req.query.currentDate;
 
-    // Đảm bảo so sánh trong cùng một mốc cuối ngày (End of Day)
     const today = clientDateString ? new Date(clientDateString) : new Date();
     today.setHours(23, 59, 59, 999);
 
@@ -194,9 +188,8 @@ const getDueCards = async (req, res) => {
     if (!isForceReview) {
       dueCards = flashcards.filter((card) => {
         const prog = card.StudyProgress[0];
-        if (!prog) return true; // Thẻ mới -> Đến hạn
+        if (!prog) return true;
 
-        // 🌟 So sánh chuẩn: Nếu ngày hẹn <= hôm nay -> Bắt học
         return new Date(prog.next_review_date) <= today;
       });
     }
@@ -218,4 +211,105 @@ const getDueCards = async (req, res) => {
   }
 };
 
-module.exports = { reviewCard, getDueCards };
+// ==========================================
+// TÍNH NĂNG 2: THI TRẮC NGHIỆM - TRỘN ĐỀ THÔNG MINH
+// ==========================================
+
+const generateRandomExam = async (req, res) => {
+  try {
+    const userId = extractUserId(req);
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Vui lòng đăng nhập lại!" });
+    }
+
+    const deckId = parseInt(req.params.deckId);
+
+    // 👉 ĐÃ SỬA: Đọc tham số chi tiết từ Client gửi lên
+    const limit = parseInt(req.query.limit) || 0; // Tương thích ngược với App cũ
+    const easyCount = parseInt(req.query.easyCount) || 0;
+    const mediumCount = parseInt(req.query.mediumCount) || 0;
+    const hardCount = parseInt(req.query.hardCount) || 0;
+
+    const deck = await prisma.decks.findUnique({
+      where: { id: deckId },
+    });
+
+    if (!deck) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Không tìm thấy bộ đề này!" });
+    }
+
+    // Lấy toàn bộ câu hỏi của đề
+    const allQuestions = await prisma.flashcards.findMany({
+      where: { deck_id: deckId },
+    });
+
+    if (allQuestions.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Không có câu hỏi nào trong ngân hàng đề này!",
+      });
+    }
+
+    let finalExam = [];
+
+    // 👉 THUẬT TOÁN 1: Chạy theo cấu hình Phân loại (Nếu Client có truyền)
+    if (easyCount > 0 || mediumCount > 0 || hardCount > 0) {
+      // Phân nhóm câu hỏi
+      const easys = allQuestions.filter((q) => q.difficulty === "EASY");
+      const mediums = allQuestions.filter((q) => q.difficulty === "MEDIUM");
+      const hards = allQuestions.filter((q) => q.difficulty === "HARD");
+
+      // Trộn và lấy số lượng yêu cầu (Nếu số lượng yêu cầu > thực tế thì lấy tối đa)
+      finalExam = [
+        ...shuffleArray(easys).slice(0, easyCount),
+        ...shuffleArray(mediums).slice(0, mediumCount),
+        ...shuffleArray(hards).slice(0, hardCount),
+      ];
+
+      // Nếu không gom đủ (do Client yêu cầu số câu lớn hơn DB có)
+      const requestedTotal = easyCount + mediumCount + hardCount;
+      if (finalExam.length < requestedTotal) {
+        // Lấy những câu còn thừa chưa được chọn bù vào cho đủ số lượng (bất chấp độ khó)
+        const selectedIds = new Set(finalExam.map((q) => q.id));
+        const remainingQuestions = allQuestions.filter(
+          (q) => !selectedIds.has(q.id),
+        );
+        const missingCount = requestedTotal - finalExam.length;
+
+        finalExam = [
+          ...finalExam,
+          ...shuffleArray(remainingQuestions).slice(0, missingCount),
+        ];
+      }
+    }
+    // 👉 THUẬT TOÁN 2: Chạy theo cấu hình Limit đơn thuần (Tương thích ngược)
+    else {
+      finalExam = shuffleArray(allQuestions).slice(0, limit > 0 ? limit : 20);
+    }
+
+    // Cuối cùng: Trộn lại toàn bộ đề một lần nữa để Easy/Medium/Hard đan xen nhau
+    const shuffledFinalExam = shuffleArray(finalExam);
+
+    res.json({
+      success: true,
+      message: `Đã chuẩn bị xong đề thi gồm ${shuffledFinalExam.length} câu!`,
+      data: shuffledFinalExam,
+    });
+  } catch (error) {
+    console.error("Lỗi generateRandomExam:", error);
+    res.status(500).json({
+      success: false,
+      message: "Lỗi hệ thống khi tạo đề thi ngẫu nhiên!",
+    });
+  }
+};
+
+module.exports = {
+  reviewCard,
+  getDueCards,
+  generateRandomExam,
+};

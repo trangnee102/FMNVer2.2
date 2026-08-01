@@ -1,0 +1,70 @@
+/* frontend/src/pages/CreateExam.css */
+.exam-alert-error {
+  color: #ef4444;
+  padding: 15px;
+  background-color: rgba(239, 68, 68, 0.1);
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border-left: 4px solid #ef4444;
+  font-weight: bold;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.exam-btn-generate {
+  width: 100%;
+  padding: 15px;
+  background-color: #10b981;
+  color: white;
+  border-radius: 8px;
+  border: none;
+  font-weight: bold;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  transition: all 0.3s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.exam-btn-generate:hover:not(:disabled) {
+  background-color: #059669;
+  transform: translateY(-2px);
+}
+
+.exam-btn-generate:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Hiệu ứng xoay xoay khi Loading */
+.exam-spinner {
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top: 3px solid white;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

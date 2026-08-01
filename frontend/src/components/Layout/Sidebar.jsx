@@ -10,18 +10,14 @@ const Sidebar = ({ currentView, onNavigate }) => {
     return savedState !== null ? JSON.parse(savedState) : false;
   });
 
-  const navigate = useNavigate(); 
-  // 👉 ĐÃ CẬP NHẬT: Lấy thêm isLoading từ AuthContext để biết khi nào dữ liệu tải xong
-  const { user, logoutUser, isLoading } = useAuth(); 
+  const navigate = useNavigate();
+  const { user, logoutUser } = useAuth();
 
   const [userName, setUserName] = useState("Đang tải...");
   const [userEmail, setUserEmail] = useState("...");
   const [userAvatar, setUserAvatar] = useState(null);
 
   useEffect(() => {
-    // Nếu AuthContext đang tải dữ liệu từ API/LocalStorage, giữ nguyên chữ "Đang tải..."
-    if (isLoading) return;
-
     let currentUser = user;
     if (!currentUser) {
       try {
@@ -33,27 +29,24 @@ const Sidebar = ({ currentView, onNavigate }) => {
     }
 
     if (currentUser) {
-      // Thuật toán lấy tên thông minh, ưu tiên dữ liệu từ context mới nhất
-      const emailPrefix = currentUser.email ? currentUser.email.split('@')[0] : "Người dùng";
+      const emailPrefix = currentUser.email
+        ? currentUser.email.split("@")[0]
+        : "Người dùng";
       setUserName(
-        currentUser.full_name || 
-        currentUser.name || 
-        currentUser.username || 
-        localStorage.getItem("current_user_name") || 
-        emailPrefix
+        currentUser.full_name ||
+          currentUser.name ||
+          currentUser.username ||
+          localStorage.getItem("current_user_name") ||
+          emailPrefix,
       );
-      
+
       setUserEmail(
-        currentUser.email || 
-        localStorage.getItem("current_user_email") || 
-        "Chưa cập nhật email"
+        currentUser.email ||
+          localStorage.getItem("current_user_email") ||
+          "Chưa cập nhật email",
       );
-      
+
       setUserAvatar(currentUser.avatar || localStorage.getItem("user_avatar"));
-    } else {
-      // Nếu không có user (bị lỗi hoặc chưa đăng nhập)
-      setUserName("Khách");
-      setUserEmail("Vui lòng đăng nhập");
     }
 
     const handleStorageChange = () => {
@@ -61,10 +54,10 @@ const Sidebar = ({ currentView, onNavigate }) => {
       const updatedName = localStorage.getItem("current_user_name");
       if (updatedName) setUserName(updatedName);
     };
-    
+
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
-  }, [user, isLoading]); // 👉 Cập nhật lại khi user hoặc isLoading thay đổi
+  }, [user]);
 
   const toggleSidebar = () => {
     const newState = !isCollapsed;
@@ -74,8 +67,16 @@ const Sidebar = ({ currentView, onNavigate }) => {
 
   const menuItems = [
     { id: "dashboard", icon: "fa-house", text: "Trang chủ" },
-    { id: "my-decks", icon: "fa-book-bookmark", text: "Thư viện" },
-    { id: "create", icon: "fa-square-plus", text: "Tạo thẻ" },
+
+    // NHÓM 1: FLASHCARD TRUYỀN THỐNG
+    { id: "my-decks", icon: "fa-book-bookmark", text: "Thư viện Thẻ" },
+    { id: "create", icon: "fa-square-plus", text: "Tạo Thẻ Lật" },
+
+    // NHÓM 2: ĐỀ THI TRẮC NGHIỆM
+    { id: "my-exams", icon: "fa-file-invoice", text: "Kho Đề Thi" }, // 👉 ĐÃ THÊM
+    { id: "create-exam", icon: "fa-file-signature", text: "Tạo Đề Thi" },
+
+    // CÁC CHỨC NĂNG CHUNG
     { id: "review", icon: "fa-layer-group", text: "Ôn tập" },
     { id: "stats", icon: "fa-chart-simple", text: "Thống kê" },
     {
@@ -95,16 +96,19 @@ const Sidebar = ({ currentView, onNavigate }) => {
     if (
       id === "dashboard" ||
       id === "create" ||
+      id === "create-exam" ||
       id === "my-decks" ||
+      id === "my-exams" || // 👉 ĐÃ MỞ KHÓA
       id === "review" ||
       id === "stats" ||
       id === "community" ||
-      id === "settings" ||
-      id === "admin" // 👉 ĐÃ THÊM: Cho phép click vào menu Admin
+      id === "settings"
     ) {
       if (onNavigate) onNavigate(id);
     } else {
-      alert("Tính năng này đang được cật lực xây dựng! 🛠️ Vui lòng quay lại sau nhé!");
+      alert(
+        "Tính năng này đang được cật lực xây dựng! 🛠️ Vui lòng quay lại sau nhé!",
+      );
     }
   };
 
@@ -114,24 +118,18 @@ const Sidebar = ({ currentView, onNavigate }) => {
       window.dispatchEvent(
         new CustomEvent("changeCommunityTab", { detail: subId }),
       );
-    }, 50); 
+    }, 50);
   };
 
   const handleLogout = () => {
     if (window.confirm("Bạn có chắc chắn muốn đăng xuất không?")) {
-      // Giữ lại trạng thái đóng mở Sidebar
       const savedSidebarState = localStorage.getItem("sidebar_collapsed");
-      
-      // Quét sạch toàn bộ dữ liệu (Streak, user name, cache thẻ...)
-      localStorage.clear(); 
-      
-      // Phục hồi lại trạng thái Sidebar
+      localStorage.clear();
       if (savedSidebarState !== null) {
         localStorage.setItem("sidebar_collapsed", savedSidebarState);
       }
-
-      logoutUser(); 
-      navigate("/login"); 
+      logoutUser();
+      navigate("/login");
     }
   };
 
@@ -147,17 +145,18 @@ const Sidebar = ({ currentView, onNavigate }) => {
         }}
       >
         {!isCollapsed && (
-          <span 
+          <span
             className="logo"
             style={{
-              background: "linear-gradient(90deg, #2563eb 0%, #9333ea 50%, #ea580c 100%)",
+              background:
+                "linear-gradient(90deg, #2563eb 0%, #9333ea 50%, #ea580c 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
               fontWeight: "900",
               fontSize: "1.05rem",
               letterSpacing: "1.5px",
               margin: 0,
-              textShadow: "0px 4px 15px rgba(147, 51, 234, 0.15)"
+              textShadow: "0px 4px 15px rgba(147, 51, 234, 0.15)",
             }}
           >
             FORGETMENOT
@@ -166,7 +165,11 @@ const Sidebar = ({ currentView, onNavigate }) => {
         <i
           className="fa-solid fa-bars hamburger"
           onClick={toggleSidebar}
-          style={{ cursor: "pointer", fontSize: "1.2rem", color: "var(--text-gray, #64748b)" }}
+          style={{
+            cursor: "pointer",
+            fontSize: "1.2rem",
+            color: "var(--text-gray, #64748b)",
+          }}
         ></i>
       </div>
 
@@ -208,22 +211,11 @@ const Sidebar = ({ currentView, onNavigate }) => {
               )}
             </div>
           ))}
-
-          {/* 👉 MENU ADMIN (Chỉ hiển thị khi tài khoản có quyền ADMIN) */}
-          {user?.role === 'ADMIN' && (
-            <div className="menu-group" style={{ marginTop: "15px", borderTop: "1px solid var(--border)", paddingTop: "15px" }}>
-              <div
-                className={`menu-item ${currentView === "admin" ? "active" : ""}`}
-                onClick={() => handleMenuClick("admin")}
-              >
-                <i className="fa-solid fa-shield-halved" style={{ color: "#ef4444" }}></i>
-                {!isCollapsed && <span style={{ color: "#ef4444", fontWeight: "bold" }}>Quản trị hệ thống</span>}
-              </div>
-            </div>
-          )}
         </div>
 
-        <div className={`sidebar-footer ${isCollapsed ? "footer-collapsed" : ""}`}>
+        <div
+          className={`sidebar-footer ${isCollapsed ? "footer-collapsed" : ""}`}
+        >
           <div className="sidebar-user-profile">
             {userAvatar ? (
               <img
@@ -239,8 +231,18 @@ const Sidebar = ({ currentView, onNavigate }) => {
 
             {!isCollapsed && (
               <div className="sidebar-user-info">
-                <span className="sidebar-user-name" style={{ fontWeight: "700", color: "var(--text-dark)" }}>{userName}</span>
-                <span className="sidebar-user-email" style={{ color: "var(--text-gray)" }}>{userEmail}</span>
+                <span
+                  className="sidebar-user-name"
+                  style={{ fontWeight: "700", color: "var(--text-dark)" }}
+                >
+                  {userName}
+                </span>
+                <span
+                  className="sidebar-user-email"
+                  style={{ color: "var(--text-gray)" }}
+                >
+                  {userEmail}
+                </span>
               </div>
             )}
           </div>

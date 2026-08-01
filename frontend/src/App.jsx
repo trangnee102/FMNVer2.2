@@ -1,19 +1,24 @@
+// frontend/src/App.jsx
 import React, { useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Login from "./components/Auth/Login";
 import Register from "./components/Auth/Register";
-import ProtectedRoute from "./components/Auth/ProtectedRoute"; 
+import ProtectedRoute from "./components/Auth/ProtectedRoute";
 
 import DashboardPage from "./pages/DashboardPage";
 import CreateCardPage from "./pages/CreateCardPage";
 import CreateFlashcardManualPage from "./pages/CreateFlashcardManualPage";
 import ReviewPage from "./pages/ReviewPage";
 import MyDecksPage from "./pages/MyDecksPage";
+// 👉 ĐÃ THÊM: Import trang Kho Đề Thi mới
+import MyExamsPage from "./pages/MyExamsPage";
 import CramReviewPage from "./pages/CramReviewPage";
 import StatisticsPage from "./pages/StatisticsPage";
 import CommunityPage from "./pages/CommunityPage";
 import CreateCardAIPage from "./pages/CreateCardAIPage";
-import SettingsPage from "./pages/SettingsPage"; 
+import CreateExamPage from "./pages/CreateExamPage";
+import SettingsPage from "./pages/SettingsPage";
+import ExamPage from "./pages/ExamPage";
 import "./index.css";
 
 import TimeMachineWidget from "./components/TimeMachineWidget";
@@ -47,13 +52,13 @@ function App() {
   const [isForceReview, setIsForceReview] = useState(false);
 
   const handleLogin = () => {
-    const defaultName = "Nguyễn Khắc Tuấn Đạt"; 
+    const defaultName = "Nguyễn Khắc Tuấn Đạt";
     setUserName(defaultName);
-    
-    // Lưu thông tin vào bộ nhớ để Sidebar và SettingsPage lấy ra dùng
+
+    // Lưu thông calculations vào bộ nhớ để Sidebar và SettingsPage lấy ra dùng
     localStorage.setItem("current_user_name", defaultName);
     localStorage.setItem("current_user_email", "nguyenkhactdat2007@gmail.com");
-    
+
     navigate("/dashboard");
   };
 
@@ -63,8 +68,6 @@ function App() {
   };
 
   const handleNavigate = (view, deckId = null) => {
-    // 👉 ĐÃ FIX: Luôn cập nhật trạng thái của activeDeckId. 
-    // Nếu bấm từ Sidebar (deckId = null), nó sẽ reset sạch ID cũ để về trang Dashboard Ôn tập!
     setActiveDeckId(deckId);
 
     const routeMap = {
@@ -74,13 +77,16 @@ function App() {
       create: "/create",
       "create-manual": "/create-manual",
       "my-decks": "/my-decks",
+      "my-exams": "/my-exams", // 👉 ĐÃ THÊM: Map route cho Kho Đề Thi
       study: "/study",
       review: "/study",
       "cram-review": "/cram-review",
       stats: "/stats",
       community: "/community",
       "create-ai": "/create-ai",
+      "create-exam": "/create-exam",
       settings: "/settings",
+      exam: "/exam",
     };
 
     const path = routeMap[view] || `/${view}`;
@@ -93,11 +99,16 @@ function App() {
     navigate("/study");
   };
 
+  const handleStartExam = (deckId) => {
+    setActiveDeckId(deckId);
+    navigate("/exam");
+  };
+
   return (
     <AuthProvider>
       <Routes>
         {/* ========================================== */}
-        {/* KHU VỰC TỰ DO: Ai cũng có thể vào           */}
+        {/* KHU VỰC TỰ DO: Ai cũng có thể vào          */}
         {/* ========================================== */}
         <Route path="/" element={<Navigate to="/login" replace />} />
 
@@ -132,6 +143,7 @@ function App() {
                 dynamicName={userName}
                 onNavigate={handleNavigate}
                 onStudy={handleStartStudy}
+                onExam={handleStartExam}
               />
             }
           />
@@ -152,6 +164,18 @@ function App() {
               <MyDecksPage
                 onNavigate={handleNavigate}
                 onStudy={handleStartStudy}
+                onExam={handleStartExam}
+              />
+            }
+          />
+
+          {/* 👉 ĐÃ THÊM: Route gọi component MyExamsPage */}
+          <Route
+            path="/my-exams"
+            element={
+              <MyExamsPage
+                onNavigate={handleNavigate}
+                onExam={handleStartExam}
               />
             }
           />
@@ -162,8 +186,19 @@ function App() {
               <ReviewPage
                 deckId={activeDeckId}
                 forceReview={isForceReview}
-                onNavigate={handleNavigate} 
+                onNavigate={handleNavigate}
                 onFinish={() => handleNavigate("my-decks")}
+              />
+            }
+          />
+
+          <Route
+            path="/exam"
+            element={
+              <ExamPage
+                deckId={activeDeckId}
+                onNavigate={handleNavigate}
+                onFinish={() => handleNavigate("my-exams")}
               />
             }
           />
@@ -194,10 +229,14 @@ function App() {
           />
 
           <Route
+            path="/create-exam"
+            element={<CreateExamPage onNavigate={handleNavigate} />}
+          />
+
+          <Route
             path="/settings"
             element={<SettingsPage onNavigate={handleNavigate} />}
           />
-
         </Route>
       </Routes>
 

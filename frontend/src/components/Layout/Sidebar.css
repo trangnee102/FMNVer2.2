@@ -125,19 +125,19 @@
   font-weight: 600;
 }
 
-
+/* KHI SIDEBAR BỊ THU NHỎ (COLLAPSED): Menu con nổi ra bên ngoài */
 .sidebar.collapsed .submenu {
   position: absolute;
   left: 70px;
   top: 0;
-  background: var(--bg-card);
+  background: var(--bg-card); /* 👉 ĐÃ SỬA: Dùng biến thay vì white */
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   padding: 10px;
   border-radius: 8px;
   width: max-content;
   z-index: 100;
-  border: 1px solid var(--border); 
-  padding-left: 10px; 
+  border: 1px solid var(--border); /* 👉 ĐÃ SỬA: Dùng biến viền */
+  padding-left: 10px; /* Bỏ thụt lề khi trôi nổi */
 }
 
 /* =======================================

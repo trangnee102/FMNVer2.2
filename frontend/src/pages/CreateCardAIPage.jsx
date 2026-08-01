@@ -26,7 +26,6 @@ const CreateCardAIPage = ({ onNavigate }) => {
   useEffect(() => {
     const fetchMyDecks = async () => {
       try {
-        // Axios interceptor đã trả về response.data, nên chỉ cần lấy dữ liệu trực tiếp
         const res = await api.get("/decks");
         const decksList = res.data || res || [];
         setExistingDecks(Array.isArray(decksList) ? decksList : []);
@@ -63,8 +62,6 @@ const CreateCardAIPage = ({ onNavigate }) => {
 
     try {
       const formData = new FormData();
-      
-      // 👉 ĐÃ FIX: Chỉ append vào FormData NẾU CÓ DỮ LIỆU để tránh lỗi 400 từ Backend
       if (topic.trim()) formData.append("topic", topic.trim());
       if (text.trim()) formData.append("text", text.trim());
       if (file) formData.append("file", file);
@@ -72,7 +69,7 @@ const CreateCardAIPage = ({ onNavigate }) => {
       const mathInstruction = `LƯU Ý TỐI QUAN TRỌNG VỀ ĐỊNH DẠNG:
 1. BẮT BUỘC trả về KẾT QUẢ DUY NHẤT là một MẢNG JSON HỢP LỆ. Tuyệt đối không chèn thêm bất kỳ văn bản chào hỏi hay giải thích nào bên ngoài mảng JSON (không dùng markdown \`\`\`json).
 2. Trong nội dung thẻ, BẮT BUỘC bọc TẤT CẢ các công thức và ký hiệu toán học vào giữa 2 thẻ [MATH] và [/MATH]. (Ví dụ: [MATH]\\cos(a-b)[/MATH]). Không dùng dấu $ hay $$.
-3. Hãy cẩn thận escape các dấu gạch chéo ngược (backslash) nếu cần để JSON không bị lỗi (Ví dụ: dùng \\\\cos nếu parse JSON bị lỗi).`;
+3. Hãy cẩn thận escape các dấu gạch chéo ngược (backslash) nếu cần để JSON không bị lỗi.`;
 
       const finalPrompt = customPrompt.trim()
         ? customPrompt + "\n\n" + mathInstruction
@@ -81,20 +78,17 @@ const CreateCardAIPage = ({ onNavigate }) => {
       formData.append("customPrompt", finalPrompt);
 
       const res = await api.post("/ai/generate", formData);
-
       const responseData = res.data || res;
-      const cards = responseData?.cards || responseData || [];
+      let rawData = responseData?.data || responseData?.cards || [];
 
-      setGeneratedCards(Array.isArray(cards) ? cards : []);
+      if (!Array.isArray(rawData)) rawData = [];
+
+      setGeneratedCards(rawData);
       if (responseData?.message) {
         setAiMessage(responseData.message);
       }
     } catch (err) {
-      setError(
-        err.message ||
-        err.error ||
-        "Không thể kết nối đến máy chủ AI."
-      );
+      setError(err.message || err.error || "Không thể kết nối đến máy chủ AI.");
     } finally {
       setLoading(false);
     }
@@ -107,7 +101,7 @@ const CreateCardAIPage = ({ onNavigate }) => {
     }
     if (isNewTopic && !topic.trim()) {
       alert("⚠️ Cậu chưa nhập Tên bộ thẻ kìa! Điền vào ô bên trái nhé.");
-      setError("Vui lòng nhập tên cho bộ thẻ mới trước khi lưu!");
+      setError("Vui lòng nhập tên trước khi lưu!");
       return;
     }
     if (!isNewTopic && !topic) {
@@ -123,35 +117,32 @@ const CreateCardAIPage = ({ onNavigate }) => {
       let finalTitle = undefined;
       if (isNewTopic) {
         const cleanTopic = topic.trim();
-        finalTitle = cleanTopic.includes("(AI Generated)") 
-          ? cleanTopic 
+        finalTitle = cleanTopic.includes("(AI Generated)")
+          ? cleanTopic
           : `${cleanTopic} (AI Generated)`;
       }
 
-      // 👉 ĐÃ FIX LỖI 400: Không gán cứng "deck_id: undefined" vào JSON để tránh Backend chặn
       const payload = {
         description: "Tạo tự động bằng AI",
         is_public: false,
         cards: generatedCards,
       };
 
-      // Tùy theo việc tạo mới hay thêm vào bộ cũ mà gán Key hợp lý
       if (isNewTopic) {
         payload.title = finalTitle;
-        payload.name = finalTitle; // Backup phòng hờ Backend xài field name
+        payload.name = finalTitle;
       } else {
         payload.deck_id = topic;
       }
 
       const res = await api.post("/decks/bulk", payload);
-      const successMsg = res.message || "Lưu thẻ thành công!";
+      alert("🎉 " + (res.message || "Lưu thẻ thành công!"));
 
-      alert("🎉 " + successMsg);
       setGeneratedCards([]);
       setAiMessage("");
       if (onNavigate) onNavigate("my-decks");
     } catch (err) {
-      const errorMsg = err.message || err.error || "Lỗi khi lưu thẻ!";
+      const errorMsg = err.message || err.error || "Lỗi khi lưu dữ liệu!";
       alert("🚨 Lỗi từ Server: " + errorMsg);
       setError(errorMsg);
     } finally {
@@ -161,15 +152,23 @@ const CreateCardAIPage = ({ onNavigate }) => {
 
   return (
     <div className="dashboard-layout">
-      <Sidebar currentView="create" onNavigate={onNavigate} />
+      <Sidebar currentView="create-ai" onNavigate={onNavigate} />
 
-      <main className="dashboard-content scrollable-content" style={{ backgroundColor: "var(--bg-main)" }}>
+      <main
+        className="dashboard-content scrollable-content"
+        style={{ backgroundColor: "var(--bg-main)" }}
+      >
         <div className="create-content-wrapper" style={{ padding: "30px" }}>
-          <header className="create-header">
-            <h1 style={{ color: "var(--text-dark)", fontWeight: "800" }}>Tạo thẻ thông minh AI ✨</h1>
+          <header
+            className="create-header"
+            style={{ textAlign: "center", marginBottom: "30px" }}
+          >
+            <h1 style={{ color: "var(--text-dark)", fontWeight: "800" }}>
+              Tạo thẻ thông minh AI ✨
+            </h1>
             <p style={{ color: "var(--text-gray)" }}>
-              Tải tài liệu PDF/Word lên, AI sẽ tự động trích xuất ý chính và vẽ
-              công thức Toán học thành Flashcard
+              Tải tài liệu PDF/Word lên, AI sẽ tự động trích xuất ý chính để làm
+              Flashcard!
             </p>
           </header>
 
