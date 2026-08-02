@@ -1,136 +1,202 @@
 // frontend/src/components/Dashboard/DeckList.jsx
 import React, { useState } from "react";
 
-// Không cần dùng Button cũ nữa vì ta đã thiết kế class .btn-deck-action chuyên dụng trong CSS
-// import Button from "../common/Button"; 
-
 const DeckList = ({ decks, onStudy, onNavigate }) => {
-  // State quản lý thanh tìm kiếm
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterMode, setFilterMode] = useState("all"); 
+  const [showFilters, setShowFilters] = useState(false);
 
-  // Logic lọc danh sách thẻ theo từ khóa
-  const filteredDecks = decks.filter(deck => 
-    (deck.title || deck.name).toLowerCase().includes(searchTerm.toLowerCase())
+  // 1. Lọc dựa trên Text Search
+  let filteredDecks = decks.filter(deck => 
+    (deck.title || deck.name || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // 2. Lọc dựa trên Filter Mode
+  switch (filterMode) {
+    case "cram": 
+      filteredDecks = filteredDecks.filter(deck => deck.daysLeft !== null);
+      break;
+    case "due": 
+      filteredDecks = filteredDecks.filter(deck => (deck.calculatedDue || 0) > 0);
+      break;
+    case "completed": 
+      filteredDecks = filteredDecks.filter(deck => 
+        (deck.calculatedTotal || 0) > 0 && (deck.calculatedDue || 0) === 0
+      );
+      break;
+    case "ai": 
+      filteredDecks = filteredDecks.filter(deck => 
+        (deck.title || deck.name || "").toLowerCase().includes("(ai generated)")
+      );
+      break;
+    default:
+      break;
+  }
+
+  // 3. Sắp xếp ưu tiên (Priority Sorting)
+  const processedDecks = filteredDecks.sort((a, b) => {
+    const aIsCram = a.daysLeft !== null;
+    const bIsCram = b.daysLeft !== null;
+    const aDue = a.calculatedDue || 0;
+    const bDue = b.calculatedDue || 0;
+
+    if (aIsCram && !bIsCram) return -1;
+    if (!aIsCram && bIsCram) return 1;
+    if (aIsCram && bIsCram) return a.daysLeft - b.daysLeft;
+    if (aDue !== bDue) return bDue - aDue;
+
+    return (b.calculatedTotal || b.totalCards || 0) - (a.calculatedTotal || a.totalCards || 0);
+  });
+
   return (
-    <section className="deck-list-container">
-      <div className="deck-list-header">
-        <h3 style={{ color: "var(--text-dark)" }}>Bộ thẻ cần ôn hôm nay</h3>
-        <span
-          onClick={() => onNavigate("my-decks")}
-          style={{
-            color: "var(--primary)",
-            fontWeight: "700",
-            fontSize: "0.95rem",
-            cursor: "pointer",
-            transition: "all 0.2s ease"
-          }}
-        >
+    <div className="widget-card list-widget" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      
+      {/* CSS ĐỘC LẬP TẠO THANH CUỘN BÊN PHẢI SIÊU MƯỢT */}
+      <style>
+        {`
+          .custom-deck-scrollbar::-webkit-scrollbar {
+            width: 6px;
+          }
+          .custom-deck-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+            border-radius: 10px;
+          }
+          .custom-deck-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+          }
+          .custom-deck-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+          }
+        `}
+      </style>
+
+      <div className="list-header" style={{ flexShrink: 0, marginBottom: "15px" }}>
+        <h3>Bộ thẻ cần ôn hôm nay</h3>
+        <button className="btn-view-all" onClick={() => onNavigate("my-decks")}>
           Xem tất cả →
-        </span>
+        </button>
       </div>
 
-      {/* Thanh tìm kiếm hiện đại */}
-      <div className="deck-search-box">
-        <i className="fa-solid fa-magnifying-glass"></i>
-        <input 
-          type="text" 
-          placeholder="Tìm bộ thẻ nhanh..." 
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+      <div style={{ display: "flex", gap: "10px", marginBottom: showFilters ? "10px" : "15px", flexShrink: 0 }}>
+        <div className="deck-search-box" style={{ flex: 1, margin: 0 }}>
+          <i className="fa-solid fa-magnifying-glass"></i>
+          <input 
+            type="text" 
+            placeholder="Tìm bộ thẻ nhanh..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <button 
+          onClick={() => setShowFilters(!showFilters)}
+          style={{
+            background: showFilters ? "#6366f1" : "var(--bg-main)",
+            color: showFilters ? "white" : "var(--text-gray)",
+            border: "1px solid var(--border)",
+            borderRadius: "10px",
+            padding: "0 15px",
+            cursor: "pointer",
+            transition: "all 0.2s",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: showFilters ? "0 4px 10px rgba(99, 102, 241, 0.3)" : "none"
+          }}
+          title="Lọc Nâng Cao"
+        >
+          <i className="fa-solid fa-filter"></i>
+        </button>
       </div>
 
-      {/* Danh sách thẻ */}
-      <div className="deck-list-scroll">
-        {filteredDecks.length > 0 ? (
-          filteredDecks.map((deck) => {
-            // Xác định trạng thái Cram Mode và Hoàn thành
+      {showFilters && (
+        <div style={{ 
+          display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "15px", flexShrink: 0,
+          padding: "12px", background: "var(--bg-main)", borderRadius: "10px", border: "1px dashed var(--border)"
+        }}>
+          {[
+            { id: "all", label: "Tất cả", icon: "fa-layer-group" },
+            { id: "cram", label: "Đang ôn thi", icon: "fa-fire" },
+            { id: "due", label: "Cần ôn ngay", icon: "fa-clock" },
+            { id: "completed", label: "Đã xong", icon: "fa-check-double" },
+            { id: "ai", label: "AI tạo", icon: "fa-robot" }
+          ].map(filter => (
+            <button
+              key={filter.id}
+              onClick={() => setFilterMode(filter.id)}
+              style={{
+                background: filterMode === filter.id ? "rgba(99, 102, 241, 0.15)" : "transparent",
+                color: filterMode === filter.id ? "#4f46e5" : "var(--text-gray)",
+                border: filterMode === filter.id ? "1px solid #818cf8" : "1px solid transparent",
+                padding: "6px 12px",
+                borderRadius: "20px",
+                fontSize: "0.75rem",
+                fontWeight: "600",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+                transition: "all 0.2s"
+              }}
+            >
+              <i className={`fa-solid ${filter.icon}`}></i> {filter.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* 👉 GIỚI HẠN CHIỀU CAO VÀ ÉP THANH CUỘN DỌC */}
+      <div className="list-body custom-deck-scrollbar" style={{ flex: 1, overflowY: "auto", minHeight: "150px", maxHeight: "320px", paddingRight: "8px", paddingBottom: "10px" }}>
+        {processedDecks.length > 0 ? (
+          processedDecks.map((deck) => {
             const isRedZone = deck.daysLeft !== null;
             const isCompleted = deck.calculatedTotal > 0 && deck.calculatedDue === 0;
 
-            // Xử lý làm đẹp tên bộ thẻ AI
             const originalTitle = deck.title || deck.name || "Bộ thẻ không tên";
             const isAIGenerated = originalTitle.toLowerCase().includes("(ai generated)");
             const displayTitle = isAIGenerated ? originalTitle.replace(/\(ai generated\)/i, "").trim() : originalTitle;
 
             return (
               <div
-                className="deck-item"
+                className="list-item"
                 key={deck.id}
                 style={{
-                  // Chỉ giữ lại style màu sắc nền Cram Mode, bỏ đi các style Flex gây vỡ layout
-                  background: isRedZone ? "rgba(245, 158, 11, 0.05)" : "var(--bg-card)",
                   borderLeft: isRedZone ? "4px solid #f59e0b" : "4px solid transparent",
-                  borderColor: isRedZone ? "rgba(245, 158, 11, 0.2)" : "var(--border)",
+                  backgroundColor: isRedZone ? "rgba(245, 158, 11, 0.05)" : "var(--bg-main)",
                 }}
               >
-                {/* 1. Phần Tên và Icon (Bên trái) */}
-                <div className="deck-item-info">
+                <div className="item-info-wrapper" style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0 }}>
                   <div
-                    className="deck-icon"
+                    className="item-icon"
                     style={{
-                      background: isRedZone ? "rgba(245, 158, 11, 0.15)" : "rgba(59, 130, 246, 0.1)",
-                      color: isRedZone ? "#d97706" : "var(--primary)",
-                      width: "45px",
-                      height: "45px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderRadius: "12px",
-                      fontSize: "1.2rem",
-                      flexShrink: 0
+                      background: isRedZone ? "rgba(245, 158, 11, 0.15)" : "rgba(99, 102, 241, 0.1)",
+                      color: isRedZone ? "#d97706" : "#6366f1",
                     }}
                   >
                     <i className="fa-solid fa-layer-group"></i>
                   </div>
-                  <div style={{ overflow: "hidden" }}>
-                    <h4 style={{ margin: "0 0 3px 0", color: "var(--text-dark)", fontSize: "1.05rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  
+                  <div className="item-info" style={{ overflow: "hidden", paddingRight: "10px" }}>
+                    <h4 title={displayTitle} style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "180px" }}>
                       {displayTitle}
                       {isAIGenerated && (
-                        <i className="fa-solid fa-robot" style={{ color: "#a855f7", marginLeft: "6px", fontSize: "0.9rem" }} title="Tạo bằng AI"></i>
+                        <i className="fa-solid fa-robot" style={{ color: "#a855f7", marginLeft: "6px", fontSize: "0.85rem" }} title="Tạo bằng AI"></i>
                       )}
                     </h4>
-                    <span style={{ fontSize: "0.85rem", color: "var(--text-gray)", fontWeight: "600" }}>
-                      {deck.calculatedTotal || deck.totalCards || 0} thẻ
+                    
+                    <span className="item-meta">
+                      {isRedZone ? (
+                        <span style={{ color: "#ea580c", fontWeight: "700" }}>
+                          {deck.daysLeft > 0 ? `🚨 Còn ${deck.daysLeft} ngày!` : "🔥 Thi hôm nay!"}
+                        </span>
+                      ) : (
+                        `${deck.calculatedTotal || deck.totalCards || 0} thẻ`
+                      )}
                     </span>
                   </div>
                 </div>
 
-                {/* 2. Phần báo trạng thái & Đếm ngược (Ở giữa) */}
-                <div className="deck-item-status">
-                  {!isRedZone && (
-                    <div
-                      style={{
-                        color: deck.calculatedDue > 0 ? "#10b981" : "var(--text-gray)",
-                        fontWeight: "700",
-                        fontSize: "0.95rem",
-                      }}
-                    >
-                      {deck.calculatedDue > 0
-                        ? `🌱 ${deck.calculatedDue} thẻ đến hạn`
-                        : "✨ Đã học xong!"}
-                    </div>
-                  )}
-
-                  {isRedZone && (
-                    <div
-                      style={{
-                        color: "#ea580c",
-                        fontSize: "0.95rem",
-                        fontWeight: "800",
-                      }}
-                    >
-                      {deck.daysLeft > 0
-                        ? `🚨 Còn ${deck.daysLeft} ngày thi!`
-                        : "🔥 Thi ngay hôm nay!"}
-                    </div>
-                  )}
-                </div>
-
-                {/* 3. Nút bấm (Bên phải) */}
-                <div className="deck-item-action">
+                <div style={{ flexShrink: 0 }}>
                   <button
                     className={`btn-deck-action ${isCompleted && !isRedZone ? "completed" : ""}`}
                     onClick={() => {
@@ -141,22 +207,24 @@ const DeckList = ({ decks, onStudy, onNavigate }) => {
                       }
                     }}
                   >
-                    {isRedZone ? "Vào lò ⚡" : (isCompleted ? "👁 Xem lại" : "Ôn tập")}
+                    {isRedZone ? "Vào lò ⚡" : (isCompleted ? "Xem lại" : "Ôn ngay")}
                   </button>
                 </div>
               </div>
             );
           })
         ) : (
-          <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-gray)" }}>
-            <div style={{ background: "var(--bg-main)", width: "60px", height: "60px", margin: "0 auto 15px auto", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.5rem" }}>
-              <i className="fa-solid fa-box-open"></i>
+          <div style={{ textAlign: "center", padding: "30px 0", color: "var(--text-gray)" }}>
+            <div style={{ background: "var(--bg-main)", width: "50px", height: "50px", margin: "0 auto 10px auto", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem" }}>
+              <i className={filterMode !== "all" ? "fa-solid fa-filter-circle-xmark" : "fa-solid fa-box-open"}></i>
             </div>
-            <p style={{ margin: 0, fontWeight: "600" }}>Không tìm thấy bộ thẻ nào phù hợp.</p>
+            <p style={{ margin: 0, fontSize: "0.9rem" }}>
+              {filterMode !== "all" ? "Không có bộ thẻ nào khớp với bộ lọc." : "Chưa có bộ thẻ nào."}
+            </p>
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 };
 
