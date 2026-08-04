@@ -1,6 +1,5 @@
 /* frontend/src/components/Modals/ManageDeckModal.css */
 
-/* --- OVERLAY & MODAL CONTAINER --- */
 .cram-modal-overlay {
   position: fixed;
   top: 0; 
@@ -20,7 +19,7 @@
 .manage-modal {
   background: var(--bg-card);
   width: 100%;
-  max-width: 950px; /* Nới rộng để đủ không gian cho 2 cột Trái/Phải */
+  max-width: 950px;
   height: 85vh; 
   max-height: 800px; 
   display: flex;
@@ -32,7 +31,6 @@
   animation: slideUp 0.3s ease-out;
 }
 
-/* --- HEADER QUẢN LÝ --- */
 .manage-modal-header {
   padding: 20px 25px;
   border-bottom: 1px solid var(--border);
@@ -75,7 +73,6 @@
 
 .btn-edit-title:hover { color: var(--primary); }
 
-/* Form sửa tên bộ thẻ */
 .edit-title-group { display: flex; gap: 8px; align-items: center; }
 
 .edit-title-input {
@@ -111,7 +108,6 @@
   font-weight: bold;
 }
 
-/* Nút xóa bộ thẻ */
 .btn-delete-deck {
   padding: 10px 16px;
   background: rgba(239, 68, 68, 0.1);
@@ -128,7 +124,6 @@
 }
 .btn-delete-deck:hover { background: #ef4444; color: white; }
 
-/* --- KHU VỰC CÀI ĐẶT CHIA SẺ --- */
 .share-settings-container {
   padding: 12px 25px;
   background: var(--bg-main);
@@ -154,16 +149,12 @@
 .share-text-primary { font-size: 0.95rem; color: var(--text-dark); font-weight: 600; }
 .share-text-secondary { font-size: 0.9rem; color: var(--text-gray); font-weight: 600; }
 
-/* ======================================================= */
-/* KHU VỰC SPLIT-VIEW (CHIA ĐÔI TRÁI / PHẢI)                */
-/* ======================================================= */
 .manage-modal-split-body {
   display: flex;
   flex: 1; 
   overflow: hidden; 
 }
 
-/* --- CỘT TRÁI: DANH SÁCH THẺ --- */
 .manage-left-panel {
   width: 380px;
   min-width: 380px;
@@ -193,13 +184,11 @@
   gap: 10px;
 }
 
-/* Custom Scrollbar cho Cột trái & Cột phải */
 .compact-card-list::-webkit-scrollbar, .manage-right-panel::-webkit-scrollbar { width: 6px; }
 .compact-card-list::-webkit-scrollbar-track, .manage-right-panel::-webkit-scrollbar-track { background: transparent; }
 .compact-card-list::-webkit-scrollbar-thumb, .manage-right-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
 .compact-card-list::-webkit-scrollbar-thumb:hover, .manage-right-panel::-webkit-scrollbar-thumb:hover { background: var(--text-gray); }
 
-/* Item Danh sách thẻ thu gọn */
 .compact-card-item {
   display: flex;
   align-items: center;
@@ -218,7 +207,7 @@
 }
 
 .compact-card-item.active {
-  background: rgba(59, 130, 246, 0.08); /* Chút xanh báo hiệu đang chọn */
+  background: rgba(59, 130, 246, 0.08); 
   border-color: var(--primary);
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
 }
@@ -262,7 +251,6 @@
   font-size: 1rem;
 }
 
-/* Nút thêm thẻ (Nằm cố định cuối cột trái) */
 .btn-trigger-add {
   margin: 15px;
   padding: 14px;
@@ -281,11 +269,9 @@
   color: #10b981; 
 }
 
-
-/* --- CỘT PHẢI: KHU VỰC FORM CHỈNH SỬA --- */
 .manage-right-panel {
   flex: 1;
-  background: var(--bg-main); /* Nền xám nhạt để tách biệt với thẻ form nổi lên */
+  background: var(--bg-main); 
   position: relative;
   overflow-y: auto;
   padding: 30px;
@@ -294,7 +280,6 @@
   align-items: flex-start;
 }
 
-/* Hiển thị khi chưa chọn thẻ nào */
 .right-panel-empty {
   margin: auto;
   display: flex;
@@ -307,7 +292,6 @@
 }
 .empty-icon { font-size: 3.5rem; margin-bottom: 15px; }
 
-/* Khung Form Edit / Add */
 .right-panel-form {
   width: 100%;
   max-width: 550px;
@@ -315,7 +299,7 @@
   padding: 30px;
   border-radius: 16px;
   border: 1px solid var(--border);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.05); /* Hiệu ứng nổi bồng bềnh */
+  box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
   height: fit-content;
 }
 
@@ -380,9 +364,8 @@
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
-/* Đặt ngày (Date Picker) */
 .date-picker-group {
-  background: rgba(59, 130, 246, 0.05); /* Highlight nhẹ khu vực đặt ngày */
+  background: rgba(59, 130, 246, 0.05); 
   padding: 15px 20px;
   border-radius: 12px;
   border: 1px solid rgba(59, 130, 246, 0.2);
@@ -390,7 +373,6 @@
 .date-picker-group label { color: var(--primary); }
 .date-hint { display: block; margin-top: 8px; font-size: 0.85rem; color: var(--text-gray); font-style: italic; }
 
-/* Hành động Lưu / Xóa */
 .right-panel-actions {
   display: flex;
   gap: 15px;
@@ -428,16 +410,13 @@
 }
 .btn-delete-full:hover { background: #ef4444; color: white; }
 
-/* ================================ */
-/* NÚT ĐÓNG (FOOTER MODAL CHÍNH)    */
-/* ================================ */
 .manage-modal-footer {
   padding: 16px 25px;
   background: var(--bg-card);
   flex-shrink: 0;
   border-top: 1px solid var(--border); 
   display: flex;
-  justify-content: flex-end; /* Đẩy nút qua góc phải */
+  justify-content: flex-end; 
 }
 
 .btn-close-modal {
@@ -454,9 +433,6 @@
 
 .btn-close-modal:hover { background: var(--border); }
 
-/* ================================ */
-/* UTILS & ANIMATIONS               */
-/* ================================ */
 .fade-in { animation: fadeIn 0.3s ease-in-out; }
 
 @keyframes fadeIn {

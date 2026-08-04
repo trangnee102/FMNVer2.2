@@ -78,16 +78,31 @@ const CreateCardAIPage = ({ onNavigate }) => {
       formData.append("customPrompt", finalPrompt);
 
       const res = await api.post("/ai/generate", formData);
-      const responseData = res.data || res;
-      let rawData = responseData?.data || responseData?.cards || [];
+      console.log("📦 Dữ liệu thô từ Backend gửi về Frontend:", res); // Radar theo dõi data
 
-      if (!Array.isArray(rawData)) rawData = [];
+      // 👉 ĐÃ FIX: Bóc tách lớp vỏ thông minh, bao xài cho mọi kiểu trả về của Axios
+      const responseData = res.data ? res.data : res;
+
+      // Backend của mình đang trả về data: [...] hoặc cards: [...]
+      let rawData = responseData.data || responseData.cards || responseData;
+
+      if (!Array.isArray(rawData)) {
+        rawData = [];
+        console.warn(
+          "⚠️ Cảnh báo: Dữ liệu thẻ bóc ra không phải là một Mảng!",
+          responseData,
+        );
+      }
 
       setGeneratedCards(rawData);
-      if (responseData?.message) {
+
+      if (responseData.message) {
         setAiMessage(responseData.message);
+      } else if (rawData.length > 0) {
+        setAiMessage("Đã tạo thẻ thành công!");
       }
     } catch (err) {
+      console.error("🚨 Lỗi khi gọi API /ai/generate:", err);
       setError(err.message || err.error || "Không thể kết nối đến máy chủ AI.");
     } finally {
       setLoading(false);
@@ -122,6 +137,7 @@ const CreateCardAIPage = ({ onNavigate }) => {
           : `${cleanTopic} (AI Generated)`;
       }
 
+      // 👉 Gói hàng gửi cho /decks/bulk để lưu thẳng vào Database (Đã đồng bộ)
       const payload = {
         description: "Tạo tự động bằng AI",
         is_public: false,

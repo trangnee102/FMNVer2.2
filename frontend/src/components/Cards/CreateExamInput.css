@@ -1,0 +1,164 @@
+/* frontend/src/components/Cards/CreateExamInput.css */
+.cei-container {
+  background-color: var(--bg-card);
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--border);
+  margin-bottom: 30px;
+}
+
+.cei-flex-col {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.cei-form-label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: var(--text-dark);
+}
+
+.cei-input {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 2px solid var(--border);
+  outline: none;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.cei-input:focus {
+  border-color: #8b5cf6;
+}
+
+.cei-input-highlight {
+  border-color: #8b5cf6;
+  background-color: rgba(139, 92, 246, 0.05);
+  color: #8b5cf6;
+  font-weight: bold;
+}
+
+/* Tiến trình (Progress Bars) */
+.cei-progress-box {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  padding: 15px;
+  background-color: var(--bg-main);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.cei-progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.cei-progress-track {
+  display: flex;
+  width: 100%;
+  height: 10px;
+  background-color: #e5e7eb;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+/* Wizard Tabs (Các bước cấu hình) */
+.cei-wizard-container {
+  background-color: rgba(139, 92, 246, 0.03);
+  border: 1px solid #8b5cf6;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.cei-wizard-tabs {
+  display: flex;
+  border-bottom: 1px solid #d1d5db;
+  background-color: white;
+}
+
+.cei-tab-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  background-color: transparent;
+  color: var(--text-gray);
+  border-bottom: 3px solid transparent;
+}
+
+/* Toolbar & Grid */
+.cei-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding: 12px 15px;
+  background-color: white;
+  border-radius: 8px;
+  border: 1px dashed #8b5cf6;
+}
+
+.cei-brush-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.cei-grid-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 15px;
+  background-color: white;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  max-height: 250px;
+  overflow-y: auto;
+}
+
+.cei-grid-item {
+  width: 65px;
+  height: 45px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: bold;
+  color: var(--text-dark);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.cei-matrix-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px;
+  background-color: var(--bg-main);
+  border-radius: 8px;
+}
+/* frontend/src/components/Cards/CreateExamInput.css */
+
+/* Class tạo hiệu ứng nháy đỏ báo lỗi cho các ô bị bỏ trống */
+.error-flash-animation {
+  box-shadow:
+    0 0 0 4px #ef4444,
+    0 0 15px #ef4444 !important;
+  transform: scale(1.15) !important;
+  z-index: 10 !important;
+  border-color: #ef4444 !important;
+  transition: all 0.3s ease-in-out !important;
+}

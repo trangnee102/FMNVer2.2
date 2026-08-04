@@ -1,4 +1,3 @@
-// frontend/src/App.jsx
 import React, { useState } from "react";
 import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Login from "./components/Auth/Login";
@@ -10,13 +9,13 @@ import CreateCardPage from "./pages/CreateCardPage";
 import CreateFlashcardManualPage from "./pages/CreateFlashcardManualPage";
 import ReviewPage from "./pages/ReviewPage";
 import MyDecksPage from "./pages/MyDecksPage";
-// 👉 ĐÃ THÊM: Import trang Kho Đề Thi mới
 import MyExamsPage from "./pages/MyExamsPage";
 import CramReviewPage from "./pages/CramReviewPage";
 import StatisticsPage from "./pages/StatisticsPage";
 import CommunityPage from "./pages/CommunityPage";
 import CreateCardAIPage from "./pages/CreateCardAIPage";
 import CreateExamPage from "./pages/CreateExamPage";
+import CreateExamManualPage from "./pages/CreateExamManualPage";
 import SettingsPage from "./pages/SettingsPage";
 import ExamPage from "./pages/ExamPage";
 import "./index.css";
@@ -24,9 +23,11 @@ import "./index.css";
 import TimeMachineWidget from "./components/TimeMachineWidget";
 import { AuthProvider } from "./context/AuthContext";
 
-// ========================================================
-// HACK GIẢ LẬP THỜI GIAN (BẢN VÁ LỖI AN TOÀN TUYỆT ĐỐI 🛡️)
-// ========================================================
+import QuickTestWaitingRoom from "./components/Community/QuickTest/QuickTestWaitingRoom";
+import QuickTestHostPage from "./components/Community/QuickTest/QuickTestHostPage";
+import QuickTestStudentPage from "./components/Community/QuickTest/QuickTestStudentPage";
+import QuickTestModalManager from "./components/Community/QuickTest/QuickTestModalManager";
+
 const MOCK_DATE = localStorage.getItem("TIME_MACHINE");
 if (MOCK_DATE) {
   const _originalDate = Date;
@@ -42,7 +43,6 @@ if (MOCK_DATE) {
   Object.setPrototypeOf(window.Date, _originalDate);
   window.Date.now = () => new _originalDate(`${MOCK_DATE}T12:00:00`).getTime();
 }
-// ========================================================
 
 function App() {
   const navigate = useNavigate();
@@ -55,7 +55,6 @@ function App() {
     const defaultName = "Nguyễn Khắc Tuấn Đạt";
     setUserName(defaultName);
 
-    // Lưu thông calculations vào bộ nhớ để Sidebar và SettingsPage lấy ra dùng
     localStorage.setItem("current_user_name", defaultName);
     localStorage.setItem("current_user_email", "nguyenkhactdat2007@gmail.com");
 
@@ -77,16 +76,20 @@ function App() {
       create: "/create",
       "create-manual": "/create-manual",
       "my-decks": "/my-decks",
-      "my-exams": "/my-exams", // 👉 ĐÃ THÊM: Map route cho Kho Đề Thi
+      "my-exams": "/my-exams", 
       study: "/study",
       review: "/study",
       "cram-review": "/cram-review",
       stats: "/stats",
       community: "/community",
+      explore: "/community",
+      contacts: "/community",
       "create-ai": "/create-ai",
       "create-exam": "/create-exam",
+      "create-exam-manual": "/create-exam/manual",
       settings: "/settings",
       exam: "/exam",
+      quicktest: "/quicktest", 
     };
 
     const path = routeMap[view] || `/${view}`;
@@ -107,9 +110,6 @@ function App() {
   return (
     <AuthProvider>
       <Routes>
-        {/* ========================================== */}
-        {/* KHU VỰC TỰ DO: Ai cũng có thể vào          */}
-        {/* ========================================== */}
         <Route path="/" element={<Navigate to="/login" replace />} />
 
         <Route
@@ -132,9 +132,21 @@ function App() {
           }
         />
 
-        {/* ========================================== */}
-        {/* KHU VỰC BẢO MẬT: Bắt buộc phải có Token    */}
-        {/* ========================================== */}
+        <Route 
+          path="/quicktest" 
+          element={<QuickTestModalManager open={true} isRouteMode={true} onNavigate={handleNavigate} />} 
+        />
+        
+        <Route 
+          path="/quicktest/host/:roomCode" 
+          element={<QuickTestHostPage onNavigate={handleNavigate} />} 
+        />
+        
+        <Route 
+          path="/quicktest/play/:roomCode" 
+          element={<QuickTestStudentPage onNavigate={handleNavigate} />} 
+        />
+
         <Route element={<ProtectedRoute />}>
           <Route
             path="/dashboard"
@@ -169,7 +181,6 @@ function App() {
             }
           />
 
-          {/* 👉 ĐÃ THÊM: Route gọi component MyExamsPage */}
           <Route
             path="/my-exams"
             element={
@@ -224,6 +235,16 @@ function App() {
           />
 
           <Route
+            path="/explore"
+            element={<CommunityPage onNavigate={handleNavigate} />}
+          />
+
+          <Route
+            path="/contacts"
+            element={<CommunityPage onNavigate={handleNavigate} />}
+          />
+
+          <Route
             path="/create-ai"
             element={<CreateCardAIPage onNavigate={handleNavigate} />}
           />
@@ -231,6 +252,11 @@ function App() {
           <Route
             path="/create-exam"
             element={<CreateExamPage onNavigate={handleNavigate} />}
+          />
+
+          <Route
+            path="/create-exam/manual"
+            element={<CreateExamManualPage onNavigate={handleNavigate} />}
           />
 
           <Route

@@ -1,4 +1,157 @@
 /* frontend/src/pages/CreateExam.css */
+
+.create-exam-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 40px 20px;
+  background-color: var(--bg-main);
+  transition: background-color 0.3s ease;
+}
+
+.create-exam-header {
+  text-align: center;
+  margin-bottom: clamp(30px, 5vh, 60px);
+}
+
+.create-exam-header h1 {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  color: var(--text-dark);
+  margin-bottom: 1.5vh;
+  font-weight: 700;
+  transition: color 0.3s ease;
+}
+
+.create-exam-header p {
+  font-size: clamp(1rem, 1.5vw, 1.3rem);
+  color: var(--text-gray);
+  transition: color 0.3s ease;
+}
+
+.create-exam-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: stretch;
+  gap: 40px;
+  width: 70%;
+  max-width: 1000px;
+  min-width: 800px;
+  margin: 0 auto;
+}
+
+.create-exam-option-card {
+  flex: 1;
+  background: var(--bg-card, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 20px;
+  padding: 40px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.create-exam-option-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+}
+
+.create-exam-option-card.manual:hover {
+  border-color: #3b82f6;
+}
+
+.create-exam-option-card.ai:hover {
+  border-color: #10b981;
+}
+
+.create-exam-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin-bottom: 25px;
+  transition: all 0.3s ease;
+}
+
+.create-exam-option-card.manual .create-exam-icon-wrapper {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.create-exam-option-card.ai .create-exam-icon-wrapper {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.create-exam-option-card.manual:hover .create-exam-icon-wrapper {
+  background: #3b82f6;
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+.create-exam-option-card.ai:hover .create-exam-icon-wrapper {
+  background: #10b981;
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+.create-exam-option-card h3 {
+  font-size: 1.5rem;
+  color: var(--text-dark, #1e293b);
+  margin-bottom: 15px;
+  font-weight: 700;
+  transition: color 0.3s ease;
+}
+
+.create-exam-option-card p {
+  color: var(--text-gray, #64748b);
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0;
+  flex: 1;
+  transition: color 0.3s ease;
+}
+
+.create-exam-badge {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: #d1fae5;
+  color: #059669;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .create-exam-container {
+    flex-direction: column;
+    align-items: center;
+    width: 90%;
+    min-width: unset;
+  }
+  
+  .create-exam-option-card {
+    width: 100%;
+    max-width: 500px;
+  }
+}
+
+/* =========================================
+   UI CẢNH BÁO LỖI & NÚT BẤM (GỐC)
+========================================= */
 .exam-alert-error {
   color: #ef4444;
   padding: 15px;
@@ -62,6 +215,101 @@
   from {
     opacity: 0;
     transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================
+   UI BANNER TẠO THÀNH CÔNG (MỚI THÊM)
+========================================= */
+.cep-success-banner {
+  background-color: white;
+  border-radius: 16px;
+  padding: 40px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(16, 185, 129, 0.1);
+  border: 1px solid #10b981;
+  animation: slideUpFadeIn 0.5s ease-out forwards;
+  margin-bottom: 30px;
+}
+
+.cep-success-icon-wrapper {
+  width: 80px;
+  height: 80px;
+  background-color: rgba(16, 185, 129, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px auto;
+}
+
+.cep-success-icon {
+  font-size: 2.5rem;
+  color: #10b981;
+}
+
+.cep-success-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  margin: 0 0 10px 0;
+}
+
+.cep-success-text {
+  font-size: 1.1rem;
+  color: var(--text-gray);
+  margin: 0 0 25px 0;
+}
+
+.cep-action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.cep-btn-view {
+  padding: 12px 30px;
+  background-color: #8b5cf6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+  transition: all 0.2s ease;
+}
+
+.cep-btn-view:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(139, 92, 246, 0.4);
+}
+
+.cep-btn-remake {
+  padding: 12px 30px;
+  background-color: transparent;
+  color: var(--text-gray);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cep-btn-remake:hover {
+  background-color: var(--bg-main);
+  color: var(--text-dark);
+}
+
+@keyframes slideUpFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
   to {
     opacity: 1;

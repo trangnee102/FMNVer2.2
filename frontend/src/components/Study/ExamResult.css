@@ -1,0 +1,211 @@
+/* frontend/src/components/Study/ExamResult.css */
+.exam-result-container {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.result-summary-card {
+  background-color: var(--bg-card);
+  padding: 30px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+}
+
+.result-summary-title {
+  font-size: 2rem;
+  margin: 0 0 10px 0;
+  color: var(--text-dark);
+}
+
+.score-display-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  margin: 20px 0;
+}
+
+.score-circle {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.score-percentage {
+  font-size: 2rem;
+  font-weight: 900;
+  color: var(--text-dark);
+}
+
+.score-text-group {
+  text-align: left;
+}
+
+.score-label {
+  font-size: 1.2rem;
+  margin: 0 0 5px 0;
+  color: var(--text-gray);
+}
+
+.score-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--text-dark);
+  margin: 0;
+}
+
+.score-value-correct {
+  color: #10b981;
+}
+
+.result-message {
+  color: var(--text-gray);
+  font-size: 1.1rem;
+}
+
+/* Review Cards */
+.review-card {
+  background-color: var(--bg-card);
+  padding: 30px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+}
+
+.review-card-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.review-q-number {
+  font-weight: bold;
+  color: var(--text-gray);
+}
+
+.review-difficulty {
+  padding: 4px 10px;
+  background-color: var(--bg-main);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: var(--text-gray);
+  font-weight: bold;
+}
+
+.review-question-text {
+  font-size: 1.3rem;
+  color: var(--text-dark);
+  line-height: 1.6;
+  margin-bottom: 15px;
+  white-space: pre-wrap;
+}
+
+.review-options-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.review-option-item {
+  padding: 16px 20px;
+  border-radius: 12px;
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.review-option-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Fill Blank UI */
+.review-fill-blank-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.review-fill-user {
+  padding: 12px;
+  border-radius: 8px;
+  background-color: var(--bg-main);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.review-fill-correct {
+  padding: 12px;
+  border-radius: 8px;
+  border: 2px solid #10b981;
+  background-color: rgba(16, 185, 129, 0.1);
+}
+
+/* Academic Data Box */
+.review-academic-box {
+  margin-top: 20px;
+  padding: 20px;
+  background-color: rgba(59, 130, 246, 0.05);
+  border-left: 4px solid #3b82f6;
+  border-radius: 4px 8px 8px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.academic-title {
+  display: block;
+  margin-bottom: 5px;
+}
+
+.academic-title.explanation {
+  color: #3b82f6;
+}
+.academic-title.source {
+  color: #f59e0b;
+  margin-top: 8px;
+}
+.academic-title.keywords {
+  color: #8b5cf6;
+  margin-bottom: 8px;
+}
+
+.keyword-tag {
+  padding: 5px 12px;
+  background-color: white;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: var(--text-dark);
+  font-weight: bold;
+}
+
+.exit-exam-btn {
+  width: 100%;
+  padding: 15px;
+  border-radius: 12px;
+  background-color: #8b5cf6;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1.2rem;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+  transition: opacity 0.2s;
+}
+
+.exit-exam-btn:hover {
+  opacity: 0.9;
+}

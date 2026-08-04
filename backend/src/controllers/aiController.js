@@ -1,14 +1,35 @@
 // backend/src/controllers/aiController.js
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+const {
+  GoogleGenerativeAI,
+  HarmCategory,
+  HarmBlockThreshold,
+} = require("@google/generative-ai");
 const pdfParse = require("pdf-parse");
 const mammoth = require("mammoth");
 const prisma = require("../services/prisma");
-// Nhúng các hàm phụ trợ vào
-const {
-  safeParseJSON,
-  shuffleArray,
-  autoWrapMath,
-} = require("../utils/aiHelpers");
+
+// Nhập hàm từ utils (Nhưng sẽ bọc an toàn phòng hờ utils báo lỗi)
+const aiHelpers = require("../utils/aiHelpers");
+
+// Cấu hình tắt toàn bộ màng lọc an toàn nhạy cảm của Google
+const safetySettings = [
+  {
+    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    threshold: HarmBlockThreshold.BLOCK_NONE,
+  },
+];
 
 const generateFlashcards = async (req, res) => {
   try {
@@ -27,10 +48,15 @@ const generateFlashcards = async (req, res) => {
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
           req.file.mimetype === "application/msword"
         ) {
-          const docxData = await mammoth.extractRawText({
-            buffer: req.file.buffer,
-          });
-          fileContent = docxData.value;
+          try {
+            const docxData = await mammoth.extractRawText({
+              buffer: req.file.buffer,
+            });
+            fileContent = docxData.value || "";
+          } catch (wordErr) {
+            console.error("Lỗi parse Word:", wordErr);
+            throw new Error("Không thể đọc được văn bản từ file Word này.");
+          }
         } else if (req.file.mimetype.startsWith("image/")) {
           imagePart = {
             inlineData: {
@@ -43,27 +69,32 @@ const generateFlashcards = async (req, res) => {
             .status(400)
             .json({ success: false, message: "Định dạng file không hỗ trợ!" });
         }
+        console.log(
+          `📄 Độ dài tài liệu gửi cho AI: ${fileContent.length} ký tự`,
+        );
       } catch (err) {
-        return res
-          .status(500)
-          .json({ success: false, message: "Lỗi đọc file!" });
+        return res.status(500).json({
+          success: false,
+          message: `Lỗi đọc file! Chi tiết: ${err.message}`,
+        });
       }
     }
 
     const combinedContent = `${text || ""} ${fileContent || ""}`.trim();
 
     if (!imagePart && combinedContent.length < 10) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Vui lòng nhập nội dung hợp lệ!" });
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng nhập nội dung hợp lệ (ít nhất 10 ký tự)!",
+      });
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({
-      model: "gemini-flash-latest",
+      model: "gemini-3.5-flash-lite", // 👉 Giữ nguyên bản chuẩn của sếp
+      safetySettings,
       generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.1,
+        temperature: 0.1, // Bỏ responseMimeType để lấy text thô tự bóc tách cho an toàn
       },
     });
 
@@ -76,48 +107,103 @@ ${combinedContent}
 NHIỆM VỤ CỦA BẠN:
 Dựa vào nội dung tài liệu phía trên, hãy thực hiện yêu cầu sau: "${customPrompt || "Tạo bộ thẻ Flashcard"}"
 
-⚠️ QUY TẮC ÉP BUỘC:
+⚠️ QUY TẮC ÉP BUỘC (NẾU VI PHẠM SẼ BỊ HỦY KẾT QUẢ):
 1. Đa dạng hóa câu hỏi (So sánh, Điền khuyết, Tại sao...).
 2. CHỐNG ẢO GIÁC: CHỈ sử dụng kiến thức có trong tài liệu gốc, không tự bịa đặt.
 3. Cố gắng giữ lại các ký hiệu toán học LaTeX sẵn có.
+4. BẠN PHẢI SỬ DỤNG CHÍNH XÁC 2 TỪ KHÓA LÀ "front" VÀ "back" CHO MỖI THẺ. Tuyệt đối không dùng "question", "answer", "câu hỏi" hay "đáp án".
 
-HÃY TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
+HÃY TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU (Tuyệt đối không bọc trong \`\`\`json):
 {
   "message": "Đã tạo thẻ bám sát tài liệu thành công!",
   "cards": [
     {
-      "front": "Câu hỏi...",
-      "back": "Đáp án..."
+      "front": "Nội dung câu hỏi mặt trước thẻ",
+      "back": "Nội dung đáp án mặt sau thẻ"
     }
   ]
 }
     `;
 
+    console.log("🚀 Đang gửi dữ liệu cho Google AI...");
     const contents = imagePart ? [prompt, imagePart] : [prompt];
-    const result = await model.generateContent(contents);
 
-    if (
-      !result ||
-      !result.response ||
-      typeof result.response.text !== "function"
-    ) {
-      throw new Error("Phản hồi từ Google AI bị rỗng hoặc lỗi kết nối.");
+    let result;
+    try {
+      result = await model.generateContent(contents);
+    } catch (aiCallErr) {
+      console.error("Lỗi khi kết nối Google AI:", aiCallErr);
+      return res.status(500).json({
+        success: false,
+        message: "Google AI từ chối xử lý (Lỗi kết nối hoặc Key).",
+      });
     }
 
-    const fallback = {
-      message: "Hệ thống AI xử lý xong nhưng bị lệch định dạng!",
-      cards: [],
-    };
-    const aiResponse = safeParseJSON(result.response.text(), fallback);
+    const responseText = result?.response?.text ? result.response.text() : null;
+    if (!responseText) {
+      throw new Error(
+        "Google AI đã trả kết quả nhưng không thể trích xuất văn bản.",
+      );
+    }
+
+    console.log("✅ Google AI đã phản hồi thành công!");
+
+    // 👉 LỚP PHÒNG THỦ 1: Lột trần Markdown (Bắt đúng bệnh)
+    let cleanText = responseText
+      .replace(/```json/gi, "")
+      .replace(/```/g, "")
+      .trim();
+
+    // 👉 LỚP PHÒNG THỦ 2: Bọc Try-Catch ép JSON an toàn
+    let aiResponse = { cards: [] };
+    try {
+      if (aiHelpers && typeof aiHelpers.safeParseJSON === "function") {
+        aiResponse = aiHelpers.safeParseJSON(cleanText, { cards: [] });
+      } else {
+        aiResponse = JSON.parse(cleanText);
+      }
+    } catch (parseError) {
+      console.error("🚨 Lỗi Parse JSON! AI Text:", cleanText);
+      return res.status(500).json({
+        success: false,
+        message:
+          "Hệ thống AI xử lý xong nhưng trả về dữ liệu bị lệch định dạng. Cậu thử tạo lại nhé!",
+      });
+    }
+
     let generatedCards = aiResponse.cards || [];
+    if (!Array.isArray(generatedCards)) generatedCards = [];
 
-    generatedCards = generatedCards.map((card) => ({
-      front: autoWrapMath(card.front),
-      back: autoWrapMath(card.back),
-    }));
+    // 👉 LỚP PHÒNG THỦ 3: Ép kiểu String để autoWrapMath không bị đột tử
+    generatedCards = generatedCards
+      .map((card) => {
+        let f = String(card.front || card.question || "").trim();
+        let b = String(card.back || card.answer || "").trim();
 
+        try {
+          if (aiHelpers && typeof aiHelpers.autoWrapMath === "function") {
+            f = aiHelpers.autoWrapMath(f);
+            b = aiHelpers.autoWrapMath(b);
+          }
+        } catch (wrapErr) {
+          console.warn("Bỏ qua lỗi bọc LaTeX:", wrapErr.message);
+        }
+
+        return { front: f, back: b };
+      })
+      .filter((c) => c.front !== "" && c.back !== "");
+
+    // 👉 LỚP PHÒNG THỦ 4: Shuffle an toàn tuyệt đối
     if (generatedCards.length > 0) {
-      generatedCards = shuffleArray(generatedCards);
+      try {
+        if (aiHelpers && typeof aiHelpers.shuffleArray === "function") {
+          generatedCards = aiHelpers.shuffleArray(generatedCards);
+        } else {
+          generatedCards.sort(() => Math.random() - 0.5);
+        }
+      } catch (shuffleErr) {
+        console.warn("Bỏ qua lỗi trộn thẻ:", shuffleErr.message);
+      }
     }
 
     return res.status(200).json({
@@ -126,21 +212,19 @@ HÃY TRẢ VỀ ĐÚNG ĐỊNH DẠNG JSON SAU:
       data: generatedCards,
     });
   } catch (error) {
-    console.error("❌ Lỗi AI Generate:", error);
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message: "Hệ thống AI đang kẹt mạng, cậu thử lại sau nhé!",
-      });
+    console.error("❌ Lỗi AI Generate chung:", error);
+    return res.status(500).json({
+      success: false,
+      message:
+        error.message || "Hệ thống AI đang kẹt mạng, cậu thử lại sau nhé!",
+    });
   }
 };
 
 const saveGeneratedCards = async (req, res) => {
   try {
     const { topic, cards } = req.body;
-    // 🛠️ CHỐT CHẶN POSTGRESQL: Ép kiểu user.id về số nguyên tuyệt đối
-    const userId = parseInt(req.user.id, 10);
+    const userId = req.user.id;
 
     if (!cards || cards.length === 0)
       return res
@@ -149,7 +233,7 @@ const saveGeneratedCards = async (req, res) => {
 
     const deckName = topic || "Thẻ AI tự tạo";
     let deck = await prisma.decks.findFirst({
-      where: { title: deckName, user_id: userId, is_exam: false }, // Đảm bảo không lưu lộn vào bảng đề thi
+      where: { title: deckName, user_id: userId, is_exam: false },
     });
 
     if (!deck) {
@@ -164,15 +248,13 @@ const saveGeneratedCards = async (req, res) => {
       });
     }
 
-    // 🛠️ CHỐT CHẶN POSTGRESQL: Đảm bảo deck_id truyền vào bảng flashcards cũng là số nguyên
     const flashcardsData = cards.map((card) => ({
-      deck_id: parseInt(deck.id, 10),
+      deck_id: deck.id,
       question: card.front,
       answer: card.back,
     }));
     await prisma.flashcards.createMany({ data: flashcardsData });
 
-    // ĐÃ SỬA: Bỏ các dấu gạch chéo ngược (\)
     return res
       .status(200)
       .json({ success: true, message: `Lưu thành công ${cards.length} thẻ!` });
@@ -198,11 +280,9 @@ const refineGeneratedCards = async (req, res) => {
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({
-      model: "gemini-flash-latest",
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.1,
-      },
+      model: "gemini-3.5-flash-lite", // 👉 Giữ nguyên
+      safetySettings,
+      generationConfig: { temperature: 0.1 },
     });
 
     const prompt = `
@@ -212,7 +292,7 @@ Lệnh yêu cầu: "${refinePrompt}".
 QUY TẮC ÉP BUỘC: 
 1. CHỐNG ẢO GIÁC: Chỉ áp dụng lệnh sửa chữa lên dữ liệu có sẵn, KHÔNG tự bịa thêm kiến thức mới.
 
-JSON OUTPUT BẮT BUỘC:
+JSON OUTPUT BẮT BUỘC (Không bọc trong markdown):
 {
   "message": "Viết 1 câu thông báo...",
   "cards": [
@@ -222,24 +302,41 @@ JSON OUTPUT BẮT BUỘC:
     `;
     const result = await model.generateContent(prompt);
 
-    if (
-      !result ||
-      !result.response ||
-      typeof result.response.text !== "function"
-    ) {
-      throw new Error("Phản hồi từ Google AI bị rỗng.");
+    const responseText = result?.response?.text ? result.response.text() : null;
+    if (!responseText) throw new Error("Phản hồi rỗng");
+
+    let cleanText = responseText
+      .replace(/```json/gi, "")
+      .replace(/```/g, "")
+      .trim();
+
+    let aiResponse = { cards: [] };
+    try {
+      if (aiHelpers && typeof aiHelpers.safeParseJSON === "function") {
+        aiResponse = aiHelpers.safeParseJSON(cleanText, { cards: [] });
+      } else {
+        aiResponse = JSON.parse(cleanText);
+      }
+    } catch (parseError) {
+      return res.status(500).json({
+        success: false,
+        message: "Lỗi sửa thẻ do định dạng AI trả về không hợp lệ!",
+      });
     }
 
-    const fallback = { message: "Lỗi sửa chữa!", cards: [] };
-    const aiResponse = safeParseJSON(result.response.text(), fallback);
     let refinedCards = aiResponse.cards || [];
+    refinedCards = refinedCards.map((card) => {
+      let f = String(card.front || "").trim();
+      let b = String(card.back || "").trim();
+      try {
+        if (aiHelpers && typeof aiHelpers.autoWrapMath === "function") {
+          f = aiHelpers.autoWrapMath(f);
+          b = aiHelpers.autoWrapMath(b);
+        }
+      } catch (e) {}
+      return { front: f, back: b };
+    });
 
-    refinedCards = refinedCards.map((card) => ({
-      front: autoWrapMath(card.front),
-      back: autoWrapMath(card.back),
-    }));
-
-    // ĐÃ SỬA: Bỏ các dấu gạch chéo ngược (\)
     return res.status(200).json({
       success: true,
       message:
@@ -255,8 +352,61 @@ JSON OUTPUT BẮT BUỘC:
   }
 };
 
+const askAIMentor = async (req, res) => {
+  try {
+    const { question, context } = req.body;
+
+    if (!question) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Câu hỏi không được để trống!" });
+    }
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-3.5-flash-lite", // 👉 Giữ nguyên
+      safetySettings,
+      generationConfig: { temperature: 0.4 },
+    });
+
+    const prompt = `
+Bạn là AI Mentor (Gia sư ảo cá nhân) của hệ thống học tập trực tuyến FORGETMENOT. 
+Nhiệm vụ của bạn là giải thích bài tập, làm rõ khái niệm, và hướng dẫn sinh viên học tập một cách kiên nhẫn, thân thiện (xưng hô Tớ/Cậu hoặc AI Mentor/Bạn).
+
+NGỮ CẢNH BÀI HỌC (Nếu có):
+${context ? `"""\n${context}\n"""` : "Người dùng đang tự hỏi tự do."}
+
+CÂU HỎI CỦA NGƯỜI DÙNG:
+"${question}"
+
+HƯỚNG DẪN TRẢ LỜI:
+1. Trả lời DỄ HIỂU, KHÔNG QUÁ DÀI DÒNG. Đi thẳng vào trọng tâm.
+2. Nếu ngữ cảnh có chứa câu hỏi trắc nghiệm hoặc flashcard, hãy giải thích MỘT CÁCH SƯ PHẠM (Ví dụ: Tại sao đáp án A đúng mà B lại sai).
+3. KHÔNG sử dụng Markdown quá phức tạp. Chỉ dùng in đậm, in nghiêng, và danh sách gạch đầu dòng cơ bản.
+    `;
+
+    const result = await model.generateContent(prompt);
+    const replyText = result?.response?.text ? result.response.text() : null;
+
+    if (!replyText) throw new Error("Lỗi Mentor.");
+
+    return res.status(200).json({
+      success: true,
+      message: "Phản hồi từ AI Mentor thành công",
+      reply: replyText,
+    });
+  } catch (error) {
+    console.error("❌ Lỗi AI Mentor:", error);
+    return res.status(500).json({
+      success: false,
+      message: "AI Mentor đang bận hoặc quá tải lượt gọi, cậu thử lại sau nhé!",
+    });
+  }
+};
+
 module.exports = {
   generateFlashcards,
   saveGeneratedCards,
   refineGeneratedCards,
+  askAIMentor,
 };

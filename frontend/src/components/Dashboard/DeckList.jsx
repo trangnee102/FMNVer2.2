@@ -1,31 +1,28 @@
-// frontend/src/components/Dashboard/DeckList.jsx
 import React, { useState } from "react";
 
 const DeckList = ({ decks, onStudy, onNavigate }) => {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterMode, setFilterMode] = useState("all"); 
+  const [filterMode, setFilterMode] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
 
-  // 1. Lọc dựa trên Text Search
-  let filteredDecks = decks.filter(deck => 
+  let filteredDecks = decks.filter(deck =>
     (deck.title || deck.name || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // 2. Lọc dựa trên Filter Mode
   switch (filterMode) {
-    case "cram": 
+    case "cram":
       filteredDecks = filteredDecks.filter(deck => deck.daysLeft !== null);
       break;
-    case "due": 
+    case "due":
       filteredDecks = filteredDecks.filter(deck => (deck.calculatedDue || 0) > 0);
       break;
-    case "completed": 
-      filteredDecks = filteredDecks.filter(deck => 
+    case "completed":
+      filteredDecks = filteredDecks.filter(deck =>
         (deck.calculatedTotal || 0) > 0 && (deck.calculatedDue || 0) === 0
       );
       break;
-    case "ai": 
-      filteredDecks = filteredDecks.filter(deck => 
+    case "ai":
+      filteredDecks = filteredDecks.filter(deck =>
         (deck.title || deck.name || "").toLowerCase().includes("(ai generated)")
       );
       break;
@@ -33,7 +30,6 @@ const DeckList = ({ decks, onStudy, onNavigate }) => {
       break;
   }
 
-  // 3. Sắp xếp ưu tiên (Priority Sorting)
   const processedDecks = filteredDecks.sort((a, b) => {
     const aIsCram = a.daysLeft !== null;
     const bIsCram = b.daysLeft !== null;
@@ -50,8 +46,6 @@ const DeckList = ({ decks, onStudy, onNavigate }) => {
 
   return (
     <div className="widget-card list-widget" style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      
-      {/* CSS ĐỘC LẬP TẠO THANH CUỘN BÊN PHẢI SIÊU MƯỢT */}
       <style>
         {`
           .custom-deck-scrollbar::-webkit-scrollbar {
@@ -81,14 +75,14 @@ const DeckList = ({ decks, onStudy, onNavigate }) => {
       <div style={{ display: "flex", gap: "10px", marginBottom: showFilters ? "10px" : "15px", flexShrink: 0 }}>
         <div className="deck-search-box" style={{ flex: 1, margin: 0 }}>
           <i className="fa-solid fa-magnifying-glass"></i>
-          <input 
-            type="text" 
-            placeholder="Tìm bộ thẻ nhanh..." 
+          <input
+            type="text"
+            placeholder="Tìm bộ thẻ nhanh..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <button 
+        <button
           onClick={() => setShowFilters(!showFilters)}
           style={{
             background: showFilters ? "#6366f1" : "var(--bg-main)",
@@ -110,7 +104,7 @@ const DeckList = ({ decks, onStudy, onNavigate }) => {
       </div>
 
       {showFilters && (
-        <div style={{ 
+        <div style={{
           display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "15px", flexShrink: 0,
           padding: "12px", background: "var(--bg-main)", borderRadius: "10px", border: "1px dashed var(--border)"
         }}>
@@ -145,7 +139,6 @@ const DeckList = ({ decks, onStudy, onNavigate }) => {
         </div>
       )}
 
-      {/* 👉 GIỚI HẠN CHIỀU CAO VÀ ÉP THANH CUỘN DỌC */}
       <div className="list-body custom-deck-scrollbar" style={{ flex: 1, overflowY: "auto", minHeight: "150px", maxHeight: "320px", paddingRight: "8px", paddingBottom: "10px" }}>
         {processedDecks.length > 0 ? (
           processedDecks.map((deck) => {
@@ -189,8 +182,14 @@ const DeckList = ({ decks, onStudy, onNavigate }) => {
                         <span style={{ color: "#ea580c", fontWeight: "700" }}>
                           {deck.daysLeft > 0 ? `🚨 Còn ${deck.daysLeft} ngày!` : "🔥 Thi hôm nay!"}
                         </span>
+                      ) : isCompleted ? (
+                        <span style={{ color: "#10b981", fontWeight: "600" }}>
+                          <i className="fa-solid fa-check-circle"></i> Đã xong hôm nay
+                        </span>
                       ) : (
-                        `${deck.calculatedTotal || deck.totalCards || 0} thẻ`
+                        <span style={{ color: "#6366f1", fontWeight: "600" }}>
+                          {deck.calculatedDue || 0} thẻ cần ôn
+                        </span>
                       )}
                     </span>
                   </div>

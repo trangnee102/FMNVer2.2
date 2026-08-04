@@ -6,8 +6,7 @@ import api from "../services/api";
 import "./DashboardPage.css";
 import "./MyDecksPage.css";
 
-// 👉 ĐÃ THÊM: Nhận thêm prop onExam từ App.jsx truyền xuống
-const MyDecksPage = ({ onNavigate, onStudy, onExam }) => {
+const MyDecksPage = ({ onNavigate, onStudy }) => {
   const [decks, setDecks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
@@ -25,15 +24,6 @@ const MyDecksPage = ({ onNavigate, onStudy, onExam }) => {
   const [isCramModalOpen, setIsCramModalOpen] = useState(false);
   const [isManageModalOpen, setIsManageModalOpen] = useState(false);
   const [forceModal, setForceModal] = useState({ isOpen: false, deckId: null });
-
-  // 👉 ĐÃ THÊM: State quản lý Popup Cấu hình thi trắc nghiệm
-  const [examModal, setExamModal] = useState({
-    isOpen: false,
-    deckId: null,
-    deckName: "",
-    limit: 20,
-    difficulty: "",
-  });
 
   const fetchDecksData = useCallback(async () => {
     try {
@@ -60,28 +50,39 @@ const MyDecksPage = ({ onNavigate, onStudy, onExam }) => {
       const summaryDecks = summaryData?.decks || [];
 
       const augmentedDecks = rawDecks.map((deck) => {
-        const sDeck = summaryDecks.find((sd) => sd.id === deck.id) || {};
+        const sDeck = summaryDecks.find((sd) => String(sd.id) === String(deck.id)) || {};
 
-        const totalCards =
+        const totalCards = Number(
           sDeck.totalCards ??
           sDeck._count?.Flashcards ??
           deck.totalCards ??
           deck.cards?.length ??
           deck._count?.Flashcards ??
-          0;
-        let dueCount =
-          sDeck.dueCount ??
-          sDeck.dueCards ??
-          deck.dueCount ??
-          deck.dueCards ??
-          0;
-        let masteredCount =
+          0
+        );
+
+        let masteredCount = Number(
           sDeck.masteredCount ??
           sDeck.masteredCards ??
           deck.masteredCount ??
           deck.masteredCards ??
-          0;
-        let overdueCount = sDeck.overdueCount ?? deck.overdueCount ?? 0;
+          0
+        );
+
+        let learnedCount = Number(sDeck.learnedCount ?? deck.learnedCount ?? masteredCount);
+
+        let dueCount = Number(
+          sDeck.dueCount ??
+          sDeck.dueCards ??
+          deck.dueCount ??
+          deck.dueCards ??
+          0
+        );
+
+        const unlearnedCount = Math.max(0, totalCards - learnedCount);
+        dueCount = Math.max(dueCount, unlearnedCount);
+
+        let overdueCount = Number(sDeck.overdueCount ?? deck.overdueCount ?? 0);
 
         if (masteredCount === 0 && totalCards > 0) {
           masteredCount = Math.max(0, totalCards - dueCount - overdueCount);
@@ -125,7 +126,7 @@ const MyDecksPage = ({ onNavigate, onStudy, onExam }) => {
 
       setDecks(augmentedDecks);
     } catch (err) {
-      console.error("Lỗi khi tải bộ thẻ:", err);
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
@@ -220,14 +221,19 @@ const MyDecksPage = ({ onNavigate, onStudy, onExam }) => {
 
   const handleStudyClick = async (deckId) => {
     try {
+      const targetDeck = decks.find((d) => String(d.id) === String(deckId));
+      const localDue = targetDeck ? targetDeck.dueCount : 0;
+
       const data = await api.get(`/study/deck/${deckId}/due-cards`);
-      const dueCount = data.data
+      const apiDueCount = data.data
         ? data.data.length
         : Array.isArray(data)
           ? data.length
           : 0;
 
-      if (dueCount === 0) {
+      const finalDueCount = Math.max(localDue, apiDueCount);
+
+      if (finalDueCount === 0) {
         setForceModal({ isOpen: true, deckId: deckId });
       } else {
         if (onStudy) onStudy(deckId, false);
@@ -709,7 +715,6 @@ const MyDecksPage = ({ onNavigate, onStudy, onExam }) => {
                       </div>
                     </div>
 
-                    {/* 👉 ĐÃ SỬA: Chèn thêm nút "Thi Trắc Nghiệm" vào footer của thẻ */}
                     <div
                       className="vdc-footer"
                       style={{ display: "flex", gap: "8px", marginTop: "15px" }}
@@ -717,7 +722,7 @@ const MyDecksPage = ({ onNavigate, onStudy, onExam }) => {
                       <button
                         className={`vdc-btn-study ${isCompleted && !deck.is_cram_active ? "completed" : ""}`}
                         style={{
-                          flex: 1,
+                          width: "100%",
                           ...(deck.is_cram_active
                             ? {
                                 background:
@@ -743,28 +748,6 @@ const MyDecksPage = ({ onNavigate, onStudy, onExam }) => {
                             ? "Ôn luyện"
                             : "👁 Xem lại"}
                       </button>
-
-                      <button
-                        className="vdc-btn-study"
-                        style={{
-                          flex: 1,
-                          background: "var(--bg-main)",
-                          color: "#8b5cf6",
-                          border: "1px solid #8b5cf6",
-                          boxShadow: "none",
-                        }}
-                        onClick={() =>
-                          setExamModal({
-                            isOpen: true,
-                            deckId: deck.id,
-                            deckName: displayTitle,
-                            limit: 20,
-                            difficulty: "",
-                          })
-                        }
-                      >
-                        📝 Thi thử
-                      </button>
                     </div>
                   </div>
                 );
@@ -774,7 +757,6 @@ const MyDecksPage = ({ onNavigate, onStudy, onExam }) => {
         </div>
       </main>
 
-      {/* MODAL CŨ GIỮ NGUYÊN */}
       {forceModal.isOpen && (
         <div className="cram-modal-overlay" style={{ zIndex: 1000 }}>
           <div
@@ -860,148 +842,6 @@ const MyDecksPage = ({ onNavigate, onStudy, onExam }) => {
                 }}
               >
                 Vượt rào ngay
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 👉 ĐÃ THÊM: POPUP CẤU HÌNH THI TRẮC NGHIỆM */}
-      {examModal.isOpen && (
-        <div className="cram-modal-overlay" style={{ zIndex: 1000 }}>
-          <div
-            className="cram-modal"
-            style={{ padding: "30px", maxWidth: "450px", width: "90%" }}
-          >
-            <div style={{ textAlign: "center", marginBottom: "20px" }}>
-              <div style={{ fontSize: "3rem", marginBottom: "10px" }}>📝</div>
-              <h3
-                style={{
-                  color: "var(--text-dark)",
-                  fontSize: "1.5rem",
-                  fontWeight: "800",
-                  margin: 0,
-                }}
-              >
-                Thi Trắc Nghiệm
-              </h3>
-              <p style={{ color: "var(--text-gray)", marginTop: "5px" }}>
-                {examModal.deckName}
-              </p>
-            </div>
-
-            <div style={{ marginBottom: "20px" }}>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: "600",
-                  color: "var(--text-dark)",
-                }}
-              >
-                Số lượng câu hỏi:
-              </label>
-              <select
-                value={examModal.limit}
-                onChange={(e) =>
-                  setExamModal({ ...examModal, limit: Number(e.target.value) })
-                }
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  borderRadius: "8px",
-                  border: "2px solid var(--border)",
-                  background: "var(--bg-main)",
-                  color: "var(--text-dark)",
-                  fontSize: "1rem",
-                  outline: "none",
-                }}
-              >
-                <option value={10}>10 câu</option>
-                <option value={20}>20 câu</option>
-                <option value={40}>40 câu</option>
-                <option value={50}>50 câu</option>
-              </select>
-            </div>
-
-            <div style={{ marginBottom: "30px" }}>
-              <label
-                style={{
-                  display: "block",
-                  marginBottom: "8px",
-                  fontWeight: "600",
-                  color: "var(--text-dark)",
-                }}
-              >
-                Mức độ ưu tiên:
-              </label>
-              <select
-                value={examModal.difficulty}
-                onChange={(e) =>
-                  setExamModal({ ...examModal, difficulty: e.target.value })
-                }
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  borderRadius: "8px",
-                  border: "2px solid var(--border)",
-                  background: "var(--bg-main)",
-                  color: "var(--text-dark)",
-                  fontSize: "1rem",
-                  outline: "none",
-                }}
-              >
-                <option value="">Trộn ngẫu nhiên (Tất cả)</option>
-                <option value="EASY">Chỉ luyện câu Dễ</option>
-                <option value="MEDIUM">Chỉ luyện câu Trung bình</option>
-                <option value="HARD">Thử thách câu Khó</option>
-              </select>
-            </div>
-
-            <div style={{ display: "flex", gap: "15px" }}>
-              <button
-                style={{
-                  flex: 1,
-                  padding: "14px",
-                  background: "var(--bg-main)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "12px",
-                  color: "var(--text-dark)",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                }}
-                onClick={() => setExamModal({ ...examModal, isOpen: false })}
-              >
-                Hủy
-              </button>
-              <button
-                style={{
-                  flex: 1,
-                  padding: "14px",
-                  background: "#8b5cf6",
-                  border: "none",
-                  borderRadius: "12px",
-                  color: "white",
-                  fontWeight: "700",
-                  cursor: "pointer",
-                  boxShadow: "0 4px 12px rgba(139, 92, 246, 0.3)",
-                }}
-                onClick={() => {
-                  // Lưu cấu hình vào bộ nhớ để mang sang phòng thi
-                  localStorage.setItem(
-                    "fmn_exam_config",
-                    JSON.stringify({
-                      limit: examModal.limit,
-                      difficulty: examModal.difficulty,
-                    }),
-                  );
-                  setExamModal({ ...examModal, isOpen: false });
-
-                  // Gọi lệnh sang phòng thi
-                  if (onExam) onExam(examModal.deckId);
-                }}
-              >
-                Bắt đầu thi 🚀
               </button>
             </div>
           </div>

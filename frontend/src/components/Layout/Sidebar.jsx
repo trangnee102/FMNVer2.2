@@ -10,6 +10,13 @@ const Sidebar = ({ currentView, onNavigate }) => {
     return savedState !== null ? JSON.parse(savedState) : false;
   });
 
+  const [expandedGroups, setExpandedGroups] = useState(() => {
+    const savedExpanded = localStorage.getItem("sidebar_expanded");
+    return savedExpanded !== null 
+      ? JSON.parse(savedExpanded) 
+      : { library: true, community: true };
+  });
+
   const navigate = useNavigate();
   const { user, logoutUser } = useAuth();
 
@@ -65,19 +72,32 @@ const Sidebar = ({ currentView, onNavigate }) => {
     localStorage.setItem("sidebar_collapsed", JSON.stringify(newState));
   };
 
+  useEffect(() => {
+    localStorage.setItem("sidebar_expanded", JSON.stringify(expandedGroups));
+  }, [expandedGroups]);
+
+  useEffect(() => {
+    if (currentView === "my-decks" || currentView === "my-exams") {
+      setExpandedGroups(prev => ({ ...prev, library: true }));
+    } else if (currentView === "explore" || currentView === "quicktest" || currentView === "contacts") {
+      setExpandedGroups(prev => ({ ...prev, community: true }));
+    }
+  }, [currentView]);
+
   const menuItems = [
     { id: "dashboard", icon: "fa-house", text: "Trang chủ" },
-
-    // NHÓM 1: FLASHCARD TRUYỀN THỐNG
-    { id: "my-decks", icon: "fa-book-bookmark", text: "Thư viện Thẻ" },
-    { id: "create", icon: "fa-square-plus", text: "Tạo Thẻ Lật" },
-
-    // NHÓM 2: ĐỀ THI TRẮC NGHIỆM
-    { id: "my-exams", icon: "fa-file-invoice", text: "Kho Đề Thi" }, // 👉 ĐÃ THÊM
+    {
+      id: "library",
+      icon: "fa-book-bookmark",
+      text: "Thư viện",
+      subItems: [
+        { id: "my-decks", icon: "fa-layer-group", text: "Bộ thẻ" },
+        { id: "my-exams", icon: "fa-file-invoice", text: "Bộ đề thi" },
+      ],
+    },
+    { id: "create", icon: "fa-square-plus", text: "Tạo Thẻ" },
     { id: "create-exam", icon: "fa-file-signature", text: "Tạo Đề Thi" },
-
-    // CÁC CHỨC NĂNG CHUNG
-    { id: "review", icon: "fa-layer-group", text: "Ôn tập" },
+    { id: "review", icon: "fa-rotate", text: "Ôn tập" },
     { id: "stats", icon: "fa-chart-simple", text: "Thống kê" },
     {
       id: "community",
@@ -85,7 +105,7 @@ const Sidebar = ({ currentView, onNavigate }) => {
       text: "Cộng đồng",
       subItems: [
         { id: "explore", icon: "fa-compass", text: "Khám phá" },
-        { id: "leaderboard", icon: "fa-ranking-star", text: "Bảng xếp hạng" },
+        
         { id: "contacts", icon: "fa-address-book", text: "Liên hệ" },
       ],
     },
@@ -93,32 +113,46 @@ const Sidebar = ({ currentView, onNavigate }) => {
   ];
 
   const handleMenuClick = (id) => {
-    if (
-      id === "dashboard" ||
-      id === "create" ||
-      id === "create-exam" ||
-      id === "my-decks" ||
-      id === "my-exams" || // 👉 ĐÃ MỞ KHÓA
-      id === "review" ||
-      id === "stats" ||
-      id === "community" ||
-      id === "settings"
-    ) {
-      if (onNavigate) onNavigate(id);
+    const item = menuItems.find(i => i.id === id);
+
+    if (item && item.subItems) {
+      setExpandedGroups(prev => ({ ...prev, [id]: !prev[id] }));
+      
+      if (!expandedGroups[id]) {
+        if (id === "library" && currentView !== "my-exams" && currentView !== "my-decks") {
+          if (onNavigate) onNavigate("my-decks");
+        }
+        if (id === "community" && !["explore", "quicktest", "contacts"].includes(currentView)) {
+          if (onNavigate) onNavigate("explore");
+        }
+      }
     } else {
-      alert(
-        "Tính năng này đang được cật lực xây dựng! 🛠️ Vui lòng quay lại sau nhé!",
-      );
+      if (
+        id === "dashboard" ||
+        id === "create" ||
+        id === "create-exam" ||
+        id === "review" ||
+        id === "stats" ||
+        id === "settings"
+      ) {
+        if (onNavigate) onNavigate(id);
+      } else {
+        alert("Tính năng này đang được cật lực xây dựng! 🛠️ Vui lòng quay lại sau nhé!");
+      }
     }
   };
 
   const handleSubMenuClick = (parentId, subId) => {
-    handleMenuClick(parentId);
-    setTimeout(() => {
-      window.dispatchEvent(
-        new CustomEvent("changeCommunityTab", { detail: subId }),
-      );
-    }, 50);
+    if (onNavigate) {
+      onNavigate(subId);
+    }
+    if (parentId === "community") {
+      setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent("changeCommunityTab", { detail: subId }),
+        );
+      }, 50);
+    }
   };
 
   const handleLogout = () => {
@@ -135,6 +169,106 @@ const Sidebar = ({ currentView, onNavigate }) => {
 
   return (
     <div className={`sidebar ${isCollapsed ? "collapsed" : ""}`}>
+      <style>
+        {`
+          .submenu-arrow {
+            margin-left: auto;
+            transition: transform 0.3s ease;
+          }
+          .menu-item.expanded .submenu-arrow {
+            transform: rotate(180deg);
+          }
+
+          .sidebar:not(.collapsed) .submenu-container {
+            display: none;
+            overflow: hidden;
+            flex-direction: column;
+            margin-top: 5px;
+          }
+          .sidebar:not(.collapsed) .submenu-container.open {
+            display: flex;
+          }
+          .sidebar:not(.collapsed) .custom-submenu-item {
+            padding: 10px 15px 10px 48px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-gray, #64748b);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-radius: 8px;
+            margin: 2px 10px;
+          }
+          .sidebar:not(.collapsed) .custom-submenu-item:hover,
+          .sidebar:not(.collapsed) .custom-submenu-item.active {
+            background: rgba(99, 102, 241, 0.1);
+            color: #4f46e5;
+            font-weight: 700;
+          }
+
+          .sidebar.collapsed .menu-group {
+            position: relative;
+          }
+          .sidebar.collapsed .submenu-container {
+            display: none !important;
+          }
+          .flyout-menu {
+            display: none;
+            position: absolute;
+            left: 100%;
+            top: 0;
+            background: var(--bg-main, #ffffff);
+            box-shadow: 4px 4px 20px rgba(0,0,0,0.15);
+            border-radius: 12px;
+            padding: 8px 0;
+            min-width: 220px;
+            z-index: 1000;
+            border: 1px solid var(--border, #e2e8f0);
+            margin-left: 5px;
+          }
+          
+          .flyout-menu::before {
+            content: '';
+            position: absolute;
+            left: -15px;
+            top: 0;
+            width: 15px;
+            height: 100%;
+          }
+
+          .sidebar.collapsed .menu-group:hover .flyout-menu {
+            display: flex;
+            flex-direction: column;
+          }
+          
+          .flyout-title {
+            padding: 8px 20px;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-gray, #64748b);
+            font-weight: 800;
+            border-bottom: 1px solid var(--border, #e2e8f0);
+            margin-bottom: 4px;
+          }
+          .flyout-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            color: var(--text-dark, #1e293b);
+            font-weight: 600;
+            transition: all 0.2s;
+          }
+          .flyout-item:hover, .flyout-item.active {
+            background: rgba(99, 102, 241, 0.1);
+            color: #4f46e5;
+          }
+        `}
+      </style>
+
       <div
         className="sidebar-header"
         style={{
@@ -178,39 +312,88 @@ const Sidebar = ({ currentView, onNavigate }) => {
         style={{ display: "flex", flexDirection: "column", height: "100%" }}
       >
         <div className="menu-items-container">
-          {menuItems.map((item) => (
-            <div key={item.id} className="menu-group">
-              <div
-                className={`menu-item ${currentView === item.id ? "active" : ""}`}
-                onClick={() => handleMenuClick(item.id)}
-              >
-                <i className={`fa-solid ${item.icon}`}></i>
-                {!isCollapsed && <span>{item.text}</span>}
+          {menuItems.map((item) => {
+            const isActive =
+              currentView === item.id ||
+              (item.subItems &&
+                item.subItems.some((sub) => sub.id === currentView));
+            const isExpanded = expandedGroups[item.id];
 
-                {item.subItems && !isCollapsed && (
-                  <i className="fa-solid fa-chevron-down submenu-arrow"></i>
+            return (
+              <div 
+                key={item.id} 
+                className="menu-group"
+                // 👉 ĐÃ FIX: Tự động mở ra khi di chuột vào (Hover)
+                onMouseEnter={() => {
+                  if (item.subItems && !isCollapsed) {
+                    setExpandedGroups((prev) => ({ ...prev, [item.id]: true }));
+                  }
+                }}
+                // 👉 ĐÃ FIX: Tự động thu gọn khi đưa chuột ra ngoài (nếu không phải là nhóm đang học)
+                onMouseLeave={() => {
+                  if (item.subItems && !isCollapsed) {
+                    const hasActiveSub = item.subItems.some(sub => sub.id === currentView);
+                    if (!hasActiveSub && currentView !== item.id) {
+                      setExpandedGroups((prev) => ({ ...prev, [item.id]: false }));
+                    }
+                  }
+                }}
+              >
+                <div
+                  className={`menu-item ${isActive ? "active" : ""} ${isExpanded ? "expanded" : ""}`}
+                  onClick={() => handleMenuClick(item.id)}
+                >
+                  <i className={`fa-solid ${item.icon}`}></i>
+                  {!isCollapsed && <span>{item.text}</span>}
+
+                  {item.subItems && !isCollapsed && (
+                    <i className="fa-solid fa-chevron-down submenu-arrow"></i>
+                  )}
+                </div>
+
+                {item.subItems && (
+                  <div className={`submenu-container ${isExpanded ? "open" : ""}`}>
+                    {item.subItems.map((sub) => (
+                      <div
+                        key={sub.id}
+                        className={`custom-submenu-item ${
+                          currentView === sub.id ? "active" : ""
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSubMenuClick(item.id, sub.id);
+                        }}
+                      >
+                        <i className={`fa-solid ${sub.icon}`} style={{ width: '20px', textAlign: 'center' }}></i>
+                        <span>{sub.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {item.subItems && isCollapsed && (
+                  <div className="flyout-menu">
+                    <div className="flyout-title">{item.text}</div>
+                    {item.subItems.map((sub) => (
+                      <div
+                        key={sub.id}
+                        className={`flyout-item ${
+                          currentView === sub.id ? "active" : ""
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSubMenuClick(item.id, sub.id);
+                        }}
+                      >
+                        <i className={`fa-solid ${sub.icon}`}></i>
+                        <span>{sub.text}</span>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
-
-              {item.subItems && (
-                <div className="submenu">
-                  {item.subItems.map((sub) => (
-                    <div
-                      key={sub.id}
-                      className="submenu-item"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSubMenuClick(item.id, sub.id);
-                      }}
-                    >
-                      <i className={`fa-solid ${sub.icon}`}></i>
-                      <span>{sub.text}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div

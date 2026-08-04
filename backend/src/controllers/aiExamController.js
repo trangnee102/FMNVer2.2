@@ -1,4 +1,3 @@
-// backend/src/controllers/aiExamController.js
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const pdfParse = require("pdf-parse");
 const mammoth = require("mammoth");
@@ -11,7 +10,14 @@ const {
 
 const generateExam = async (req, res) => {
   try {
-    const { text, customPrompt, existingQuestions } = req.body;
+    const {
+      text,
+      customPrompt,
+      existingQuestions,
+      totalQuestions = 50,
+      questionsConfig,
+    } = req.body;
+
     let fileContent = "";
     let imagePart = null;
 
@@ -63,7 +69,6 @@ const generateExam = async (req, res) => {
       });
     }
 
-    // 👉 Chống trùng lặp: Parse danh sách câu hỏi đã có (nếu là đợt bổ sung)
     let parsedExisting = [];
     if (existingQuestions) {
       try {
@@ -77,18 +82,31 @@ const generateExam = async (req, res) => {
         ? `\n⚠️ CÁC CÂU HỎI ĐÃ CÓ (BẮT BUỘC KHÔNG ĐƯỢC TẠO TRÙNG NỘI DUNG/Ý NGHĨA VỚI CÁC CÂU NÀY):\n${parsedExisting.map((q) => "- " + q.question).join("\n")}\n`
         : "";
 
+    let matrixRules = "";
+    if (questionsConfig) {
+      try {
+        const configArray = JSON.parse(questionsConfig);
+        matrixRules =
+          "MA TRẬN CẤU TRÚC ĐỀ THI (BẮT BUỘC TUÂN THỦ NGHIÊM NGẶT THỨ TỰ NÀY):\n";
+        configArray.forEach((q, index) => {
+          matrixRules += `- Câu ${index + 1}: Thể loại: ${q.type}, Độ khó: ${q.difficulty}.\n`;
+        });
+      } catch (e) {
+        console.log("Lỗi parse questionsConfig:", e);
+      }
+    }
+
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
     const model = genAI.getGenerativeModel({
       model: "gemini-3.5-flash-lite",
       generationConfig: {
         responseMimeType: "application/json",
-        temperature: 0.2, // Giữ độ sáng tạo thấp để AI bám sát văn bản
+        temperature: 0.2,
       },
     });
 
     const safeContent = combinedContent.substring(0, 35000);
 
-    // 👉 ĐÃ NÂNG CẤP LUẬT THÉP: Chặn đứng tình trạng "Cố đấm ăn xôi" bịa thông tin
     const prompt = `
 NỘI DUNG TÀI LIỆU CỦA NGƯỜI DÙNG:
 ==================================================
@@ -98,37 +116,32 @@ ${safeContent}
 NHIỆM VỤ CỦA BẠN:
 Đóng vai một giáo viên chuyên nghiệp. Dựa CHỈ VÀO nội dung tài liệu phía trên, hãy tạo một ĐỀ THI TRẮC NGHIỆM. 
 YÊU CẦU CỤ THỂ TỪ NGƯỜI DÙNG: 
-"${customPrompt || "Tạo 10 câu hỏi đa dạng"}"
+"${customPrompt || "Tạo câu hỏi dựa trên cấu trúc tài liệu"}"
+
+${matrixRules}
 ${antiDuplicationPrompt}
 
-⚠️ QUY TẮC ÉP BUỘC CHỐNG BỊA ĐẶT (RẤT QUAN TRỌNG):
-- NẾU tài liệu quá ngắn hoặc không chứa đủ lượng thông tin học thuật để sinh ra đúng số lượng câu hỏi yêu cầu, bạn HÃY DỪNG LẠI và CHỈ TẠO RA SỐ LƯỢNG TỐI ĐA có thể rút ra từ văn bản. 
-- TUYỆT ĐỐI KHÔNG bịa đặt kiến thức bên ngoài. Nếu tài liệu vô nghĩa hoặc quá ngắn, hãy trả về mảng "questions" RỖNG [].
+⚠️ 1. CHỐNG ẢO GIÁC & CHỐNG TRÙNG LẶP:
+- Mọi câu hỏi, đáp án, và lời giải thích PHẢI được trích xuất 100% từ tài liệu cung cấp. KHÔNG ĐƯỢC BỊA ĐẶT.
+- NẾU tài liệu quá ngắn, hãy dừng việc tạo câu hỏi lại khi hết kiến thức. KHÔNG CỐ TẠO CHO ĐỦ SỐ LƯỢNG NẾU PHẢI BỊA THÊM.
 
-⚠️ QUY TẮC ÉP BUỘC ĐỊNH DẠNG CÂU HỎI:
-1. Phân biệt CHÍNH XÁC "question_type" và "correct_answers":
-   - SINGLE_CHOICE: Trắc nghiệm 1 đáp án đúng. "correct_answers" ghi 1 chữ cái (Ví dụ: "A").
-   - MULTIPLE_CHOICE: Trắc nghiệm TỪ 2 ĐÁP ÁN ĐÚNG TRỞ LÊN. "correct_answers" ghi các chữ cái cách nhau (Ví dụ: "A,C").
-   - TRUE_FALSE: Đúng/Sai. Mảng options luôn là ["A. True", "B. False"].
-   - FILL_BLANK: Điền khuyết. Để mảng options RỖNG []. "correct_answers" ghi chính xác từ cần điền.
-2. CHỐNG HALLUCINATION & HỖ TRỢ HỌC TẬP:
-   - "source_reference": Trích dẫn chính xác đoạn văn gốc.
-   - "explanation": Giải thích chi tiết tại sao đáp án đúng.
-   - "keywords": 2-4 từ khóa, cách nhau bằng dấu phẩy.
-3. Mảng "options" BẮT BUỘC phải có tiền tố "A. ", "B. ", "C. ", "D. " ở đầu.
+⚠️ 2. QUY TẮC ÉP BUỘC ĐỊNH DẠNG THEO TỪNG LOẠI CÂU HỎI:
+- Loại SINGLE_CHOICE: "options" có đúng 4 phần tử. "correct_answers" ghi đúng 1 chữ cái (Vd: "A").
+- Loại MULTIPLE_CHOICE: "options" có đúng 4 phần tử. "correct_answers" ghi TỪ 2 chữ cái trở lên cách nhau bằng dấu phẩy (Vd: "A,C").
+- Loại TRUE_FALSE: "options" CHỈ CÓ ĐÚNG 2 phần tử là ["A. Đúng", "B. Sai"]. "correct_answers" ghi "A" hoặc "B".
+- Loại FILL_BLANK: "options" BẮT BUỘC RỖNG []. "correct_answers" ghi chính xác từ/cụm từ cần điền.
 
-⚠️ QUY TẮC ÉP BUỘC TRẢ VỀ JSON:
-Bạn PHẢI trả về ĐÚNG MỘT OBJECT JSON duy nhất:
+⚠️ 3. QUY TẮC BẮT BUỘC VỀ ĐẦU RA JSON:
+BẠN PHẢI TRẢ VỀ ĐÚNG 1 OBJECT JSON VỚI CẤU TRÚC SAU:
 {
-  "message": "Đã tạo đề thi thành công!",
+  "message": "Thông báo trạng thái...",
   "questions": [
     {
-      "question": "Nội dung...",
-      "question_type": "SINGLE_CHOICE",
-      "difficulty": "MEDIUM",
-      "category": "THEORY",
-      "options": ["A. Đáp án 1", "B. Đáp án 2", "C. Đáp án 3", "D. Đáp án 4"],
-      "correct_answers": "B",
+      "question": "Nội dung câu hỏi",
+      "question_type": "SINGLE_CHOICE hoặc MULTIPLE_CHOICE hoặc TRUE_FALSE hoặc FILL_BLANK",
+      "difficulty": "EASY hoặc MEDIUM hoặc HARD",
+      "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
+      "correct_answers": "A",
       "source_reference": "Đoạn văn trích...",
       "explanation": "Giải thích...",
       "keywords": "từ khóa 1, từ khóa 2"
@@ -148,8 +161,8 @@ Bạn PHẢI trả về ĐÚNG MỘT OBJECT JSON duy nhất:
     } catch (e1) {
       try {
         let cleanText = rawText
-          .replace(/```json/gi, "")
-          .replace(/```/gi, "")
+          .replace(new RegExp("```json", "gi"), "")
+          .replace(new RegExp("```", "gi"), "")
           .trim();
         const firstBrace = cleanText.indexOf("{");
         const lastBrace = cleanText.lastIndexOf("}");
@@ -170,11 +183,6 @@ Bạn PHẢI trả về ĐÚNG MỘT OBJECT JSON duy nhất:
       options: (q.options || []).map((opt) => autoWrapMath(opt)),
     }));
 
-    if (generatedQuestions.length > 0 && !existingQuestions) {
-      generatedQuestions = shuffleArray(generatedQuestions);
-    }
-
-    // 👉 Kiểm duyệt gắt gao: Nếu AI trả về rỗng vì không bóc được thông tin
     if (generatedQuestions.length === 0) {
       return res.status(200).json({
         success: false,
@@ -184,9 +192,14 @@ Bạn PHẢI trả về ĐÚNG MỘT OBJECT JSON duy nhất:
       });
     }
 
+    let responseMessage = aiResponse.message || "Đã tạo đề thi thành công!";
+    if (generatedQuestions.length < totalQuestions) {
+      responseMessage = `Đã tạo được ${generatedQuestions.length}/${totalQuestions} câu. Các câu còn lại đã bị hủy vì tài liệu không đủ dữ kiện học thuật (Nhằm tránh AI bịa đặt kiến thức).`;
+    }
+
     return res.status(200).json({
       success: true,
-      message: aiResponse.message || "Đã tạo đề thi thành công!",
+      message: responseMessage,
       data: generatedQuestions,
     });
   } catch (error) {
@@ -205,18 +218,114 @@ Bạn PHẢI trả về ĐÚNG MỘT OBJECT JSON duy nhất:
   }
 };
 
-// 👉 TÍNH NĂNG MỚI: CHỈNH SỬA CÂU HỎI BẰNG AI CỰC KỲ THÔNG MINH
+const generateAdaptiveExam = async (req, res) => {
+  try {
+    const userId = req.user?.id || req.userId;
+    const { deckId } = req.params;
+
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Chưa xác thực người dùng!" });
+    }
+
+    const userLogs = await prisma.studyLogs.findMany({
+      where: { user_id: userId, deck_id: parseInt(deckId) },
+      include: { Flashcards: true },
+    });
+
+    const weakKeywordsMap = {};
+    userLogs.forEach((log) => {
+      if (log.rating <= 2 && log.Flashcards?.keywords) {
+        const kws = log.Flashcards.keywords.split(",").map((k) => k.trim());
+        kws.forEach((kw) => {
+          weakKeywordsMap[kw] = (weakKeywordsMap[kw] || 0) + 1;
+        });
+      }
+    });
+
+    const weakKeywords = Object.keys(weakKeywordsMap);
+
+    const deckCards = await prisma.flashcards.findMany({
+      where: { deck_id: parseInt(deckId) },
+    });
+
+    if (deckCards.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Bộ thẻ trống, không thể tạo đề thích ứng!",
+      });
+    }
+
+    const sourceMaterial = deckCards
+      .map((c) => `Q: ${c.question} - A: ${c.answer} (Keywords: ${c.keywords})`)
+      .join("\n");
+
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-3.5-flash-lite",
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.3,
+      },
+    });
+
+    const adaptivePrompt = `
+Dựa vào ngân hàng câu hỏi gốc của bộ thẻ:
+${sourceMaterial}
+
+DỮ LIỆU PHÂN TÍCH HỌC TẬP CỦA HỌC VIÊN:
+- Học viên đang gặp nhiều khó khăn (hay trả lời sai/quên) ở các chủ đề/từ khóa sau: ${weakKeywords.length > 0 ? weakKeywords.join(", ") : "Chưa có dữ liệu yếu cụ thể, hãy tạo đề cân bằng các mức độ"}.
+
+NHIỆM VỤ THÍCH ỨNG (ADAPTIVE LEARNING):
+Hãy tạo ra một đề thi ôn tập gồm 10 câu hỏi trắc nghiệm tập trung khắc phục điểm yếu của học viên:
+1. Ưu tiên sinh thêm câu hỏi xoáy sâu vào các từ khóa học viên đang yếu.
+2. Điều chỉnh độ khó phù hợp (từ EASY lên MEDIUM) để củng cố kiến thức.
+3. Chống ảo giác: Chỉ sử dụng thông tin từ ngân hàng câu hỏi gốc.
+
+Trả về JSON đúng cấu trúc sau:
+{
+  "message": "Đã tạo đề thi thích ứng dựa trên điểm yếu của bạn!",
+  "questions": [
+    {
+      "question": "...",
+      "question_type": "SINGLE_CHOICE",
+      "difficulty": "MEDIUM",
+      "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
+      "correct_answers": "A",
+      "source_reference": "...",
+      "explanation": "...",
+      "keywords": "..."
+    }
+  ]
+}
+    `;
+
+    const result = await model.generateContent(adaptivePrompt);
+    const aiResponse = JSON.parse(result.response.text());
+
+    return res.status(200).json({
+      success: true,
+      message: aiResponse.message || "Tạo đề thích ứng thành công!",
+      data: aiResponse.questions || [],
+    });
+  } catch (error) {
+    console.error("❌ Lỗi Adaptive Exam:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Lỗi hệ thống khi tạo đề thích ứng!" });
+  }
+};
+
 const editQuestionWithAI = async (req, res) => {
   try {
     const { questionData, editPrompt } = req.body;
 
     if (!questionData || !editPrompt) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Thiếu dữ liệu câu hỏi hoặc yêu cầu chỉnh sửa!",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu dữ liệu câu hỏi hoặc yêu cầu chỉnh sửa!",
+      });
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -225,7 +334,7 @@ const editQuestionWithAI = async (req, res) => {
       generationConfig: {
         responseMimeType: "application/json",
         temperature: 0.1,
-      }, // Gần như bằng 0 để tránh bịa đặt
+      },
     });
 
     const prompt = `
@@ -245,7 +354,6 @@ BẠN PHẢI TRẢ VỀ ĐÚNG 1 OBJECT JSON ĐÃ ĐƯỢC CHỈNH SỬA (Không
   "question": "...",
   "question_type": "...",
   "difficulty": "...",
-  "category": "...",
   "options": ["A. ...", "B. ..."],
   "correct_answers": "...",
   "source_reference": "...",
@@ -261,25 +369,27 @@ BẠN PHẢI TRẢ VỀ ĐÚNG 1 OBJECT JSON ĐÃ ĐƯỢC CHỈNH SỬA (Không
     try {
       editedQuestion = JSON.parse(rawText);
     } catch (e1) {
-      let cleanText = rawText
-        .replace(/```json/gi, "")
-        .replace(/```/gi, "")
-        .trim();
-      editedQuestion = JSON.parse(
-        cleanText.substring(
-          cleanText.indexOf("{"),
-          cleanText.lastIndexOf("}") + 1,
-        ),
-      );
+      try {
+        let cleanText = rawText
+          .replace(new RegExp("```json", "gi"), "")
+          .replace(new RegExp("```", "gi"), "")
+          .trim();
+        editedQuestion = JSON.parse(
+          cleanText.substring(
+            cleanText.indexOf("{"),
+            cleanText.lastIndexOf("}") + 1,
+          ),
+        );
+      } catch (e2) {
+        console.error("❌ Cứu hộ Edit JSON thất bại:", e2.message);
+      }
     }
 
     if (!editedQuestion || !editedQuestion.question) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "AI không thể xử lý yêu cầu chỉnh sửa này.",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "AI không thể xử lý yêu cầu chỉnh sửa này.",
+      });
     }
 
     return res.status(200).json({ success: true, data: editedQuestion });
@@ -289,12 +399,10 @@ BẠN PHẢI TRẢ VỀ ĐÚNG 1 OBJECT JSON ĐÃ ĐƯỢC CHỈNH SỬA (Không
       error.status === 429 ||
       (error.message && error.message.includes("429"))
     ) {
-      return res
-        .status(429)
-        .json({
-          success: false,
-          message: "Hệ thống AI đang bận, vui lòng thử lại sau!",
-        });
+      return res.status(429).json({
+        success: false,
+        message: "Hệ thống AI đang bận, vui lòng thử lại sau!",
+      });
     }
     return res
       .status(500)
@@ -304,8 +412,8 @@ BẠN PHẢI TRẢ VỀ ĐÚNG 1 OBJECT JSON ĐÃ ĐƯỢC CHỈNH SỬA (Không
 
 const saveGeneratedExam = async (req, res) => {
   try {
-    const { topic, questions } = req.body;
-    const userId = req.user.id;
+    const { topic, description, is_public, questions } = req.body;
+    const userId = parseInt(req.user.id, 10) || req.user.id;
 
     if (!questions || questions.length === 0)
       return res
@@ -314,29 +422,89 @@ const saveGeneratedExam = async (req, res) => {
 
     const deckName = topic || "Đề thi tự động bởi AI";
 
-    const deck = await prisma.decks.create({
-      data: {
+    let deck = await prisma.decks.findFirst({
+      where: {
         title: deckName,
         user_id: userId,
-        description: "Đề thi tạo bằng AI",
-        is_public: false,
         is_exam: true,
       },
     });
 
-    const flashcardsData = questions.map((q) => ({
-      deck_id: deck.id,
-      question: q.question,
-      answer: q.correct_answers,
-      question_type: q.question_type,
-      difficulty: q.difficulty,
-      category: q.category || "GENERAL",
-      options: JSON.stringify(q.options || []),
-      correct_answers: q.correct_answers,
-      source_reference: q.source_reference || "",
-      keywords: q.keywords || "",
-      explanation: q.explanation || "",
-    }));
+    if (!deck) {
+      deck = await prisma.decks.create({
+        data: {
+          title: deckName,
+          user_id: userId,
+          description: description || "Đề thi tạo bằng AI hoặc tạo thủ công",
+          is_public: is_public || false,
+          is_exam: true,
+        },
+      });
+    } else {
+      console.log(
+        `♻️ Đã tìm thấy Đề thi cũ "${deckName}", tiến hành gộp dữ liệu...`,
+      );
+    }
+
+    const validQuestionTypes = ["FLASHCARD", "TRUE_FALSE", "SINGLE_CHOICE", "MULTIPLE_CHOICE", "FILL_BLANK"];
+    const validDifficulties = ["EASY", "MEDIUM", "HARD"];
+    const validCategories = ["THEORY", "PRACTICE"];
+
+    const flashcardsData = questions.map((q) => {
+      let safeType = "SINGLE_CHOICE";
+      if (q.question_type && validQuestionTypes.includes(q.question_type.toUpperCase())) {
+        safeType = q.question_type.toUpperCase();
+      } else if (q.question_type) {
+        const upType = q.question_type.toUpperCase();
+        if (upType.includes("MULTIPLE")) safeType = "MULTIPLE_CHOICE";
+        else if (upType.includes("TRUE") || upType.includes("FALSE"))
+          safeType = "TRUE_FALSE";
+        else if (upType.includes("BLANK") || upType.includes("FILL"))
+          safeType = "FILL_BLANK";
+      }
+
+      let safeDiff = "MEDIUM";
+      if (q.difficulty && validDifficulties.includes(q.difficulty.toUpperCase())) {
+        safeDiff = q.difficulty.toUpperCase();
+      } else if (q.difficulty) {
+        const upDiff = q.difficulty.toUpperCase();
+        if (upDiff.includes("EASY") || upDiff.includes("DỄ")) safeDiff = "EASY";
+        else if (upDiff.includes("HARD") || upDiff.includes("KHÓ"))
+          safeDiff = "HARD";
+      }
+
+      let safeCat = "THEORY";
+      if (q.category && validCategories.includes(q.category.toUpperCase())) {
+        safeCat = q.category.toUpperCase();
+      }
+
+      let safeKeywords = "";
+      if (q.keywords) {
+        if (Array.isArray(q.keywords)) {
+          safeKeywords = q.keywords.join(", ");
+        } else {
+          safeKeywords = String(q.keywords);
+        }
+      }
+
+      const optionsString = Array.isArray(q.options) 
+        ? JSON.stringify(q.options) 
+        : String(q.options || "[]");
+
+      return {
+        deck_id: deck.id,
+        question: String(q.question || ""),
+        answer: String(q.correct_answers || ""),
+        question_type: safeType,
+        difficulty: safeDiff,
+        category: safeCat,
+        options: optionsString,
+        correct_answers: String(q.correct_answers || ""),
+        source_reference: String(q.source_reference || ""),
+        explanation: String(q.explanation || ""),
+        keywords: safeKeywords,
+      };
+    });
 
     await prisma.flashcards.createMany({ data: flashcardsData });
 
@@ -354,6 +522,7 @@ const saveGeneratedExam = async (req, res) => {
 
 module.exports = {
   generateExam,
+  generateAdaptiveExam,
   saveGeneratedExam,
-  editQuestionWithAI, // 👉 KHAI BÁO HÀM MỚI Ở ĐÂY ĐỂ ROUTER GỌI ĐƯỢC
+  editQuestionWithAI,
 };

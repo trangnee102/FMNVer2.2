@@ -1,16 +1,9 @@
-// frontend/src/services/api.js
 import axios from "axios";
 
-// =========================================
-// 1. KHỞI TẠO "KẺ VẬN CHUYỂN NGẦM" (ÉP CỨNG LOCALHOST)
-// =========================================
 const api = axios.create({
   baseURL: "http://localhost:5000/api",
 });
 
-// =========================================
-// 2. TRẠM KIỂM SOÁT ĐẦU RA (Tự động gắn thẻ căn cước)
-// =========================================
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
@@ -22,9 +15,6 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// =========================================
-// 3. TRẠM KIỂM SOÁT ĐẦU VÀO (Xử lý dữ liệu & Bắt lỗi tự động)
-// =========================================
 api.interceptors.response.use(
   (response) => {
     return response.data;
@@ -39,10 +29,6 @@ api.interceptors.response.use(
   },
 );
 
-// =========================================
-// CÁC HÀM GỌI API ĐÃ ĐƯỢC NÂNG CẤP BẰNG AXIOS
-// =========================================
-
 export const authAPI = {
   login: (email, password) => api.post("/auth/login", { email, password }),
 };
@@ -55,17 +41,14 @@ export const studyAPI = {
   getDueCards: (deckId) => api.get(`/study/deck/${deckId}/due-cards`),
   reviewCard: (cardId, grade) => api.post(`/study/${cardId}/review`, { grade }),
 
-  // 👉 ĐÃ NÂNG CẤP: Hỗ trợ bóc tách linh hoạt cấu hình chi tiết Dễ, Vừa, Khó
   generateRandomExam: (deckId, config, difficulty) => {
     let params = { difficulty };
 
     if (typeof config === "object" && config !== null) {
-      // Nếu truyền vào object cấu hình từ Popup
       params.easyCount = config.easyCount;
       params.mediumCount = config.mediumCount;
       params.hardCount = config.hardCount;
     } else {
-      // Tương thích ngược nếu chỉ truyền số lượng limit đơn thuần
       params.limit = config;
     }
 
@@ -116,6 +99,14 @@ export const communityAPI = {
 
   markAsRead: (conversationId) =>
     api.post(`/community/conversations/${conversationId}/read`),
+};
+
+export const quickTestAPI = {
+  getMyDecks: () => api.get("/decks"),
+  getDeckQuestions: (deckId) => api.get(`/study/deck/${deckId}/due-cards`),
+  createRoom: (payload) => api.post("/quicktest/rooms", payload),
+  getRoom: (roomCode) => api.get(`/quicktest/rooms/${roomCode}`),
+  joinRoom: (roomCode, participantName) => api.post("/quicktest/join", { roomCode, participantName }),
 };
 
 export default api;

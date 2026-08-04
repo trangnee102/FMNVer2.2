@@ -1,3 +1,5 @@
+// backend/prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,11 +14,11 @@ datasource db {
 // ENUMS CHO HỆ THỐNG THI TRẮC NGHIỆM
 // =========================================
 enum QuestionType {
-  FLASHCARD       // Chế độ thẻ nhớ lật truyền thống
-  TRUE_FALSE      // Câu hỏi Đúng/Sai
-  SINGLE_CHOICE   // Trắc nghiệm 1 đáp án (ABCD)
-  MULTIPLE_CHOICE // Trắc nghiệm nhiều đáp án đúng
-  FILL_BLANK      // 👉 ĐÃ THÊM: Câu hỏi Điền từ vào chỗ trống
+  FLASHCARD       
+  TRUE_FALSE      
+  SINGLE_CHOICE   
+  MULTIPLE_CHOICE 
+  FILL_BLANK      
 }
 
 enum Difficulty {
@@ -26,8 +28,8 @@ enum Difficulty {
 }
 
 enum QuestionCategory {
-  THEORY    // Lý thuyết
-  PRACTICE  // Thực hành
+  THEORY    
+  PRACTICE  
 }
 
 model Decks {
@@ -45,6 +47,8 @@ model Decks {
   Users        Users        @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
   Flashcards   Flashcards[]
   StudyLogs    StudyLogs[]
+  
+  QuickTestRooms QuickTestRoom[]
 }
 
 model Flashcards {
@@ -57,17 +61,18 @@ model Flashcards {
   difficulty      Difficulty?       @default(MEDIUM)
   category        QuestionCategory? @default(THEORY)
   
-  options         String?           
-  correct_answers String?           
+  options         String?            
+  correct_answers String?            
 
-  // 👉 ĐÃ THÊM: Các cột đáp ứng chuẩn hệ thống học tập thông minh
-  source_reference String?          // Nguồn tham chiếu (chống AI Hallucination)
-  keywords         String?          // Từ khóa tìm kiếm/phân loại
-  explanation      String?          // Giải thích đáp án bằng AI
+  source_reference String?          
+  keywords         String?          
+  explanation      String?          
 
-  Decks           Decks             @relation(fields: [deck_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-  StudyProgress   StudyProgress[]
-  StudyLogs       StudyLogs[]
+  Decks            Decks            @relation(fields: [deck_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  StudyProgress    StudyProgress[]
+  StudyLogs        StudyLogs[]
+  
+  QuickTestAnswers QuickTestAnswer[]
 }
 
 model StudyProgress {
@@ -177,4 +182,59 @@ model Users {
   MessagesSent           Messages[]
   FriendRequestsSent     Friendships[]   @relation("SentRequests")
   FriendRequestsReceived Friendships[]   @relation("ReceivedRequests")
+
+  QuickTestRoomsCreated  QuickTestRoom[]        @relation("TeacherRooms")
+  QuickTestJoined        QuickTestParticipant[] @relation("UserParticipations")
+}
+
+// ==========================================
+// MODULE: QUICKTEST (REAL-TIME QUIZ)
+// ==========================================
+
+model QuickTestRoom {
+  id          String    @id @default(uuid()) 
+  teacherId   Int?      // 👉 ĐÃ FIX: Cho phép null tạm thời để ko xung đột dữ liệu cũ
+  examId      Int?      // 👉 ĐÃ FIX: Cho phép null
+  roomCode    String    @unique 
+  title       String?   // 👉 ĐÃ FIX: Cho phép null
+  status      String    @default("WAITING") 
+  startTime   DateTime? 
+  endTime     DateTime? 
+  duration    Int?      // 👉 ĐÃ FIX: Cho phép null
+  createdAt   DateTime  @default(now())
+
+  // Quan hệ
+  Teacher      Users?                 @relation("TeacherRooms", fields: [teacherId], references: [id], onDelete: Cascade)
+  Exam         Decks?                 @relation(fields: [examId], references: [id], onDelete: Cascade)
+  Participants QuickTestParticipant[]
+}
+
+model QuickTestParticipant {
+  id                String    @id @default(uuid())
+  roomId            String
+  userId            Int?      
+  studentName       String?   // 👉 ĐÃ FIX: Cho phép null
+  score             Int       @default(0) 
+  correctCount      Int       @default(0) 
+  wrongCount        Int       @default(0) 
+  averageAnswerTime Float     @default(0) 
+  rank              Int?      
+
+  // Quan hệ
+  User              Users?            @relation("UserParticipations", fields: [userId], references: [id], onDelete: SetNull)
+  Room              QuickTestRoom     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  Answers           QuickTestAnswer[]
+}
+
+model QuickTestAnswer {
+  id             String    @id @default(uuid())
+  participantId  String
+  questionId     Int       
+  selectedAnswer String?   // 👉 ĐÃ FIX: Cho phép null
+  isCorrect      Boolean   
+  answerTime     Int       
+
+  // Quan hệ
+  Participant    QuickTestParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  Question       Flashcards           @relation(fields: [questionId], references: [id], onDelete: Cascade)
 }

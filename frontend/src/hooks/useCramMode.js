@@ -1,70 +1,80 @@
 // frontend/src/hooks/useCramMode.js
 import { useState, useEffect } from "react";
-import api from "../services/api"; // 👉 ĐÃ NÂNG CẤP: Dùng kẻ vận chuyển ngầm api.js
+import api, { studyAPI } from "../services/api";
+
+// 👉 MÁY HÚT BỤI DỮ LIỆU: Bóc tách mảng chứa ABCD dù Backend trả về cấu trúc dị cỡ nào
+const extractArrayData = (res) => {
+  if (!res) return [];
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res.data)) return res.data;
+  if (res.data && Array.isArray(res.data.data)) return res.data.data;
+  if (res.data && Array.isArray(res.data.questions)) return res.data.questions;
+  if (res.data && Array.isArray(res.data.cards)) return res.data.cards;
+  return [];
+};
 
 const useCramMode = (deckId, onFinish) => {
-  const [fullBatch, setFullBatch] = useState([]); 
-  const [cramQueue, setCramQueue] = useState([]); 
-  const [forgottenThisRound, setForgottenThisRound] = useState([]); 
-  const [isPerfectCycle, setIsPerfectCycle] = useState(true); 
-  const [cycleCount, setCycleCount] = useState(1); 
+  const [fullBatch, setFullBatch] = useState([]);
+  const [cramQueue, setCramQueue] = useState([]);
+  const [forgottenThisRound, setForgottenThisRound] = useState([]);
+
+  const [correctCount, setCorrectCount] = useState(0);
+  const [wrongCount, setWrongCount] = useState(0);
+  const [totalThisRound, setTotalThisRound] = useState(0);
+
+  const [stage, setStage] = useState("learning");
+  const [countdown, setCountdown] = useState(3);
+  const [cycleCount, setCycleCount] = useState(1);
 
   const [isFlipped, setIsFlipped] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [isBossMode, setIsBossMode] = useState(false);
 
   useEffect(() => {
     const initCramMode = async () => {
       try {
         setIsLoading(true);
-        const savedSettings = JSON.parse(localStorage.getItem(`cram_settings_${deckId}`)) || {};
-        const savedHistory = JSON.parse(localStorage.getItem(`cram_history_${deckId}`)) || {};
-        const mockDate = localStorage.getItem("TIME_MACHINE");
+        let items = [];
 
-        let cards = [];
-        let bossModeFlag = false;
-
+        // 👉 RADAR 1: DÙNG ĐÚNG HÀM TRONG API.JS ĐỂ BẾ ĐỀ THI & ABCD VỀ
+        // Truyền 1000 vào config để limit lấy hết các câu hỏi của đề
         try {
-          // Thử gọi API Cram Mode của Backend
-          const responseData = await api.post(`/flashcards/deck/${deckId}/cram`, {
-            examDate: savedSettings.examDate || null,
-            currentDate: mockDate || null,
-            bossModePercent: savedSettings.bossModePercent || 30,
-            dailyQuota: savedSettings.dailyQuota || 50,
-            forgetHistory: savedHistory,
+          const qRes = await studyAPI.generateRandomExam(deckId, 1000);
+          items = extractArrayData(qRes);
+        } catch (e) {
+          console.warn("Lỗi luồng Đề thi, tự động tìm luồng Thẻ ghi nhớ...");
+        }
+
+        // 👉 RADAR 2: NẾU KHO ĐỀ THI TRỐNG, TÌM TRONG KHO THẺ GHI NHỚ THƯỜNG
+        if (items.length === 0) {
+          try {
+            const fRes = await api.get(`/flashcards/deck/${deckId}`);
+            items = extractArrayData(fRes);
+          } catch (e) {
+            console.error("Lỗi lấy Thẻ:", e);
+          }
+        }
+
+        if (items.length > 0) {
+          // Bọc thép dữ liệu: Gắn type chuẩn để màn hình giao diện tự động chia form (Trắc nghiệm, Điền khuyết, Thẻ lật)
+          const processedItems = items.map((item) => {
+            const type = item.question_type || item.type || "FLASHCARD";
+            return {
+              ...item,
+              question_type: type.toUpperCase(), // Ép về CHỮ HOA để so sánh với CramReviewPage
+            };
           });
 
-          if (responseData && responseData.data) {
-            cards = responseData.data.cards || [];
-            bossModeFlag = responseData.data.isBossMode || false;
-          }
-        } catch (error) {
-          console.warn("API Cram trả lỗi, tự động kích hoạt chế độ Fallback...");
+          setFullBatch(processedItems);
+          setCramQueue(processedItems);
+          setTotalThisRound(processedItems.length);
+          setForgottenThisRound([]);
+          setCorrectCount(0);
+          setWrongCount(0);
+          setCycleCount(1);
+          setStage("learning");
         }
-
-        // 👉 ĐÃ FIX LỖI CỐT LÕI: NẾU BACKEND KHÔNG TRẢ VỀ THẺ (Do đã ôn xong hết)
-        // Hệ thống sẽ ép buộc tải TOÀN BỘ thẻ gốc của bộ bài để bạn nhồi nhét lại!
-        if (cards.length === 0) {
-          const allCardsData = await api.get(`/flashcards/deck/${deckId}`);
-          let rawCards = allCardsData.data || allCardsData || [];
-          
-          if (Array.isArray(rawCards) && rawCards.length > 0) {
-            // Tự động sắp xếp: Ưu tiên nhét các thẻ hay sai (có trong sổ thù vặt) lên đầu
-            cards = rawCards.sort((a, b) => (savedHistory[b.id] || 0) - (savedHistory[a.id] || 0));
-            bossModeFlag = savedSettings.examDate ? true : false;
-          }
-        }
-
-        // Khởi tạo các State cho Thuật toán Thác Nước
-        setFullBatch(cards);
-        setCramQueue(cards);
-        setForgottenThisRound([]);
-        setIsPerfectCycle(true);
-        setCycleCount(1);
-        setIsBossMode(bossModeFlag);
-
       } catch (error) {
-        console.error("Lỗi khi khởi tạo Cram Mode:", error);
+        console.error("Lỗi khởi tạo:", error);
       } finally {
         setIsLoading(false);
       }
@@ -73,70 +83,99 @@ const useCramMode = (deckId, onFinish) => {
     if (deckId) initCramMode();
   }, [deckId]);
 
-  // ========================================================
-  // THUẬT TOÁN "PERFECT CLEARANCE" (THÁC NƯỚC)
-  // ========================================================
-  const handleCramRating = (isRemembered) => {
-    if (cramQueue.length === 0) return;
+  // Logic đếm ngược 3 giây
+  useEffect(() => {
+    let timer;
+    if (stage === "summary") {
+      if (countdown > 0) {
+        timer = setTimeout(() => setCountdown((prev) => prev - 1), 1000);
+      } else {
+        moveToNextRound();
+      }
+    }
+    return () => clearTimeout(timer);
+  }, [stage, countdown]);
 
-    const currentCard = cramQueue[0];
-    setIsFlipped(false); // Úp thẻ ngay lập tức để tạo hiệu ứng
+  const handleCramRating = (isRemembered) => {
+    if (cramQueue.length === 0 || stage !== "learning") return;
+
+    const currentItem = cramQueue[0];
+    setIsFlipped(false);
 
     setTimeout(() => {
-      let updatedQueue = cramQueue.slice(1); 
+      let updatedQueue = cramQueue.slice(1);
       let newForgotten = [...forgottenThisRound];
-      let newIsPerfect = isPerfectCycle;
 
-      // NẾU BẤM QUÊN 🔴
-      if (!isRemembered) {
-        newForgotten.push(currentCard); 
-        newIsPerfect = false; 
-
-        // Lưu vào "Sổ thù vặt" LocalStorage để các phiên Cram sau tiếp tục ưu tiên hiển thị
-        const savedHistory = JSON.parse(localStorage.getItem(`cram_history_${deckId}`)) || {};
-        const currentForgetCount = savedHistory[currentCard.id] || 0;
-        savedHistory[currentCard.id] = currentForgetCount + 1;
-        localStorage.setItem(`cram_history_${deckId}`, JSON.stringify(savedHistory));
-      }
-
-      // KIỂM TRA XEM ĐÃ HẾT BÀI TRONG HÀNG ĐỢI HIỆN TẠI CHƯA?
-      if (updatedQueue.length === 0) {
-        if (newForgotten.length > 0) {
-          // Trường hợp 1: Hết bài nhưng CÒN THẺ SAI -> Bắt đầu lượt học lại với các thẻ bị sai
-          setCramQueue(newForgotten);
-          setForgottenThisRound([]);
-          setIsPerfectCycle(newIsPerfect);
-        } else {
-          // Trường hợp 2: Đã thuộc hết thẻ trong hàng đợi
-          if (newIsPerfect) {
-            // CHIẾN THẮNG TUYỆT ĐỐI! -> Xóa sạch hàng đợi để kích hoạt màn hình Tốt nghiệp
-            setCramQueue([]);
-          } else {
-            // KIẾP NẠN: Thuộc hết các thẻ sai rồi, nhưng vì lúc nãy có sai nên phải LÀM LẠI TỪ ĐẦU!
-            setCramQueue([...fullBatch]); 
-            setForgottenThisRound([]); 
-            setIsPerfectCycle(true); 
-            setCycleCount((prev) => prev + 1); 
-          }
-        }
+      if (isRemembered) {
+        setCorrectCount((prev) => prev + 1);
       } else {
-        // Trường hợp 3: Vẫn còn thẻ trong hàng đợi, học tiếp thẻ tiếp theo
-        setCramQueue(updatedQueue);
-        setForgottenThisRound(newForgotten);
-        setIsPerfectCycle(newIsPerfect);
+        newForgotten.push(currentItem);
+        setWrongCount((prev) => prev + 1);
       }
-    }, 150); 
+
+      setForgottenThisRound(newForgotten);
+      setCramQueue(updatedQueue);
+
+      if (updatedQueue.length === 0) {
+        setStage("summary");
+        setCountdown(3);
+      }
+    }, 150);
+  };
+
+  const moveToNextRound = () => {
+    if (
+      forgottenThisRound.length > 0 &&
+      forgottenThisRound.length < fullBatch.length
+    ) {
+      setCramQueue(forgottenThisRound);
+      setTotalThisRound(forgottenThisRound.length);
+      setForgottenThisRound([]);
+      setCorrectCount(0);
+      setWrongCount(0);
+      setCycleCount((prev) => prev + 1);
+      setStage("learning");
+      return;
+    }
+
+    if (forgottenThisRound.length === 0 && totalThisRound < fullBatch.length) {
+      setCramQueue([...fullBatch]);
+      setTotalThisRound(fullBatch.length);
+      setForgottenThisRound([]);
+      setCorrectCount(0);
+      setWrongCount(0);
+      setCycleCount((prev) => prev + 1);
+      setStage("learning");
+      return;
+    }
+
+    if (totalThisRound === fullBatch.length) {
+      if (forgottenThisRound.length === 0) {
+        setStage("finished");
+      } else {
+        setCramQueue(forgottenThisRound);
+        setTotalThisRound(forgottenThisRound.length);
+        setForgottenThisRound([]);
+        setCorrectCount(0);
+        setWrongCount(0);
+        setCycleCount((prev) => prev + 1);
+        setStage("learning");
+      }
+    }
   };
 
   return {
     cramQueue,
     fullBatch,
     cycleCount,
-    forgottenThisRound,
+    stage,
+    countdown,
+    correctCount,
+    wrongCount,
+    totalThisRound,
     isFlipped,
     setIsFlipped,
     isLoading,
-    isBossMode,
     handleCramRating,
   };
 };

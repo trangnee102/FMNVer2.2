@@ -1,372 +1,238 @@
 // frontend/src/components/Cards/CreateExamInput.jsx
-import React from "react";
+import React, { useState } from "react";
+import "./CreateExamInput.css";
+import ConfigProgressBars from "./ConfigProgressBars";
+import QuestionConfigWizard from "./QuestionConfigWizard";
 
 const CreateExamInput = ({
   topic,
   setTopic,
-  examType,
-  setExamType,
+  existingExams = [],
   questionCount,
   setQuestionCount,
-  easyCount,
-  setEasyCount,
-  medCount,
-  setMedCount,
-  hardCount,
-  setHardCount,
+  questionsConfig,
+  setQuestionsConfig,
   text,
   setText,
   fileInputRef,
   handleFileChange,
-  customPrompt, // 👉 Đã nhận cấu hình prompt tùy biến
+  customPrompt,
   setCustomPrompt,
   loading,
   handleGenerateExam,
   error,
 }) => {
-  // Tính tổng số lượng thực tế
-  const currentTotal = Number(easyCount) + Number(medCount) + Number(hardCount);
-  const isInvalidCount = currentTotal !== Number(questionCount);
+  const [topicMode, setTopicMode] = useState("NEW");
 
-  // Tính phần trăm hiển thị giao diện
-  const easyPct =
-    questionCount > 0 ? (Number(easyCount) / questionCount) * 100 : 0;
-  const medPct =
-    questionCount > 0 ? (Number(medCount) / questionCount) * 100 : 0;
-  const hardPct =
-    questionCount > 0 ? (Number(hardCount) / questionCount) * 100 : 0;
+  // 👉 ĐÃ NÂNG CẤP: Quản lý Tab của Wizard tại File Cha
+  const [activeWizardStep, setActiveWizardStep] = useState("DIFFICULTY");
+
+  const handleCountChange = (e) => {
+    let val = e.target.value;
+    if (val.length > 1 && val.startsWith("0")) val = val.replace(/^0+/, "");
+    setQuestionCount(Number(val));
+  };
+
+  const isInvalidCount =
+    !questionCount || questionCount < 1 || questionCount > 50;
+
+  const unassignedQuestions = questionsConfig
+    .filter(
+      (q) => !q.difficulty || q.difficulty === "" || !q.type || q.type === "",
+    )
+    .map((q) => q.id);
+
+  const hasUnassignedConfig = unassignedQuestions.length > 0;
+
+  const unassignedText =
+    unassignedQuestions.length > 8
+      ? unassignedQuestions.slice(0, 8).join(", ") + ", ..."
+      : unassignedQuestions.join(", ");
+
+  const handleAttemptSubmit = (e) => {
+    e.preventDefault();
+
+    if (loading || isInvalidCount) return;
+
+    if (hasUnassignedConfig) {
+      // 👉 BƯỚC 1: Phân tích xem câu lỗi đang bị THIẾU CÁI GÌ
+      // Tìm câu hỏi lỗi đầu tiên trong danh sách
+      const firstMissingQ = questionsConfig.find(
+        (q) => !q.difficulty || q.difficulty === "" || !q.type || q.type === "",
+      );
+
+      if (firstMissingQ) {
+        // Ưu tiên check Độ khó trước, nếu Độ khó đủ thì check Loại câu
+        if (!firstMissingQ.difficulty || firstMissingQ.difficulty === "") {
+          setActiveWizardStep("DIFFICULTY"); // Nhảy sang Tab 1
+        } else if (!firstMissingQ.type || firstMissingQ.type === "") {
+          setActiveWizardStep("TYPE"); // Nhảy sang Tab 2
+        }
+      }
+
+      // 👉 BƯỚC 2: Cuộn màn hình và nháy đỏ (Vì DOM không bị xóa khi đổi Tab nên cuộn luôn vẫn mượt)
+      const firstUnassignedId = unassignedQuestions[0];
+      const targetElement = document.getElementById(
+        `config-btn-${firstUnassignedId}`,
+      );
+
+      if (targetElement) {
+        targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
+      unassignedQuestions.forEach((id) => {
+        const el = document.getElementById(`config-btn-${id}`);
+        if (el) {
+          el.classList.add("error-flash-animation");
+          setTimeout(() => {
+            el.classList.remove("error-flash-animation");
+          }, 1500);
+        }
+      });
+
+      return;
+    }
+
+    handleGenerateExam();
+  };
 
   return (
-    <div
-      style={{
-        backgroundColor: "var(--bg-card)",
-        padding: "30px",
-        borderRadius: "16px",
-        boxShadow: "0 4px 15px rgba(0,0,0,0.05)",
-        border: "1px solid var(--border)",
-        marginBottom: "30px",
-      }}
-    >
+    <div className="cei-container">
       {error && <div className="exam-alert-error">{error}</div>}
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-        {/* TÊN ĐỀ THI */}
-        <div>
-          <label
-            style={{
-              display: "block",
-              fontWeight: "bold",
-              marginBottom: "8px",
-              color: "var(--text-dark)",
-            }}
-          >
-            Tên đề thi (*)
-          </label>
-          <input
-            type="text"
-            placeholder="Vd: Đề kiểm tra 15p Lịch Sử..."
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "12px",
-              borderRadius: "8px",
-              border: "2px solid var(--border)",
-              outline: "none",
-              fontSize: "1rem",
-            }}
-          />
-        </div>
-
-        {/* LOẠI CÂU & TỔNG SỐ LƯỢNG */}
+      <div className="cei-flex-col">
+        {/* KHU VỰC 1: TÊN ĐỀ THI & TỔNG SỐ CÂU */}
         <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-          <div style={{ flex: 1, minWidth: "200px" }}>
+          <div style={{ flex: 2, minWidth: "250px" }}>
             <label
+              className="cei-form-label"
               style={{
-                display: "block",
-                fontWeight: "bold",
-                marginBottom: "8px",
-                color: "var(--text-dark)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
             >
-              Loại câu hỏi
-            </label>
-            <select
-              value={examType}
-              onChange={(e) => setExamType(e.target.value)}
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: "8px",
-                border: "2px solid var(--border)",
-                outline: "none",
-              }}
-            >
-              <option value="MIX">🔀 Hỗn hợp (Mix các loại)</option>
-              <option value="SINGLE">🔘 Trắc nghiệm 1 đáp án</option>
-              <option value="MULTIPLE">☑️ Trắc nghiệm nhiều đáp án</option>
-              <option value="TRUE_FALSE">⚖️ Đúng / Sai</option>
-              <option value="FILL_BLANK">✍️ Điền khuyết</option>
-            </select>
-          </div>
-          <div style={{ flex: 1, minWidth: "200px" }}>
-            <label
-              style={{
-                display: "block",
-                fontWeight: "bold",
-                marginBottom: "8px",
-                color: "var(--text-dark)",
-              }}
-            >
-              Tổng số câu
-            </label>
-            <select
-              value={questionCount}
-              onChange={(e) => setQuestionCount(Number(e.target.value))}
-              style={{
-                width: "100%",
-                padding: "12px",
-                borderRadius: "8px",
-                border: "2px solid var(--border)",
-                outline: "none",
-              }}
-            >
-              <option value={10}>10 câu</option>
-              <option value={20}>20 câu</option>
-              <option value={30}>30 câu</option>
-              <option value={50}>50 câu</option>
-            </select>
-          </div>
-        </div>
-
-        {/* KHU VỰC CẤU HÌNH SỐ LƯỢNG CỤ THỂ THEO ĐỘ KHÓ */}
-        <div
-          style={{
-            padding: "20px",
-            backgroundColor: "rgba(139, 92, 246, 0.05)",
-            border: "1px dashed #8b5cf6",
-            borderRadius: "12px",
-          }}
-        >
-          <label
-            style={{
-              display: "block",
-              fontWeight: "bold",
-              marginBottom: "15px",
-              color: "var(--text-dark)",
-            }}
-          >
-            Phân bổ mức độ khó (Số lượng cụ thể)
-          </label>
-          <div style={{ display: "flex", gap: "15px", flexWrap: "wrap" }}>
-            {/* CÂU DỄ */}
-            <div style={{ flex: 1, minWidth: "100px" }}>
-              <label
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: "0.95rem",
-                  color: "#10b981",
-                  fontWeight: "bold",
-                  marginBottom: "5px",
-                }}
-              >
-                <span>Dễ</span>
-                <span style={{ opacity: 0.7, fontSize: "0.85rem" }}>
-                  {easyPct.toFixed(0)}%
-                </span>
-              </label>
-              <input
-                type="number"
-                min="0"
-                max={questionCount}
-                value={easyCount}
-                onChange={(e) => setEasyCount(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  borderRadius: "8px",
-                  border: "1px solid var(--border)",
-                  fontSize: "1.1rem",
-                  textAlign: "center",
-                  fontWeight: "bold",
-                }}
-              />
-            </div>
-
-            {/* CÂU VỪA */}
-            <div style={{ flex: 1, minWidth: "100px" }}>
-              <label
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: "0.95rem",
-                  color: "#f59e0b",
-                  fontWeight: "bold",
-                  marginBottom: "5px",
-                }}
-              >
-                <span>Vừa</span>
-                <span style={{ opacity: 0.7, fontSize: "0.85rem" }}>
-                  {medPct.toFixed(0)}%
-                </span>
-              </label>
-              <input
-                type="number"
-                min="0"
-                max={questionCount}
-                value={medCount}
-                onChange={(e) => setMedCount(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  borderRadius: "8px",
-                  border: "1px solid var(--border)",
-                  fontSize: "1.1rem",
-                  textAlign: "center",
-                  fontWeight: "bold",
-                }}
-              />
-            </div>
-
-            {/* CÂU KHÓ */}
-            <div style={{ flex: 1, minWidth: "100px" }}>
-              <label
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: "0.95rem",
-                  color: "#ef4444",
-                  fontWeight: "bold",
-                  marginBottom: "5px",
-                }}
-              >
-                <span>Khó</span>
-                <span style={{ opacity: 0.7, fontSize: "0.85rem" }}>
-                  {hardPct.toFixed(0)}%
-                </span>
-              </label>
-              <input
-                type="number"
-                min="0"
-                max={questionCount}
-                value={hardCount}
-                onChange={(e) => setHardCount(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  borderRadius: "8px",
-                  border: "1px solid var(--border)",
-                  fontSize: "1.1rem",
-                  textAlign: "center",
-                  fontWeight: "bold",
-                }}
-              />
-            </div>
-          </div>
-
-          <div
-            style={{
-              marginTop: "20px",
-              fontSize: "1rem",
-              fontWeight: "bold",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <span style={{ color: isInvalidCount ? "#ef4444" : "#10b981" }}>
-              Đã phân bổ: {currentTotal} / {questionCount} câu
-              {isInvalidCount && (
-                <span
+              <span>Tên đề thi (*)</span>
+              {existingExams.length > 0 && (
+                <div
                   style={{
+                    display: "flex",
+                    gap: "10px",
                     fontSize: "0.85rem",
-                    marginLeft: "10px",
                     fontWeight: "normal",
                   }}
                 >
-                  (Cần điều chỉnh cho khớp)
-                </span>
+                  <label
+                    style={{
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      checked={topicMode === "NEW"}
+                      onChange={() => {
+                        setTopicMode("NEW");
+                        setTopic("");
+                      }}
+                    />{" "}
+                    Tạo mới
+                  </label>
+                  <label
+                    style={{
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      color: "#8b5cf6",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      checked={topicMode === "EXISTING"}
+                      onChange={() => {
+                        setTopicMode("EXISTING");
+                        setTopic(existingExams[0] || "");
+                      }}
+                    />{" "}
+                    Gộp vào đề cũ
+                  </label>
+                </div>
               )}
-            </span>
-            <div
-              style={{
-                flex: 1,
-                height: "8px",
-                backgroundColor: "#e5e7eb",
-                borderRadius: "4px",
-                marginLeft: "20px",
-                display: "flex",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  width: `${easyPct}%`,
-                  backgroundColor: "#10b981",
-                  transition: "width 0.3s ease",
-                }}
-              ></div>
-              <div
-                style={{
-                  width: `${medPct}%`,
-                  backgroundColor: "#f59e0b",
-                  transition: "width 0.3s ease",
-                }}
-              ></div>
-              <div
-                style={{
-                  width: `${hardPct}%`,
-                  backgroundColor: "#ef4444",
-                  transition: "width 0.3s ease",
-                }}
-              ></div>
-            </div>
+            </label>
+
+            {topicMode === "NEW" ? (
+              <input
+                type="text"
+                className="cei-input"
+                placeholder="Vd: Đề kiểm tra 15p Lịch Sử..."
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+              />
+            ) : (
+              <select
+                className="cei-input cei-input-highlight"
+                value={topic}
+                onChange={(e) => setTopic(e.target.value)}
+              >
+                {existingExams.map((examName, idx) => (
+                  <option key={idx} value={examName}>
+                    {examName}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div style={{ flex: 1, minWidth: "150px" }}>
+            <label className="cei-form-label">Tổng số câu (1-50)</label>
+            <input
+              type="number"
+              min="1"
+              max="50"
+              className="cei-input cei-input-highlight"
+              placeholder="VD: 15"
+              value={questionCount === 0 ? "" : questionCount}
+              onChange={handleCountChange}
+            />
           </div>
         </div>
 
-        {/* Ô NHẬP YÊU CẦU CHO AI (CUSTOM PROMPT) */}
+        {/* KHU VỰC 2: TIẾN TRÌNH % */}
+        <ConfigProgressBars questionsConfig={questionsConfig} />
+
+        {/* KHU VỰC 3: WIZARD CỌ VẼ */}
+        <QuestionConfigWizard
+          questionsConfig={questionsConfig}
+          setQuestionsConfig={setQuestionsConfig}
+          activeStep={activeWizardStep} /* 👉 TRUYỀN STATE XUỐNG CHO CON */
+          setActiveStep={setActiveWizardStep} /* 👉 TRUYỀN HÀM XUỐNG CHO CON */
+        />
+
+        {/* KHU VỰC 4: TÀI LIỆU & YÊU CẦU CHO AI */}
         <div>
-          <label
-            style={{
-              display: "block",
-              fontWeight: "bold",
-              marginBottom: "8px",
-              color: "var(--text-dark)",
-            }}
-          >
+          <label className="cei-form-label">
             <i
               className="fa-solid fa-wand-magic-sparkles"
-              style={{ marginRight: "8px", color: "#8b5cf6" }}
-            ></i>
+              style={{ color: "#8b5cf6", marginRight: "5px" }}
+            ></i>{" "}
             Yêu cầu thêm cho AI (Tùy chọn)
           </label>
           <textarea
+            className="cei-input"
             rows="2"
-            placeholder="Vd: Chỉ tập trung hỏi vào giai đoạn 1960 - 1975, hỏi nhiều về các chiến dịch..."
+            placeholder="Vd: Chỉ tập trung hỏi vào giai đoạn 1960 - 1975..."
             value={customPrompt}
             onChange={(e) => setCustomPrompt(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "12px",
-              borderRadius: "8px",
-              border: "2px solid var(--border)",
-              outline: "none",
-              resize: "vertical",
-            }}
+            style={{ resize: "vertical" }}
           ></textarea>
         </div>
 
-        {/* UPLOAD FILE */}
         <div>
-          <label
-            style={{
-              display: "block",
-              fontWeight: "bold",
-              marginBottom: "8px",
-              color: "var(--text-dark)",
-            }}
-          >
+          <label className="cei-form-label">
             Tài liệu tham khảo (PDF, Word, Ảnh &lt; 5MB)
           </label>
           <input
@@ -374,58 +240,50 @@ const CreateExamInput = ({
             accept=".pdf, .doc, .docx, image/*"
             ref={fileInputRef}
             onChange={handleFileChange}
+            className="cei-input"
             style={{
-              width: "100%",
-              padding: "10px",
-              border: "2px dashed #8b5cf6",
-              borderRadius: "8px",
+              borderStyle: "dashed",
+              borderColor: "#8b5cf6",
               backgroundColor: "rgba(139, 92, 246, 0.05)",
             }}
           />
         </div>
 
-        {/* NHẬP TEXT */}
         <div>
-          <label
-            style={{
-              display: "block",
-              fontWeight: "bold",
-              marginBottom: "8px",
-              color: "var(--text-dark)",
-            }}
-          >
-            Hoặc dán văn bản vào đây
-          </label>
+          <label className="cei-form-label">Hoặc dán văn bản vào đây</label>
           <textarea
+            className="cei-input"
             rows="4"
             placeholder="Paste tài liệu của bạn vào đây..."
             value={text}
             onChange={(e) => setText(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "12px",
-              borderRadius: "8px",
-              border: "2px solid var(--border)",
-              outline: "none",
-              resize: "vertical",
-            }}
+            style={{ resize: "vertical" }}
           ></textarea>
         </div>
 
         {/* NÚT SUBMIT */}
         <button
-          onClick={handleGenerateExam}
-          disabled={loading || isInvalidCount}
+          onClick={handleAttemptSubmit}
           className="exam-btn-generate"
+          style={{
+            opacity: loading || isInvalidCount || hasUnassignedConfig ? 0.6 : 1,
+            cursor: loading || isInvalidCount ? "not-allowed" : "pointer",
+            backgroundColor: hasUnassignedConfig ? "#d1d5db" : "var(--primary)",
+            color: hasUnassignedConfig ? "#4b5563" : "white",
+            transition: "all 0.3s ease",
+          }}
         >
           {loading ? (
             <>
-              <div className="exam-spinner"></div> Đang nhờ AI vắt óc ra đề...
+              <div className="exam-spinner"></div> Hệ thống đang khởi tạo đề thi
+              AI...
             </>
           ) : isInvalidCount ? (
-            `⚠️ Vui lòng phân bổ đúng ${questionCount} câu`
+            `⚠️ Vui lòng nhập số lượng từ 1 - 50`
+          ) : hasUnassignedConfig ? (
+            `⚠️ Vui lòng cấu hình cho (các) câu: ${unassignedText}`
           ) : (
-            "Tiến hành tạo Đề Thi 🚀"
+            `Tạo Đề Thi (${questionCount} câu) 🚀`
           )}
         </button>
       </div>

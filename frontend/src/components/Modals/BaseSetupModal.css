@@ -1,0 +1,63 @@
+/* frontend/src/components/Modals/BaseSetupModal.css */
+.base-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.base-modal-content {
+  background: var(--bg-card, white);
+  padding: 30px;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 550px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border, #e2e8f0);
+}
+
+.base-modal-header {
+  margin-bottom: 25px;
+}
+
+.base-modal-title {
+  margin: 0 0 5px 0;
+  color: var(--text-dark, #1e293b);
+  font-size: 1.6rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.base-modal-subtitle {
+  margin: 0;
+  color: var(--text-gray, #64748b);
+  font-size: 0.95rem;
+}
+
+.base-modal-body {
+  margin-bottom: 25px;
+}
+
+.base-modal-footer {
+  display: flex;
+  gap: 15px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

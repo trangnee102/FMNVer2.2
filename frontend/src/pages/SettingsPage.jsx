@@ -6,7 +6,7 @@ import "./SettingsPage.css";
 
 const SettingsPage = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState("general");
-  const { user, loginUser } = useAuth(); // 👉 ĐÃ SỬA: Lôi thêm hàm loginUser để cập nhật lại Két sắt khi đổi tên thành công
+  const { user, loginUser } = useAuth();
   const [currentLang, setCurrentLang] = useState(
     localStorage.getItem("language") || "vi",
   );
@@ -24,7 +24,6 @@ const SettingsPage = ({ onNavigate }) => {
     return date.toLocaleDateString("vi-VN");
   };
 
-  // 3. QUẢN LÝ THÔNG TIN NGƯỜI DÙNG
   const [userInfo, setUserInfo] = useState({
     displayName: user?.full_name || "",
     email: user?.email || "",
@@ -264,13 +263,7 @@ const SettingsPage = ({ onNavigate }) => {
             >
               <i className="fa-solid fa-sliders"></i> {t.tabGeneral || "Chung"}
             </div>
-            <div
-              className={`nav-tab ${activeTab === "notifications" ? "active" : ""}`}
-              onClick={() => setActiveTab("notifications")}
-            >
-              <i className="fa-solid fa-bell"></i>{" "}
-              {t.tabNotification || "Thông báo"}
-            </div>
+            
             <div
               className={`nav-tab ${activeTab === "security" ? "active" : ""}`}
               onClick={() => setActiveTab("security")}
@@ -316,24 +309,7 @@ const SettingsPage = ({ onNavigate }) => {
                     <span className="toggle-slider"></span>
                   </label>
                 </div>
-                <div className="setting-row">
-                  <div className="setting-details">
-                    <span className="setting-name">
-                      {t.language || "Ngôn ngữ"}
-                    </span>
-                    <span className="setting-desc">
-                      {t.languageDesc || "Chọn ngôn ngữ hiển thị"}
-                    </span>
-                  </div>
-                  <select
-                    className="custom-select"
-                    value={currentLang}
-                    onChange={handleLanguageChange}
-                  >
-                    <option value="vi">Tiếng Việt</option>
-                    <option value="en">English</option>
-                  </select>
-                </div>
+                
               </div>
 
               <div className="settings-section">
@@ -509,39 +485,7 @@ const SettingsPage = ({ onNavigate }) => {
                 </div>
               </div>
 
-              <div className="danger-zone">
-                <h4 className="section-title">
-                  <i className="fa-solid fa-triangle-exclamation"></i> Vùng nguy
-                  hiểm
-                </h4>
-
-                <div className="danger-row">
-                  <div className="setting-details">
-                    <span className="setting-name">
-                      Đăng xuất khỏi tất cả thiết bị
-                    </span>
-                    <span className="setting-desc">
-                      Đăng xuất khỏi tất cả các phiên đang hoạt động
-                    </span>
-                  </div>
-                  <button className="btn-danger">
-                    <i className="fa-solid fa-right-from-bracket"></i> Đăng xuất
-                    tất cả
-                  </button>
-                </div>
-
-                <div className="danger-row">
-                  <div className="setting-details">
-                    <span className="setting-name">Xóa tài khoản</span>
-                    <span className="setting-desc">
-                      Xóa vĩnh viễn tài khoản và tất cả dữ liệu
-                    </span>
-                  </div>
-                  <button className="btn-danger">
-                    <i className="fa-solid fa-trash"></i> Xóa tài khoản
-                  </button>
-                </div>
-              </div>
+              
             </div>
           )}
 

@@ -1,0 +1,256 @@
+/* frontend/src/components/Study/ReviewDashboard.css */
+
+.rd-page-title {
+  color: var(--text-dark);
+  font-size: 2rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rd-page-subtitle {
+  color: var(--text-gray);
+  margin-top: 5px;
+}
+
+.rd-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-bottom: 50px;
+}
+
+.rd-list-item {
+  background-color: var(--bg-card);
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 16px;
+  padding: 20px 25px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+}
+
+.rd-item-cram {
+  border-color: #f59e0b;
+  border-width: 1.5px;
+}
+
+.rd-item-normal {
+  border-color: var(--border);
+}
+
+.rd-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.rd-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rd-item-title {
+  color: var(--text-dark);
+  margin: 0;
+  font-weight: 800;
+  font-size: 1.2rem;
+}
+
+.rd-badge-exam {
+  background: #e0e7ff;
+  color: #4f46e5;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.rd-badge-flashcard {
+  background: #f3e8ff;
+  color: #9333ea;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.rd-badge-cram {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.rd-badge-done {
+  background: #dcfce7;
+  color: #166534;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.rd-progress-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin: 12px 0;
+}
+
+.rd-progress-track {
+  flex: 1;
+  height: 8px;
+  background: var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.rd-progress-text {
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+.rd-stats-row {
+  display: flex;
+  gap: 25px;
+  color: var(--text-gray);
+  font-size: 0.9rem;
+}
+
+.rd-col-exam {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-gray);
+  font-size: 0.9rem;
+  min-width: 140px;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: 0 20px;
+}
+
+.rd-col-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rd-btn-study-cram {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  border: none;
+  padding: 12px 22px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
+  white-space: nowrap;
+}
+
+.rd-btn-study-normal {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 12px 22px;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.rd-btn-cram-toggle {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.rd-btn-cram-active {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid var(--border);
+  color: #f59e0b;
+}
+
+.rd-btn-cram-inactive {
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  color: var(--text-gray);
+}
+
+/* Modal Styles */
+.rd-modal-overlay {
+  z-index: 1000;
+}
+
+.rd-modal {
+  text-align: center;
+  padding: 40px 30px;
+  max-width: 420px;
+}
+
+.rd-modal-icon {
+  font-size: 3.5rem;
+  margin: 0 auto 20px auto;
+  display: inline-block;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 15px;
+  border-radius: 50%;
+}
+
+.rd-modal-title {
+  color: var(--text-dark);
+  font-size: 1.5rem;
+  margin: 0 0 15px 0;
+  font-weight: 800;
+}
+
+.rd-modal-text {
+  color: var(--text-gray);
+  line-height: 1.6;
+  margin: 0 0 30px 0;
+  font-size: 1.05rem;
+}
+
+.rd-modal-btn-group {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.rd-modal-btn-cancel {
+  flex: 1;
+  padding: 14px;
+  background: var(--bg-main);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text-dark);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rd-modal-btn-confirm {
+  flex: 1;
+  padding: 14px;
+  background: var(--primary);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}

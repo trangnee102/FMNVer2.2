@@ -1,0 +1,110 @@
+/* frontend/src/pages/CreateExamSelection.css */
+.exam-selection-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 70vh;
+  padding: 2rem;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
+}
+
+.exam-selection-title {
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #1f2937;
+}
+
+.exam-selection-subtitle {
+  color: #6b7280;
+  margin-bottom: 3rem;
+  text-align: center;
+  font-size: 1.125rem;
+}
+
+.exam-selection-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+@media (min-width: 768px) {
+  .exam-selection-cards {
+    flex-direction: row;
+  }
+}
+
+.exam-selection-card {
+  border: 1px solid #f3f4f6;
+  border-radius: 1.5rem;
+  padding: 2.5rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background-color: #ffffff;
+  width: 340px;
+  position: relative;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+.exam-selection-card:hover {
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  transform: translateY(-8px);
+}
+
+.exam-icon-box {
+  border-radius: 1.5rem;
+  width: 7rem;
+  height: 7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.icon-manual {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.icon-ai {
+  background-color: #34d399;
+  color: white;
+}
+
+.exam-badge {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  background-color: #d1fae5;
+  color: #059669;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid #a7f3d0;
+}
+
+.exam-card-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  color: #1f2937;
+}
+
+.exam-card-desc {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}

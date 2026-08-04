@@ -1,3 +1,4 @@
+// backend/src/server.js
 const express = require("express");
 const http = require("http"); // Module HTTP tích hợp của Node.js
 const { Server } = require("socket.io"); // Class Server của Socket.io
@@ -16,6 +17,8 @@ const dashboardRoutes = require("./routes/dashboardRoutes");
 const statisticsRoutes = require("./routes/statisticsRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const communityRoutes = require("./routes/communityRoutes");
+// 👉 ĐÃ THÊM: Route cho QuickTest
+const quickTestRoutes = require("./routes/quickTestRoutes");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -77,7 +80,9 @@ io.on("connection", async (socket) => {
     console.log(`📡 Một người dùng ẩn danh vừa kết nối: ${socket.id}`);
   }
 
-  // Lắng nghe yêu cầu "Tham gia phòng chat" thủ công từ Frontend
+  // =========================================
+  // LOGIC REAL-TIME CHO CHAT CỘNG ĐỒNG
+  // =========================================
   socket.on("joinRoom", (conversationId) => {
     if (conversationId) {
       socket.join(conversationId.toString());
@@ -101,6 +106,47 @@ io.on("connection", async (socket) => {
         .to(targetId.toString())
         .emit("userStoppedTyping", { userName, conversationId });
     }
+  });
+
+
+  // =========================================
+  // 👉 ĐÃ THÊM: LOGIC REAL-TIME CHO QUICKTEST 
+  // =========================================
+  
+  // 1. Giáo viên/Học sinh join vào phòng thi (phân biệt bằng roomCode)
+  socket.on("join_quicktest", ({ roomCode, userType, userName }) => {
+    if (roomCode) {
+      const roomStr = `quicktest_${roomCode}`;
+      socket.join(roomStr);
+      console.log(`⚡ [QuickTest] ${userType} [${userName || socket.id}] đã vào phòng: ${roomCode}`);
+
+      // Nếu là học sinh, báo cho cả phòng (đặc biệt là giáo viên) biết để update danh sách chờ
+      if (userType === "student" || userType === "participant") {
+        io.to(roomStr).emit("player_joined", { id: socket.id, name: userName });
+      }
+    }
+  });
+
+  // 2. Giáo viên bấm "Bắt đầu" -> Báo toàn bộ học sinh chuyển sang màn hình làm bài
+  socket.on("start_quicktest", (roomCode) => {
+    console.log(`⚡ [QuickTest] Phòng ${roomCode} đã BẮT ĐẦU làm bài!`);
+    io.to(`quicktest_${roomCode}`).emit("test_started");
+  });
+
+  // 3. Học sinh chọn đáp án -> Báo điểm về cho Giáo viên (Live Leaderboard)
+  socket.on("submit_answer", ({ roomCode, participantId, studentName, score, isCorrect }) => {
+    io.to(`quicktest_${roomCode}`).emit("live_update", { 
+      participantId, 
+      studentName, 
+      score, 
+      isCorrect 
+    });
+  });
+
+  // 4. Giáo viên kết thúc bài thi sớm (hoặc hết giờ) -> Báo học sinh dừng làm bài
+  socket.on("end_quicktest", (roomCode) => {
+    console.log(`⚡ [QuickTest] Phòng ${roomCode} đã KẾT THÚC!`);
+    io.to(`quicktest_${roomCode}`).emit("test_ended");
   });
 
   // Xử lý khi người dùng thoát trang hoặc đóng trình duyệt
@@ -166,6 +212,9 @@ app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/statistics", statisticsRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/community", communityRoutes);
+
+// 👉 ĐÃ THÊM: Kích hoạt đường dẫn API cho QuickTest
+app.use("/api/quicktest", quickTestRoutes);
 
 // Khởi chạy Server
 const startServerWithPort = (port) => {

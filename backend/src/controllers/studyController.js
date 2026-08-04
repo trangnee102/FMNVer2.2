@@ -1,6 +1,8 @@
-// backend/src/controllers/studyController.js
 const prisma = require("../services/prisma");
-const { calculateSM2 } = require("../algorithms/forgettingCurve");
+const {
+  calculateSM2,
+  calculateMemoryRetention,
+} = require("../algorithms/forgettingCurve");
 const jwt = require("jsonwebtoken");
 const { shuffleArray } = require("../utils/aiHelpers");
 
@@ -12,16 +14,10 @@ const extractUserId = (req) => {
       const token = req.headers.authorization.split(" ")[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       userId = decoded.id || decoded.userId;
-    } catch (error) {
-      console.error("Lỗi dịch token dự phòng:", error.message);
-    }
+    } catch (error) {}
   }
-  return userId;
+  return userId ? parseInt(userId, 10) : null;
 };
-
-// ==========================================
-// TÍNH NĂNG 1: HỌC FLASHCARD (THUẬT TOÁN SM-2 CŨ - GIỮ NGUYÊN)
-// ==========================================
 
 const reviewCard = async (req, res) => {
   try {
@@ -46,8 +42,6 @@ const reviewCard = async (req, res) => {
         message: "Điểm đánh giá phải là 1, 2, 3 hoặc 4!",
       });
     }
-
-    const normalizedGrade = frontendGrade - 1;
 
     const [card, progress] = await Promise.all([
       prisma.flashcards.findUnique({
@@ -78,44 +72,61 @@ const reviewCard = async (req, res) => {
       });
     }
 
-    let currentProgress = progress;
-    if (!currentProgress) {
-      currentProgress = await prisma.studyProgress.create({
+    let currentEaseFactor = 2.5;
+    let currentInterval = 0;
+    let currentRepetitions = 0;
+    let currentMemoryRetention = 100;
+    let currentProgressId = null;
+
+    if (progress) {
+      currentProgressId = progress.id;
+      currentEaseFactor = progress.ease_factor || 2.5;
+      currentInterval = progress.interval || 0;
+      currentRepetitions = progress.repetitions || 0;
+
+      if (progress.last_review_date) {
+        try {
+          currentMemoryRetention = calculateMemoryRetention(
+            progress.last_review_date,
+            progress.interval,
+          );
+        } catch (e) {
+          currentMemoryRetention = 100;
+        }
+      }
+    }
+
+    const { newEaseFactor, newInterval, newRepetitions, nextReviewDate } =
+      calculateSM2(
+        frontendGrade,
+        currentEaseFactor,
+        currentInterval,
+        currentRepetitions,
+      );
+
+    let updatedProgress;
+    if (currentProgressId) {
+      updatedProgress = await prisma.studyProgress.update({
+        where: { id: currentProgressId },
+        data: {
+          ease_factor: newEaseFactor,
+          interval: newInterval,
+          repetitions: newRepetitions,
+          next_review_date: nextReviewDate,
+        },
+      });
+    } else {
+      updatedProgress = await prisma.studyProgress.create({
         data: {
           flashcard_id: cardId,
           user_id: userId,
-          ease_factor: 2.5,
-          interval: 0,
-          repetitions: 0,
+          ease_factor: newEaseFactor,
+          interval: newInterval,
+          repetitions: newRepetitions,
+          next_review_date: nextReviewDate,
         },
       });
     }
-
-    const { newEaseFactor, newInterval, newRepetitions } = calculateSM2(
-      normalizedGrade,
-      currentProgress.ease_factor,
-      currentProgress.interval,
-      currentProgress.repetitions,
-    );
-
-    let nextReviewDate = new Date();
-    if (normalizedGrade === 0) {
-      nextReviewDate.setMinutes(nextReviewDate.getMinutes() - 1);
-    } else {
-      nextReviewDate.setDate(nextReviewDate.getDate() + newInterval);
-      nextReviewDate.setHours(0, 0, 0, 0);
-    }
-
-    const updatedProgress = await prisma.studyProgress.update({
-      where: { id: currentProgress.id },
-      data: {
-        ease_factor: newEaseFactor,
-        interval: newInterval,
-        repetitions: newRepetitions,
-        next_review_date: nextReviewDate,
-      },
-    });
-
     await prisma.studyLogs.create({
       data: {
         user_id: userId,
@@ -129,17 +140,15 @@ const reviewCard = async (req, res) => {
     res.json({
       success: true,
       message:
-        normalizedGrade === 0
+        frontendGrade === 1
           ? "Thẻ đã được ghim lại để ôn tiếp ngay bây giờ!"
           : "Đã cập nhật chu kỳ ôn tập!",
       data: updatedProgress,
     });
   } catch (error) {
-    console.error("Lỗi Review:", error);
     res.status(500).json({
       success: false,
       message: "Lỗi hệ thống chấm điểm!",
-      error: error.message,
     });
   }
 };
@@ -155,7 +164,7 @@ const getDueCards = async (req, res) => {
       });
     }
 
-    const deckId = parseInt(req.params.deckId);
+    const deckId = parseInt(req.params.deckId, 10);
 
     const deck = await prisma.decks.findUnique({
       where: { id: deckId },
@@ -170,7 +179,6 @@ const getDueCards = async (req, res) => {
     }
 
     const clientDateString = req.query.currentDate;
-
     const today = clientDateString ? new Date(clientDateString) : new Date();
     today.setHours(23, 59, 59, 999);
 
@@ -202,18 +210,12 @@ const getDueCards = async (req, res) => {
       data: dueCards,
     });
   } catch (error) {
-    console.error("Lỗi getDue:", error);
     res.status(500).json({
       success: false,
       message: "Lỗi khi tìm thẻ ôn tập!",
-      error: error.message,
     });
   }
 };
-
-// ==========================================
-// TÍNH NĂNG 2: THI TRẮC NGHIỆM - TRỘN ĐỀ THÔNG MINH
-// ==========================================
 
 const generateRandomExam = async (req, res) => {
   try {
@@ -224,13 +226,11 @@ const generateRandomExam = async (req, res) => {
         .json({ success: false, message: "Vui lòng đăng nhập lại!" });
     }
 
-    const deckId = parseInt(req.params.deckId);
-
-    // 👉 ĐÃ SỬA: Đọc tham số chi tiết từ Client gửi lên
-    const limit = parseInt(req.query.limit) || 0; // Tương thích ngược với App cũ
-    const easyCount = parseInt(req.query.easyCount) || 0;
-    const mediumCount = parseInt(req.query.mediumCount) || 0;
-    const hardCount = parseInt(req.query.hardCount) || 0;
+    const deckId = parseInt(req.params.deckId, 10);
+    const limit = parseInt(req.query.limit, 10) || 0;
+    const easyCount = parseInt(req.query.easyCount, 10) || 0;
+    const mediumCount = parseInt(req.query.mediumCount, 10) || 0;
+    const hardCount = parseInt(req.query.hardCount, 10) || 0;
 
     const deck = await prisma.decks.findUnique({
       where: { id: deckId },
@@ -242,7 +242,6 @@ const generateRandomExam = async (req, res) => {
         .json({ success: false, message: "Không tìm thấy bộ đề này!" });
     }
 
-    // Lấy toàn bộ câu hỏi của đề
     const allQuestions = await prisma.flashcards.findMany({
       where: { deck_id: deckId },
     });
@@ -256,24 +255,19 @@ const generateRandomExam = async (req, res) => {
 
     let finalExam = [];
 
-    // 👉 THUẬT TOÁN 1: Chạy theo cấu hình Phân loại (Nếu Client có truyền)
     if (easyCount > 0 || mediumCount > 0 || hardCount > 0) {
-      // Phân nhóm câu hỏi
       const easys = allQuestions.filter((q) => q.difficulty === "EASY");
       const mediums = allQuestions.filter((q) => q.difficulty === "MEDIUM");
       const hards = allQuestions.filter((q) => q.difficulty === "HARD");
 
-      // Trộn và lấy số lượng yêu cầu (Nếu số lượng yêu cầu > thực tế thì lấy tối đa)
       finalExam = [
         ...shuffleArray(easys).slice(0, easyCount),
         ...shuffleArray(mediums).slice(0, mediumCount),
         ...shuffleArray(hards).slice(0, hardCount),
       ];
 
-      // Nếu không gom đủ (do Client yêu cầu số câu lớn hơn DB có)
       const requestedTotal = easyCount + mediumCount + hardCount;
       if (finalExam.length < requestedTotal) {
-        // Lấy những câu còn thừa chưa được chọn bù vào cho đủ số lượng (bất chấp độ khó)
         const selectedIds = new Set(finalExam.map((q) => q.id));
         const remainingQuestions = allQuestions.filter(
           (q) => !selectedIds.has(q.id),
@@ -285,13 +279,10 @@ const generateRandomExam = async (req, res) => {
           ...shuffleArray(remainingQuestions).slice(0, missingCount),
         ];
       }
-    }
-    // 👉 THUẬT TOÁN 2: Chạy theo cấu hình Limit đơn thuần (Tương thích ngược)
-    else {
+    } else {
       finalExam = shuffleArray(allQuestions).slice(0, limit > 0 ? limit : 20);
     }
 
-    // Cuối cùng: Trộn lại toàn bộ đề một lần nữa để Easy/Medium/Hard đan xen nhau
     const shuffledFinalExam = shuffleArray(finalExam);
 
     res.json({
@@ -300,7 +291,6 @@ const generateRandomExam = async (req, res) => {
       data: shuffledFinalExam,
     });
   } catch (error) {
-    console.error("Lỗi generateRandomExam:", error);
     res.status(500).json({
       success: false,
       message: "Lỗi hệ thống khi tạo đề thi ngẫu nhiên!",
@@ -308,8 +298,128 @@ const generateRandomExam = async (req, res) => {
   }
 };
 
+const submitExamResults = async (req, res) => {
+  try {
+    const userId = extractUserId(req);
+    if (!userId) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Vui lòng đăng nhập!" });
+    }
+
+    const { results } = req.body;
+
+    if (!Array.isArray(results) || results.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Dữ liệu kết quả thi không hợp lệ!" });
+    }
+
+    const updatePromises = results.map(async (item) => {
+      const cardId = parseInt(item.flashcard_id || item.id || item.questionId || item.cardId, 10);
+      const isCorrect = item.is_correct !== undefined ? item.is_correct : item.isCorrect;
+      const durationMs = item.duration_ms || item.durationMs || item.timeSpent || 0;
+
+      if (isNaN(cardId)) return null;
+
+      const grade = isCorrect ? 3 : 1;
+
+      const [card, progress] = await Promise.all([
+        prisma.flashcards.findUnique({
+          where: { id: cardId },
+          select: { deck_id: true },
+        }),
+        prisma.studyProgress.findFirst({
+          where: { flashcard_id: cardId, user_id: userId },
+        }),
+      ]);
+
+      if (!card) return null;
+
+      let currentEaseFactor = 2.5;
+      let currentInterval = 0;
+      let currentRepetitions = 0;
+      let currentMemoryRetention = 100;
+      let currentProgressId = null;
+
+      if (progress) {
+        currentProgressId = progress.id;
+        currentEaseFactor = progress.ease_factor || 2.5;
+        currentInterval = progress.interval || 0;
+        currentRepetitions = progress.repetitions || 0;
+
+        if (progress.last_review_date) {
+          try {
+            currentMemoryRetention = calculateMemoryRetention(
+              progress.last_review_date,
+              progress.interval,
+            );
+          } catch (e) {
+            currentMemoryRetention = 100;
+          }
+        }
+      }
+
+      const { newEaseFactor, newInterval, newRepetitions, nextReviewDate } =
+        calculateSM2(
+          grade,
+          currentEaseFactor,
+          currentInterval,
+          currentRepetitions,
+        );
+
+      if (currentProgressId) {
+        await prisma.studyProgress.update({
+          where: { id: currentProgressId },
+          data: {
+            ease_factor: newEaseFactor,
+            interval: newInterval,
+            repetitions: newRepetitions,
+            next_review_date: nextReviewDate,
+          },
+        });
+      } else {
+        await prisma.studyProgress.create({
+          data: {
+            flashcard_id: cardId,
+            user_id: userId,
+            ease_factor: newEaseFactor,
+            interval: newInterval,
+            repetitions: newRepetitions,
+            next_review_date: nextReviewDate,
+          },
+        });
+      }
+      await prisma.studyLogs.create({
+        data: {
+          user_id: userId,
+          flashcard_id: cardId,
+          deck_id: card.deck_id,
+          rating: grade,
+          duration_ms: durationMs,
+        },
+      });
+
+      return cardId;
+    });
+
+    await Promise.all(updatePromises);
+
+    res.json({
+      success: true,
+      message:
+        "Tuyệt vời! Thuật toán đã ghi nhận kết quả và lên lịch ôn tập lại các câu làm sai.",
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: "Lỗi hệ thống khi chấm bài!" });
+  }
+};
+
 module.exports = {
   reviewCard,
   getDueCards,
   generateRandomExam,
+  submitExamResults,
 };

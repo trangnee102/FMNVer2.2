@@ -339,7 +339,7 @@ input:checked + .toggle-slider:before {
 .form-group {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: left;
   border-bottom: 1px solid var(--border);
   padding-bottom: 15px;
 }

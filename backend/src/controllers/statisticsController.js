@@ -1,4 +1,3 @@
-// backend/src/controllers/statisticsController.js
 const prisma = require("../services/prisma");
 
 const getStatistics = async (req, res) => {
@@ -16,17 +15,12 @@ const getStatistics = async (req, res) => {
 
     const filter = req.query.filter || "Tuần";
 
-    // ========================================================
-    // 📊 BƯỚC 1: TÍNH KPIS BẰNG DATABASE AGGREGATION (Chuẩn Big Tech)
-    // 👉 Thay vì kéo cả vạn dòng log về Node.js để đếm, ta ép DB đếm luôn!
-    // ========================================================
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    // 1.1 Bắt DB đếm số thẻ và tính tổng thời gian HÔM NAY (Cực kỳ nhanh)
     const todayStats = await prisma.studyLogs.aggregate({
       where: {
         user_id: parseInt(userId),
@@ -39,7 +33,6 @@ const getStatistics = async (req, res) => {
     const cardsToday = todayStats._count.id || 0;
     const minutesToday = Math.ceil((todayStats._sum.duration_ms || 0) / 60000);
 
-    // 1.2 Bắt DB đếm tổng thẻ đã học & số thẻ học tốt để tính Tỷ lệ ghi nhớ
     const [totalReviews, goodReviews] = await Promise.all([
       prisma.studyLogs.count({ where: { user_id: parseInt(userId) } }),
       prisma.studyLogs.count({
@@ -49,20 +42,14 @@ const getStatistics = async (req, res) => {
     const retentionRate =
       totalReviews > 0 ? Math.round((goodReviews / totalReviews) * 100) : 0;
 
-    // ========================================================
-    // 🔥 BƯỚC 2: TÍNH STREAK & BIỂU ĐỒ (Tối ưu Payload)
-    // 👉 Chỉ tải đúng cột "reviewed_at", tuyệt đối không tải toàn bộ Data của thẻ
-    // ========================================================
     const historyDates = await prisma.studyLogs.findMany({
       where: { user_id: parseInt(userId) },
-      select: { reviewed_at: true }, // Mấu chốt tối ưu RAM là ở dòng này
+      select: { reviewed_at: true },
       orderBy: { reviewed_at: "desc" },
     });
 
-    // Thuật toán tính Streak
     let streak = 0;
     if (historyDates.length > 0) {
-      // Lấy ra danh sách các ngày duy nhất
       const uniqueDates = [
         ...new Set(
           historyDates.map(
@@ -76,7 +63,6 @@ const getStatistics = async (req, res) => {
       const dYest = new Date(Date.now() - 86400000);
       const yesterdayLocale = dYest.toISOString().split("T")[0];
 
-      // Nếu hôm nay hoặc hôm qua có học thì mới tính streak
       if (
         uniqueDates[0] === todayLocale ||
         uniqueDates[0] === yesterdayLocale
@@ -85,80 +71,97 @@ const getStatistics = async (req, res) => {
         for (let i = 0; i < uniqueDates.length - 1; i++) {
           const d1 = new Date(uniqueDates[i]);
           const d2 = new Date(uniqueDates[i + 1]);
-          // Tính khoảng cách giữa 2 ngày học liên tiếp
           const diffDays = Math.round(Math.abs(d1 - d2) / 86400000);
 
           if (diffDays === 1) streak++;
-          else if (diffDays > 1) break; // Bị đứt chuỗi
+          else if (diffDays > 1) break;
         }
       }
     }
 
-    // ========================================================
-    // 📈 BƯỚC 3: DỮ LIỆU BIỂU ĐỒ CỘT (TÙY BIẾN THEO FILTER)
-    // ========================================================
     const dailyActivity = [];
 
-    if (filter === "Năm") {
+    if (filter === "Năm" || filter === "year") {
       for (let i = 11; i >= 0; i--) {
         const d = new Date();
         d.setMonth(d.getMonth() - i);
         const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 
-        const count = historyDates.filter((log) =>
+        const logsInMonth = historyDates.filter((log) =>
           log.reviewed_at.toISOString().startsWith(monthStr),
-        ).length;
-        dailyActivity.push({ date: `Th${d.getMonth() + 1}`, cards: count });
+        );
+        const cardCount = logsInMonth.length;
+        const examCount = new Set(
+          logsInMonth.map((log) => log.reviewed_at.toISOString().split("T")[0])
+        ).size;
+
+        dailyActivity.push({
+          date: `Th${d.getMonth() + 1}`,
+          day: `Th${d.getMonth() + 1}`,
+          cards: cardCount,
+          exams: examCount > cardCount ? cardCount : Math.min(cardCount, Math.ceil(cardCount / 5)),
+        });
       }
-    } else if (filter === "Tháng") {
+    } else if (filter === "Tháng" || filter === "month") {
       for (let i = 29; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
         const dateStr = d.toISOString().split("T")[0];
 
-        const count = historyDates.filter(
+        const logsInDay = historyDates.filter(
           (log) => log.reviewed_at.toISOString().split("T")[0] === dateStr,
-        ).length;
+        );
+        const cardCount = logsInDay.length;
+        const examCount = cardCount > 0 ? 1 : 0;
+
         dailyActivity.push({
           date: `${d.getDate()}/${d.getMonth() + 1}`,
-          cards: count,
+          day: `${d.getDate()}/${d.getMonth() + 1}`,
+          cards: cardCount,
+          exams: examCount,
         });
       }
     } else {
-      // Tuần
       for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
         const dateStr = d.toISOString().split("T")[0];
 
-        const count = historyDates.filter(
+        const logsInDay = historyDates.filter(
           (log) => log.reviewed_at.toISOString().split("T")[0] === dateStr,
-        ).length;
+        );
+        const cardCount = logsInDay.length;
+        const examCount = cardCount > 0 ? 1 : 0;
+
+        const daysArr = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
+        const dayLabel = daysArr[d.getDay()];
+
         dailyActivity.push({
-          date: `${d.getDate()}/${d.getMonth() + 1}`,
-          cards: count,
+          date: dayLabel,
+          day: dayLabel,
+          cards: cardCount,
+          exams: examCount,
         });
       }
     }
 
-    // ========================================================
-    // 🧠 BƯỚC 4: DỮ LIỆU BIỂU ĐỒ VÙNG TỶ LỆ GHI NHỚ
-    // ========================================================
-    const dataPoints = filter === "Năm" ? 12 : filter === "Tháng" ? 8 : 6;
+    const isYearFilter = filter === "year" || filter === "Năm";
+    const dataPoints = isYearFilter
+      ? 12
+      : filter === "month" || filter === "Tháng"
+        ? 8
+        : 6;
     const retentionByWeek = [];
 
     for (let i = 1; i <= dataPoints; i++) {
       const baseRate = retentionRate > 0 ? retentionRate : 0;
-      const variance = (dataPoints - i) * (filter === "Năm" ? 2 : 5);
+      const variance = (dataPoints - i) * (isYearFilter ? 2 : 5);
       retentionByWeek.push({
-        week: filter === "Năm" ? `Tháng ${i}` : `Tuần ${i}`,
+        week: isYearFilter ? `Tháng ${i}` : `Tuần ${i}`,
         rate: baseRate > 0 ? Math.max(20, baseRate - variance) : 0,
       });
     }
 
-    // ========================================================
-    // 🎯 BƯỚC 5: TÍNH TIẾN ĐỘ THUỘC BÀI TỐI ƯU HÓA
-    // ========================================================
     const userDecks = await prisma.decks.findMany({
       where: { user_id: parseInt(userId) },
       include: {
@@ -168,7 +171,6 @@ const getStatistics = async (req, res) => {
 
     const deckPerformance = await Promise.all(
       userDecks.map(async (deck) => {
-        // Ép Database đếm số lượng thẻ đã học, không tải Data thẻ về Node.js
         const learnedCount = await prisma.studyProgress.count({
           where: {
             user_id: parseInt(userId),
@@ -180,7 +182,9 @@ const getStatistics = async (req, res) => {
         const totalCards = deck._count.Flashcards;
         return {
           id: deck.id,
-          name: deck.title,
+          name: deck.title || deck.name,
+          is_exam: deck.is_exam || false,
+          isExam: deck.is_exam || false,
           learned: learnedCount,
           total: totalCards,
           percent:
@@ -189,7 +193,6 @@ const getStatistics = async (req, res) => {
       }),
     );
 
-    // Trả về toàn bộ dữ liệu
     return res.status(200).json({
       success: true,
       data: {
