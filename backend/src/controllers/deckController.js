@@ -1,9 +1,5 @@
-// backend/src/controllers/deckController.js
 const prisma = require("../services/prisma");
 
-// =========================================
-// 1. LẤY DANH SÁCH BỘ THẺ HOẶC ĐỀ THI
-// =========================================
 const getMyDecks = async (req, res) => {
   try {
     const userId = parseInt(req.user.id) || req.user.id;
@@ -60,9 +56,6 @@ const getMyDecks = async (req, res) => {
   }
 };
 
-// =========================================
-// 2. TẠO BỘ THẺ MỚI (Tạo riêng lẻ không có thẻ)
-// =========================================
 const createDeck = async (req, res) => {
   try {
     const { title, description, is_public, is_anonymous } = req.body;
@@ -99,12 +92,8 @@ const createDeck = async (req, res) => {
   }
 };
 
-// =========================================
-// 3. TẠO NHIỀU THẺ HOẶC ĐỀ THI TRẮC NGHIỆM CÙNG LÚC
-// =========================================
 const createDeckWithCards = async (req, res) => {
   try {
-    // Lấy biến name để cover trường hợp Frontend gửi 'name' thay vì 'title'
     const {
       title,
       name,
@@ -117,7 +106,7 @@ const createDeckWithCards = async (req, res) => {
     } = req.body;
     const userId = parseInt(req.user.id, 10);
 
-    const finalTitle = title || name; // Lấy 1 trong 2
+    const finalTitle = title || name;
 
     if (!Array.isArray(cards) || cards.length === 0) {
       return res
@@ -128,15 +117,12 @@ const createDeckWithCards = async (req, res) => {
         });
     }
 
-    // 👉 ĐÃ FIX: Logic phân tích dữ liệu siêu thông minh (Chấp cả Flashcard lẫn Đề thi)
     const validCards = cards
       .map((c) => {
-        // Tìm câu hỏi (hỗ trợ cả Flashcard cũ và Đề thi mới)
         const q = c.question || c.front || c.cau_hoi || c.content || c.q || "";
-        // Tìm đáp án (Nếu là trắc nghiệm, đáp án text có thể rỗng, ta lấy mảng correctAnswers đắp vào)
         let a = c.answer || c.back || c.dap_an || c.a || "";
         if (a === "" && Array.isArray(c.correctAnswers)) {
-          a = JSON.stringify(c.correctAnswers); // Fix lỗi Prisma bắt buộc cột answer phải có chữ
+          a = JSON.stringify(c.correctAnswers);
         }
 
         return {
@@ -160,7 +146,6 @@ const createDeckWithCards = async (req, res) => {
       });
     }
 
-    // Trường hợp chèn thêm thẻ vào bộ Đề có sẵn
     if (deck_id) {
       const parsedDeckId = parseInt(deck_id);
       const existingDeck = await prisma.decks.findFirst({
@@ -186,7 +171,6 @@ const createDeckWithCards = async (req, res) => {
       });
     }
 
-    // Trường hợp tạo mới hoàn toàn Bộ đề
     if (!finalTitle) {
       return res
         .status(400)
@@ -203,7 +187,7 @@ const createDeckWithCards = async (req, res) => {
         is_public: is_public || false,
         is_anonymous: is_anonymous || false,
         user_id: userId,
-        is_exam: isExam === true || isExam === "true", // Đã gắn cờ Đề thi
+        is_exam: isExam === true || isExam === "true",
       },
     });
 
@@ -230,9 +214,6 @@ const createDeckWithCards = async (req, res) => {
   }
 };
 
-// =========================================
-// 4. CẬP NHẬT/SỬA TÊN BỘ THẺ / ĐỀ THI
-// =========================================
 const updateDeck = async (req, res) => {
   try {
     const deckId = parseInt(req.params.id, 10);
@@ -256,9 +237,9 @@ const updateDeck = async (req, res) => {
         title: title || existingDeck.title,
         description:
           description !== undefined ? description : existingDeck.description,
-        is_public: is_public !== undefined ? is_public : existingDeck.is_public,
+        is_public: is_public !== undefined ? Boolean(is_public) : existingDeck.is_public,
         is_anonymous:
-          is_anonymous !== undefined ? is_anonymous : existingDeck.is_anonymous,
+          is_anonymous !== undefined ? Boolean(is_anonymous) : existingDeck.is_anonymous,
       },
     });
 
@@ -276,9 +257,6 @@ const updateDeck = async (req, res) => {
   }
 };
 
-// =========================================
-// 5. XÓA BỘ THẺ / ĐỀ THI (ĐÃ SỬA LỖI TRUYẾT KẾT CẤU)
-// =========================================
 const deleteDeck = async (req, res) => {
   try {
     const deckId = parseInt(req.params.id, 10);

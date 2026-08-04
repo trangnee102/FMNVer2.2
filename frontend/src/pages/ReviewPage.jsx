@@ -1,10 +1,8 @@
-// frontend/src/pages/ReviewPage.jsx
 import React, { useState, useEffect, useRef } from "react";
 import api from "../services/api";
 import ReviewDashboard from "../components/Study/ReviewDashboard";
 import "./ReviewPage.css";
 
-// 👉 ĐÂY LÀ CHẾ ĐỘ HỌC THƯỜNG (Có lưu thành tích, giãn cách SM-2)
 const StandardStudySession = ({ deckId, forceReview, onFinish }) => {
   const [cards, setCards] = useState([]);
   const [initialTotal, setInitialTotal] = useState(0);
@@ -258,7 +256,7 @@ const StandardStudySession = ({ deckId, forceReview, onFinish }) => {
                   marginBottom: "30px",
                 }}
               >
-                Hiện tại không còn thẻ nào đến hạn ôn tập trong hôm nay. Bạn có
+                Hiện tại không còn thẻ nào đến hạn ôn tập trong hôm nhau. Bạn có
                 muốn tiếp tục ôn tập lại toàn bộ danh sách thẻ không?
               </p>
               <div
@@ -526,11 +524,9 @@ const StandardStudySession = ({ deckId, forceReview, onFinish }) => {
 };
 
 const ReviewPage = ({ deckId, forceReview = false, onFinish, onNavigate }) => {
-  // Nếu chưa chọn bài -> Hiện Bảng điều khiển
   if (!deckId) {
     return <ReviewDashboard onNavigate={onNavigate} />;
   }
-  // Nếu đã chọn bài -> Hiện SM-2 học thường
   return (
     <StandardStudySession
       deckId={deckId}

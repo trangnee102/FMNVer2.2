@@ -80,6 +80,7 @@ const getDiscoveryExams = async (req, res) => {
         category: exam.category || "Khác",
         author: authorName,
         totalQuestions: exam._count ? exam._count.Flashcards : 0,
+        cards: exam._count ? exam._count.Flashcards : 0,
         views: exam.clone_count || 0,
         subject: exam.category || "Tổng hợp",
         grade: "THPT",

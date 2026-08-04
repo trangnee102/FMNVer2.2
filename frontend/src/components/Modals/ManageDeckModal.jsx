@@ -72,13 +72,18 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
     const updatedPublic = field === "is_public" ? value : isPublic;
     const updatedAnon = field === "is_anonymous" ? value : isAnonymous;
 
-    if (field === "is_public") setIsPublic(value);
+    if (field === "is_public") {
+      setIsPublic(value);
+      if (!value) {
+        setIsAnonymous(false);
+      }
+    }
     if (field === "is_anonymous") setIsAnonymous(value);
 
     try {
       const res = await api.put(`/decks/${selectedDeck.id}`, {
-        is_public: updatedPublic,
-        is_anonymous: updatedAnon,
+        is_public: field === "is_public" ? value : isPublic,
+        is_anonymous: field === "is_public" && !value ? false : (field === "is_anonymous" ? value : isAnonymous),
       });
       if (res && res.success !== false) {
         if (onRefreshDecks) onRefreshDecks();

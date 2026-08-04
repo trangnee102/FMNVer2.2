@@ -61,7 +61,8 @@ export const statisticsAPI = {
 };
 
 export const communityAPI = {
-  getDiscoveryDecks: () => api.get("/community/discovery"),
+  getDiscoveryDecks: () => api.get("/community/discovery?type=deck"),
+  getDiscoveryExams: () => api.get("/community/discovery?type=exam"),
   getLeaderboard: () => api.get("/community/leaderboard"),
   getContacts: () => api.get("/community/contacts"),
   getMessages: (friendId) => api.get(`/community/messages/${friendId}`),

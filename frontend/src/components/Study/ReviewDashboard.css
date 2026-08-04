@@ -191,7 +191,6 @@
   color: var(--text-gray);
 }
 
-/* Modal Styles */
 .rd-modal-overlay {
   z-index: 1000;
 }

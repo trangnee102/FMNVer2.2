@@ -11,12 +11,6 @@ const DiscoveryTab = () => {
 
   const [decks, setDecks] = useState([]);
   const [exams, setExams] = useState([]);
-  const [stats, setStats] = useState({
-    totalDecks: 0,
-    totalDownloads: 0,
-    totalContributors: 0,
-    totalTopics: 0,
-  });
 
   const [selectedDeck, setSelectedDeck] = useState(null);
   const [deckDetails, setDeckDetails] = useState([]);
@@ -29,37 +23,32 @@ const DiscoveryTab = () => {
   useEffect(() => {
     const fetchCommunityData = async () => {
       try {
-        const [decksData, examsData, statsData] = await Promise.all([
+        const [decksData, examsData] = await Promise.all([
           communityAPI.getDiscoveryDecks ? communityAPI.getDiscoveryDecks().catch(() => []) : Promise.resolve([]),
-          communityAPI.getDiscoveryExams ? communityAPI.getDiscoveryExams().catch(() => []) : Promise.resolve([]),
-          communityAPI.getCommunityStatistics ? communityAPI.getCommunityStatistics().catch(() => ({})) : Promise.resolve({})
+          communityAPI.getDiscoveryExams ? communityAPI.getDiscoveryExams().catch(() => []) : Promise.resolve([])
         ]);
 
         const rawDecks = Array.isArray(decksData) ? decksData : decksData.data || [];
         const rawExams = Array.isArray(examsData) ? examsData : examsData.data || [];
 
         const pureDecks = rawDecks.filter(item => !item.is_exam);
-        const pureExams = rawExams.filter(item => item.is_exam);
+        const pureExams = rawExams.length > 0 ? rawExams.filter(item => item.is_exam) : rawDecks.filter(item => item.is_exam);
 
         setDecks(pureDecks);
         setExams(pureExams);
-        
-        if (statsData) {
-          const payload = statsData.data || statsData;
-          setStats({
-            totalDecks: payload.totalDecks !== undefined ? payload.totalDecks : pureDecks.length,
-            totalDownloads: payload.totalDownloads || 0,
-            totalContributors: payload.totalContributors || 0,
-            totalTopics: payload.totalTopics || 0,
-          });
-        }
       } catch (error) {
         console.error("Lỗi khi tải dữ liệu cộng đồng:", error);
       }
     };
 
     fetchCommunityData();
-  }, []);
+  }, [activeTab]);
+
+  const currentListSource = activeTab === "flashcard" ? decks : exams;
+
+  const totalShared = currentListSource.length;
+  const totalDownloads = currentListSource.reduce((sum, item) => sum + (item.views || item.downloadCount || item.usedCount || 0), 0);
+  const uniqueContributors = new Set(currentListSource.map(item => item.author || item.user?.full_name)).size;
 
   const handleOpenDeck = async (item) => {
     setSelectedDeck(item);
@@ -117,7 +106,7 @@ const DiscoveryTab = () => {
         const rawDecks = Array.isArray(decksData) ? decksData : decksData.data || [];
         const rawExams = Array.isArray(examsData) ? examsData : examsData.data || [];
         setDecks(rawDecks.filter(item => !item.is_exam));
-        setExams(rawExams.filter(item => item.is_exam));
+        setExams(rawExams.length > 0 ? rawExams.filter(item => item.is_exam) : rawDecks.filter(item => item.is_exam));
       } else {
         alert("Lỗi: " + result.message);
       }
@@ -148,7 +137,7 @@ const DiscoveryTab = () => {
       });
   };
 
-  const currentList = activeTab === "flashcard" ? filterAndSortData(decks) : filterAndSortData(exams);
+  const currentList = filterAndSortData(currentListSource);
   const totalPages = Math.ceil(currentList.length / itemsPerPage) || 1;
   const paginatedData = currentList.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
@@ -194,33 +183,26 @@ const DiscoveryTab = () => {
         </button>
       </div>
 
-      <div className="stats-cards-grid">
+      <div className="stats-cards-grid" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
         <div className="stat-card-item">
           <div className="stat-card-icon blue"><i className="fa-solid fa-layer-group"></i></div>
           <div className="stat-card-info">
-            <span className="stat-card-value">{stats.totalDecks}</span>
+            <span className="stat-card-value">{totalShared}</span>
             <span className="stat-card-label">Tổng bộ chia sẻ</span>
           </div>
         </div>
         <div className="stat-card-item">
           <div className="stat-card-icon green"><i className="fa-solid fa-cloud-arrow-down"></i></div>
           <div className="stat-card-info">
-            <span className="stat-card-value">{stats.totalDownloads}</span>
+            <span className="stat-card-value">{totalDownloads}</span>
             <span className="stat-card-label">Lượt tải</span>
           </div>
         </div>
         <div className="stat-card-item">
           <div className="stat-card-icon purple"><i className="fa-solid fa-users"></i></div>
           <div className="stat-card-info">
-            <span className="stat-card-value">{stats.totalContributors}</span>
+            <span className="stat-card-value">{uniqueContributors}</span>
             <span className="stat-card-label">Người chia sẻ</span>
-          </div>
-        </div>
-        <div className="stat-card-item">
-          <div className="stat-card-icon orange"><i className="fa-solid fa-book-bookmark"></i></div>
-          <div className="stat-card-info">
-            <span className="stat-card-value">{stats.totalTopics}</span>
-            <span className="stat-card-label">Chủ đề</span>
           </div>
         </div>
       </div>
@@ -257,7 +239,7 @@ const DiscoveryTab = () => {
                   const cleanName = title.replace(/\(ai generated\)/i, "").trim();
                   const authorName = item.author || item.user?.full_name || "Thành viên";
                   const dateStr = item.updatedAt ? new Date(item.updatedAt).toLocaleDateString("vi-VN") : "Gần đây";
-                  const downloads = item.views || item.downloadCount || 0;
+                  const downloads = item.views || item.downloadCount || item.usedCount || 0;
                   const countNumber = item.cards || item.totalQuestions || item._count?.Flashcards || 0;
 
                   return (
