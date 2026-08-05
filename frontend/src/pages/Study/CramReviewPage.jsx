@@ -1,6 +1,6 @@
 // frontend/src/pages/CramReviewPage.jsx
 import React, { useState, useEffect } from "react";
-import useCramMode from "../hooks/useCramMode";
+import useCramMode from "../../hooks/useCramMode";
 import "./ReviewPage.css";
 
 const CramReviewPage = ({ deckId, onFinish }) => {

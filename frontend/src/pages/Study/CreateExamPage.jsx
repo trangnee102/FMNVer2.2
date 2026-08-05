@@ -1,14 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Sidebar from "../components/Layout/Sidebar";
-import api, { aiAPI } from "../services/api";
-import CreateExamInput from "../components/Cards/CreateExamInput";
-import CreateExamPreview from "../components/Cards/CreateExamPreview";
-import CreateOptionCard from "../components/Cards/CreateOptionCard";
-import "./Dashboard/DashboardPage.css";
-import "./Create/Exam/CreateExam.css";
-import "./Create/Flashcard/CreateCardPage.css";
-
+import Sidebar from "../../components/Layout/Sidebar";
+import api, { aiAPI } from "../../services/api";
+import CreateExamInput from "../../components/Cards/CreateExamInput";
+import CreateExamPreview from "../../components/Cards/CreateExamPreview";
+import CreateOptionCard from "../../components/Cards/CreateOptionCard";
+import "../../pages/Dashboard/DashboardPage.css";
+import "../../pages/Create/Exam/CreateExam.css";
+import "../../pages/Create/Flashcard/CreateCardPage.css";
 const CreateExamPage = ({ onNavigate }) => {
   const navigate = useNavigate();
   const [mode, setMode] = useState("menu");

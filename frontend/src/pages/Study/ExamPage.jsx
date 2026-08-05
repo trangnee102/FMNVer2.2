@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { studyAPI } from "../services/api";
+import { studyAPI } from "../../services/api";
 
 // Import CSS riêng biệt
 import "./ExamPage.css";
 
 // Import Component AI & Giao diện
-import AIMentorChat from "../components/Study/AIMentorChat";
-import ExamHeader from "../components/Study/ExamHeader";
-import ExamResult from "../components/Study/ExamResult";
-import ExamQuestion from "../components/Study/ExamQuestion";
+import AIMentorChat from "../../components/Study/AIMentorChat";
+import ExamHeader from "../../components/Study/ExamHeader";
+import ExamResult from "../../components/Study/ExamResult";
+import ExamQuestion from "../../components/Study/ExamQuestion";
 
 const ExamPage = ({ deckId, onNavigate, onFinish }) => {
   const [questions, setQuestions] = useState([]);

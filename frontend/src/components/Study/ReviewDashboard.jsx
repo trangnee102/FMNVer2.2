@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import Sidebar from "../Layout/Sidebar";
 import api from "../../services/api";
-import "../../pages/ReviewPage.css";
+
+// 👉 ĐÃ FIX: Cập nhật đường dẫn CSS chuẩn theo cấu trúc thư mục mới
+import "../../pages/Dashboard/DashboardPage.css";
+import "../../pages/Study/ReviewPage.css";
 
 const ReviewDashboard = ({ onNavigate }) => {
   const [decks, setDecks] = useState([]);

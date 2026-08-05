@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
-import api from "../services/api";
-import ReviewDashboard from "../components/Study/ReviewDashboard";
+import { useNavigate } from "react-router-dom";
+import api from "../../services/api";
+import ReviewDashboard from "../../components/Study/ReviewDashboard";
+import Sidebar from "../../components/Layout/Sidebar";
+
+// 👉 ĐÃ FIX: Cập nhật đường dẫn CSS chuẩn xác
+import "../Dashboard/DashboardPage.css";
 import "./ReviewPage.css";
 
 const StandardStudySession = ({ deckId, forceReview, onFinish }) => {
@@ -256,7 +261,7 @@ const StandardStudySession = ({ deckId, forceReview, onFinish }) => {
                   marginBottom: "30px",
                 }}
               >
-                Hiện tại không còn thẻ nào đến hạn ôn tập trong hôm nhau. Bạn có
+                Hiện tại không còn thẻ nào đến hạn ôn tập trong hôm nay. Bạn có
                 muốn tiếp tục ôn tập lại toàn bộ danh sách thẻ không?
               </p>
               <div
@@ -523,16 +528,29 @@ const StandardStudySession = ({ deckId, forceReview, onFinish }) => {
   );
 };
 
+// 👉 ĐÃ FIX: Bao bọc ReviewPage bên trong Dashboard Layout để tích hợp Sidebar chuẩn hệ thống
 const ReviewPage = ({ deckId, forceReview = false, onFinish, onNavigate }) => {
-  if (!deckId) {
-    return <ReviewDashboard onNavigate={onNavigate} />;
-  }
+  const navigate = useNavigate();
+  const handleNavigate = onNavigate || navigate;
+
   return (
-    <StandardStudySession
-      deckId={deckId}
-      forceReview={forceReview}
-      onFinish={onFinish}
-    />
+    <div className="dashboard-layout">
+      <Sidebar currentView="review" onNavigate={handleNavigate} />
+      
+      <main className="dashboard-content scrollable-content" style={{ backgroundColor: "var(--bg-main)", padding: "30px" }}>
+        <div style={{ maxWidth: "1200px", margin: "0 auto", width: "100%" }}>
+          {!deckId ? (
+            <ReviewDashboard onNavigate={handleNavigate} />
+          ) : (
+            <StandardStudySession
+              deckId={deckId}
+              forceReview={forceReview}
+              onFinish={onFinish || (() => handleNavigate("dashboard"))}
+            />
+          )}
+        </div>
+      </main>
+    </div>
   );
 };
 
