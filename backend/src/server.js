@@ -109,7 +109,7 @@ io.on("connection", async (socket) => {
   });
 
   // Sự kiện thi nhanh (QuickTest)
-  socket.on("join_quicktest", ({ roomCode, userType, userName }) => {
+  socket.on("join_quicktest", ({ roomCode, userType, userName, participantId }) => {
     if (roomCode) {
       const roomStr = `quicktest_${roomCode}`;
       socket.join(roomStr);
@@ -118,7 +118,7 @@ io.on("connection", async (socket) => {
       );
 
       if (userType === "student" || userType === "participant") {
-        io.to(roomStr).emit("player_joined", { id: socket.id, name: userName });
+        io.to(roomStr).emit("player_joined", { id: socket.id, name: userName, participantId: participantId || null });
       }
     }
   });
@@ -139,6 +139,16 @@ io.on("connection", async (socket) => {
       });
     },
   );
+
+  // 👉 Chế độ Tự do: học sinh làm xong CÂU CUỐI CÙNG (không phải mỗi câu) mới báo "đã nộp bài"
+  // cho cả phòng — khác hẳn "submit_answer" ở trên vốn bắn 1 lần MỖI câu, nên không thể dùng để
+  // suy ra "đã hoàn thành toàn bộ bài" (đó là lý do cũ "Tỉ lệ nộp bài" tính sai, có thể vượt 100%)
+  socket.on("student_finished", ({ roomCode, participantId, studentName }) => {
+    io.to(`quicktest_${roomCode}`).emit("student_finished", {
+      participantId,
+      studentName,
+    });
+  });
 
   socket.on("end_quicktest", (roomCode) => {
     console.log(`⚡ [QuickTest] Phòng ${roomCode} đã KẾT THÚC!`);

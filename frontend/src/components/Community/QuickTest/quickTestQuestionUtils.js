@@ -55,11 +55,16 @@ export const buildQuestionPool = (cards, settings) => {
 // 👉 Hàm thống nhất thay cho 2 đoạn logic cũ (loadQuestionsForDeck/fetchQuestionsForRoom):
 // - flashcards: toàn bộ câu hỏi gốc của đề (Exam.Flashcards trả về từ getRoom)
 // - questionOrder: mảng id đã CHỐT lúc tạo phòng (room.questionOrder từ DB)
-// - settings.randomAnswers: trộn thứ tự đáp án — luôn an toàn áp dụng độc lập mỗi client
-//   vì chấm điểm dựa vào NỘI DUNG đáp án, không dựa vào vị trí hiển thị.
+// - settings.randomAnswers: trộn thứ tự đáp án — CHỈ an toàn áp dụng độc lập mỗi client
+//   ở chế độ Tự do (mỗi học sinh xem thứ tự riêng không sao, chấm điểm dựa vào NỘI DUNG
+//   đáp án chứ không dựa vị trí). Ở chế độ Đồng bộ thì KHÔNG được tự trộn ở đây nữa —
+//   phải dùng resolvedOptions đã chốt sẵn (xem tham số dưới), nếu không mỗi người sẽ
+//   thấy thứ tự đáp án khác nhau, làm bảng thống kê "ai chọn gì" của giáo viên vô nghĩa.
 // - shuffleOrder: true  -> mỗi học sinh tự trộn 1 bản thứ tự câu riêng (chế độ Tự do)
 //                 false -> giữ nguyên thứ tự gốc (chế độ Đồng bộ, và bản xem trước của host)
-export const hydrateQuestionsFromOrder = (flashcards, questionOrder, settings = {}, { shuffleOrder = false } = {}) => {
+// - resolvedOptions: { [questionId]: string[] } đã chốt sẵn cho cả phòng (chế độ Đồng bộ) —
+//   nếu có, dùng nguyên, bỏ qua việc tự trộn theo settings.randomAnswers
+export const hydrateQuestionsFromOrder = (flashcards, questionOrder, settings = {}, { shuffleOrder = false, resolvedOptions = null } = {}) => {
   const cardsById = new Map((flashcards || []).map((c) => [c.id, c]));
   const ids = Array.isArray(questionOrder) && questionOrder.length > 0
     ? questionOrder
@@ -72,10 +77,11 @@ export const hydrateQuestionsFromOrder = (flashcards, questionOrder, settings = 
     .filter(Boolean)
     .map((card) => {
       const q = mapCardToQuestion(card);
-      return {
-        ...q,
-        options: settings.randomAnswers && q.options.length > 0 ? shuffleArray(q.options) : q.options,
-      };
+      const fixedOptions = resolvedOptions ? resolvedOptions[card.id] : null;
+      const options = fixedOptions
+        ? fixedOptions
+        : (settings.randomAnswers && q.options.length > 0 ? shuffleArray(q.options) : q.options);
+      return { ...q, options };
     });
 };
 

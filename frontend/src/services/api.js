@@ -131,11 +131,19 @@ export const communityAPI = {
 
 export const quickTestAPI = {
   getMyDecks: () => api.get("/decks"),
-  getDeckQuestions: (deckId) => api.get(`/study/deck/${deckId}/due-cards`),
+  // 👉 FIX: Lấy TOÀN BỘ thẻ trong bộ đề để tạo phòng QuickTest, không lọc theo
+  // "đến hạn ôn" (due-cards là khái niệm SM2 cá nhân, không liên quan gì đến bài
+  // thi chung của cả lớp) — trước đây dùng nhầm endpoint due-cards khiến phòng
+  // thi báo "Không có câu hỏi hợp lệ" nếu giáo viên đã ôn hết thẻ hôm đó.
+  getDeckQuestions: (deckId) => api.get(`/flashcards/deck/${deckId}`),
   createRoom: (payload) => api.post("/quicktest/rooms", payload),
   getRoom: (roomCode) => api.get(`/quicktest/rooms/${roomCode}`),
   joinRoom: (roomCode, participantName) =>
     api.post("/quicktest/join", { roomCode, participantName }),
+  // 👉 Thống kê phân bố đáp án theo từng câu (chế độ Tự do) — chỉ xem được sau khi bài thi
+  // đã kết thúc (server chặn nếu phòng chưa FINISHED), tránh rò đáp án cho người chưa làm xong
+  getAllQuestionStats: (roomCode) =>
+    api.get(`/quicktest/rooms/${roomCode}/all-question-stats`),
 };
 
 export default api;

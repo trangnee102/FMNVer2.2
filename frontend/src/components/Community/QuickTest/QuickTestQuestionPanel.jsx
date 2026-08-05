@@ -2,39 +2,75 @@ import React, { useState, useEffect } from 'react';
 import Latex from "react-latex-next";
 import "katex/dist/katex.min.css";
 
-const QuickTestQuestionPanel = ({ question, progress, total, timeLeft, resultMode, onAnswer, answerFeedback, onNext, readOnly = false, hideNextButton = false }) => {
+const QuickTestQuestionPanel = ({ question, progress, total, timeLeft, resultMode, onAnswer, answerFeedback, onNext, readOnly = false, hideNextButton = false, timeUp = false }) => {
   const [selectedOption, setSelectedOption] = useState(null);
   const [textAnswer, setTextAnswer] = useState("");
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     setSelectedOption(null);
     setTextAnswer("");
+    setSubmitted(false);
   }, [question]);
 
-  const handleSelect = (opt) => {
-    if (readOnly || selectedOption || answerFeedback) return;
+  // 👉 Chỉ CHỌN (có thể đổi ý thoải mái), KHÔNG gửi ngay — phải bấm "Xác nhận đáp án" mới thật sự nộp
+  const handleSelectOption = (opt) => {
+    if (readOnly || answerFeedback || submitted || timeUp) return;
     setSelectedOption(opt);
-    onAnswer(opt);
+  };
+
+  const handleConfirmAnswer = () => {
+    if (readOnly || !selectedOption || answerFeedback || submitted || timeUp) return;
+    setSubmitted(true);
+    onAnswer(selectedOption);
+  };
+
+  // 👉 Hết giờ: tự động nộp đáp án đang chọn/đang gõ (hoặc nộp trống nếu chưa làm gì), khoá luôn giao diện
+  useEffect(() => {
+    if (timeUp && !answerFeedback && !submitted && !readOnly) {
+      setSubmitted(true);
+      const hasOptions = question.options && question.options.length > 0;
+      onAnswer(hasOptions ? (selectedOption || null) : (textAnswer.trim() || null));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeUp]);
+
+  // 👉 So khớp đáp án đúng: hỗ trợ cả 2 kiểu lưu — chữ cái đơn ("B", giống cách backend
+  // gradeAnswer chấm điểm) lẫn so khớp nguyên văn (điền từ). Trước đây chỉ so nguyên văn,
+  // nên không bao giờ khớp khi correct_answers lưu bằng chữ cái mà option lại là cả câu.
+  const isOptionCorrect = (opt) => {
+    const correctRaw = String(question.correctAnswer || question.correctAnswers || question.answer || "");
+    const correctList = correctRaw.split(",").map((s) => s.trim()).filter(Boolean);
+    if (correctList.length === 0) return false;
+
+    const optText = String(opt || "").trim();
+    const letterMatch = optText.match(/^([A-Za-z])[.)]/);
+    const optLetter = letterMatch ? letterMatch[1].toUpperCase() : null;
+
+    const isLetterMatch = !!optLetter && correctList.some((c) => c.toUpperCase() === optLetter);
+    const isExactMatch = correctList.some((c) => c.toLowerCase() === optText.toLowerCase());
+    return isLetterMatch || isExactMatch;
   };
 
   const handleTextSubmit = (e) => {
     e.preventDefault();
-    if (!textAnswer.trim() || answerFeedback) return;
-    handleSelect(textAnswer.trim());
+    if (!textAnswer.trim() || answerFeedback || submitted || timeUp) return;
+    setSubmitted(true);
+    onAnswer(textAnswer.trim());
   };
 
   const getOptionStyle = (opt) => {
     const isSelected = selectedOption === opt;
     const isCorrect = answerFeedback?.isCorrect;
     const isFeedbackActive = answerFeedback !== null;
-    const isActuallyCorrectOption = answerFeedback && String(opt).trim().toLowerCase() === String(question.correctAnswer || question.correctAnswers || question.answer).trim().toLowerCase();
+    const isActuallyCorrectOption = answerFeedback && isOptionCorrect(opt);
 
     let baseStyle = {
       padding: '20px 24px',
       borderRadius: '16px',
       border: '2px solid #e2e8f0',
       background: '#fff',
-      cursor: isFeedbackActive ? 'default' : 'pointer',
+      cursor: (isFeedbackActive || submitted || timeUp) ? 'default' : 'pointer',
       fontSize: '1.15rem',
       fontWeight: '600',
       color: '#334155',
@@ -98,21 +134,21 @@ const QuickTestQuestionPanel = ({ question, progress, total, timeLeft, resultMod
       {question.options && question.options.length > 0 ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
           {question.options.map((opt, idx) => {
-            const isActuallyCorrectOption = answerFeedback && String(opt).trim().toLowerCase() === String(question.correctAnswer || question.correctAnswers || question.answer).trim().toLowerCase();
+            const isActuallyCorrectOption = answerFeedback && isOptionCorrect(opt);
             return (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 style={getOptionStyle(opt)}
-                onClick={() => handleSelect(opt)}
+                onClick={() => handleSelectOption(opt)}
                 onMouseEnter={(e) => {
-                  if (!selectedOption && !answerFeedback) {
+                  if (!selectedOption && !answerFeedback && !submitted && !timeUp) {
                     e.currentTarget.style.borderColor = '#cbd5e1';
                     e.currentTarget.style.transform = 'translateY(-2px)';
                     e.currentTarget.style.boxShadow = '0 6px 15px rgba(0,0,0,0.05)';
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (!selectedOption && !answerFeedback) {
+                  if (!selectedOption && !answerFeedback && !submitted && !timeUp) {
                     e.currentTarget.style.borderColor = '#e2e8f0';
                     e.currentTarget.style.transform = 'translateY(0)';
                     e.currentTarget.style.boxShadow = 'none';
@@ -141,13 +177,48 @@ const QuickTestQuestionPanel = ({ question, progress, total, timeLeft, resultMod
             );
           })}
         </div>
-      ) : (
+      ) : null}
+
+      {question.options && question.options.length > 0 && !answerFeedback && (
+        <div style={{ textAlign: 'center', marginTop: '24px' }}>
+          {timeUp ? (
+            <div style={{ display: 'inline-block', padding: '12px 30px', background: '#fef3c7', color: '#92400e', borderRadius: '30px', fontWeight: '800', fontSize: '1.1rem', border: '1px solid #fde68a' }}>
+              ⏰ Hết giờ! Đã tự động nộp bài.
+            </div>
+          ) : submitted ? (
+            <div style={{ display: 'inline-block', padding: '12px 30px', background: '#eef2ff', color: '#4338ca', borderRadius: '30px', fontWeight: '800', fontSize: '1.1rem', border: '1px solid #c7d2fe' }}>
+              Đã xác nhận, đang chờ ghi nhận...
+            </div>
+          ) : (
+            <button
+              onClick={handleConfirmAnswer}
+              disabled={!selectedOption || readOnly}
+              style={{
+                padding: '14px 40px',
+                background: !selectedOption ? '#cbd5e1' : 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '1.2rem',
+                fontWeight: '800',
+                cursor: !selectedOption ? 'not-allowed' : 'pointer',
+                boxShadow: !selectedOption ? 'none' : '0 6px 20px rgba(79, 70, 229, 0.3)',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              ✅ Xác nhận đáp án
+            </button>
+          )}
+        </div>
+      )}
+
+      {(!question.options || question.options.length === 0) && (
         <form onSubmit={handleTextSubmit} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', background: '#fff', padding: '40px', borderRadius: '24px', boxShadow: '0 10px 30px rgba(0,0,0,0.04)', border: '1px solid #f1f5f9' }}>
           <input
             type="text"
             value={textAnswer}
             onChange={(e) => setTextAnswer(e.target.value)}
-            disabled={answerFeedback !== null}
+            disabled={answerFeedback !== null || submitted || timeUp}
             placeholder="Nhập câu trả lời của bạn vào đây..."
             style={{
               width: '100%',
@@ -166,21 +237,21 @@ const QuickTestQuestionPanel = ({ question, progress, total, timeLeft, resultMod
           />
           <button
             type="submit"
-            disabled={!textAnswer.trim() || answerFeedback !== null}
+            disabled={!textAnswer.trim() || answerFeedback !== null || submitted || timeUp}
             style={{
               padding: '14px 40px',
-              background: (!textAnswer.trim() || answerFeedback) ? '#cbd5e1' : 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
+              background: (!textAnswer.trim() || answerFeedback || submitted || timeUp) ? '#cbd5e1' : 'linear-gradient(135deg, #4f46e5 0%, #3b82f6 100%)',
               color: 'white',
               border: 'none',
               borderRadius: '12px',
               fontSize: '1.2rem',
               fontWeight: '800',
-              cursor: (!textAnswer.trim() || answerFeedback) ? 'not-allowed' : 'pointer',
-              boxShadow: (!textAnswer.trim() || answerFeedback) ? 'none' : '0 6px 20px rgba(79, 70, 229, 0.3)',
+              cursor: (!textAnswer.trim() || answerFeedback || submitted || timeUp) ? 'not-allowed' : 'pointer',
+              boxShadow: (!textAnswer.trim() || answerFeedback || submitted || timeUp) ? 'none' : '0 6px 20px rgba(79, 70, 229, 0.3)',
               transition: 'all 0.3s ease'
             }}
           >
-            Gửi đáp án
+            {timeUp ? "⏰ Hết giờ" : submitted ? "Đang chờ..." : "Gửi đáp án"}
           </button>
         </form>
       )}

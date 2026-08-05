@@ -103,12 +103,17 @@ export const useQuickTestSocket = () => {
       roomCode,
       userType: userRole === "HOST" ? "teacher" : "student",
       userName,
+      // 👉 Gửi kèm participantId thật (chốt lúc join, có thể khác chuỗi tên do trim/khoảng
+      // trắng) để về sau khớp với leaderboard bằng ID thay vì so tên — so tên từng bị lệch
+      // (VD: tên lúc join đã trim, nhưng state participantName dùng lúc nộp bài lại chưa
+      // chắc đã trim), khiến "Quá trình làm bài" không bao giờ khớp được với leaderboard
+      participantId: settings.participantId || null,
     });
 
     newSocket.on("player_joined", (player) => {
       setParticipants((prev) => {
         if (prev.find(p => p.socketId === player.id || p.userName === player.name)) return prev;
-        return [...prev, { userRole: "STUDENT", userName: player.name, socketId: player.id }];
+        return [...prev, { userRole: "STUDENT", userName: player.name, socketId: player.id, participantId: player.participantId || null }];
       });
       setLiveStats(prev => ({ ...prev, totalStudents: prev.totalStudents + 1 }));
     });
@@ -138,9 +143,25 @@ export const useQuickTestSocket = () => {
 
       setLiveStats(prev => ({
         ...prev,
-        completedCount: prev.completedCount + 1,
         participants: [...prev.participants, { selectedAnswer: data.selectedAnswer }]
       }));
+    });
+
+    // 👉 Chế độ Tự do: đánh dấu học sinh đã nộp TOÀN BỘ bài (khác "live_update" ở trên vốn
+    // bắn mỗi câu) — dùng để "Tỉ lệ nộp bài"/"Đã hoàn thành" đếm đúng số HỌC SINH xong bài,
+    // không phải đếm số CÂU TRẢ LỜI, và để bảng "Quá trình làm bài" hiện đúng "Đã nộp bài"
+    // thay vì luôn kẹt ở "Đang làm..." (isFinished trước đây không bao giờ được set)
+    newSocket.on("student_finished", (data) => {
+      setLeaderboard(prev => {
+        const idx = prev.findIndex(p => p.participantId === data.participantId || p.studentName === data.studentName);
+        if (idx >= 0) {
+          const updated = [...prev];
+          updated[idx] = { ...updated[idx], isFinished: true };
+          return updated;
+        }
+        return [...prev, { participantId: data.participantId, studentName: data.studentName, score: 0, correctCount: 0, isFinished: true }];
+      });
+      setLiveStats(prev => ({ ...prev, completedCount: prev.completedCount + 1 }));
     });
 
     newSocket.on("test_ended", () => {
@@ -169,6 +190,11 @@ export const useQuickTestSocket = () => {
     setIsStarted(true);
   }, [socket]);
 
+  // 👉 Học sinh (chế độ Tự do) báo cho cả phòng biết mình đã làm xong TOÀN BỘ bài
+  const finishTest = useCallback((roomCode, participantId, studentName) => {
+    if (socket) socket.emit("student_finished", { roomCode, participantId, studentName });
+  }, [socket]);
+
   const endTest = useCallback((roomCode) => {
     if (socket) socket.emit("end_quicktest", roomCode);
     setIsEnded(true);
@@ -179,9 +205,13 @@ export const useQuickTestSocket = () => {
     try {
       const payload = { participantId, questionId, selectedAnswer, answerTime };
       const res = await api.post("/quicktest/submit", payload);
-      const newScore = res.data?.data?.newScore || 0;
+      // 👉 api.js đã unwrap response.data 1 lần rồi (xem interceptor), nên res chính là
+      // { success, data: { newScore, isCorrect }, message } — giá trị thật nằm ở res.data.newScore,
+      // KHÔNG PHẢI res.data.data.newScore (bug cũ khiến newScore/isCorrect luôn undefined -> luôn
+      // fallback về false, làm mọi câu trả lời — kể cả trả lời đúng — đều bị báo "sai" trên giao diện)
+      const newScore = res.data?.newScore || 0;
       // 👉 Dùng đúng kết quả chấm điểm thật từ server (gradeAnswer), không tự gán "true" nữa
-      const isCorrect = !!res.data?.data?.isCorrect;
+      const isCorrect = !!res.data?.isCorrect;
 
       if (socket) {
         socket.emit("submit_answer", {
@@ -196,8 +226,9 @@ export const useQuickTestSocket = () => {
 
       return { newScore, isCorrect };
     } catch (err) {
-      setError("Không thể gửi câu trả lời.");
-      return { newScore: 0, isCorrect: false };
+      const tooLate = !!err?.tooLate;
+      setError(tooLate ? "Câu này đã được công bố đáp án!" : "Không thể gửi câu trả lời.");
+      return { newScore: 0, isCorrect: false, tooLate };
     }
   }, [socket]);
 
@@ -238,6 +269,7 @@ export const useQuickTestSocket = () => {
     startTest,
     submitAnswer,
     endTest,
+    finishTest,
     syncParticipants,
     syncRoomStatus,
     advanceQuestion,

@@ -40,7 +40,7 @@ const createRoom = async (req, res) => {
     const {
       examId, title, duration,
       questionCount, difficulty, randomQuestions, randomAnswers,
-      resultMode, pacingMode, questionTimeLimit, questionOrder,
+      resultMode, pacingMode, questionTimeLimit, questionOrder, resolvedOptions,
     } = req.body;
 
     const roomCode = await generateRoomCode();
@@ -61,6 +61,9 @@ const createRoom = async (req, res) => {
         pacingMode: pacingMode === "SYNC" ? "SYNC" : "SELF_PACED",
         questionTimeLimit: questionTimeLimit ? parseInt(questionTimeLimit, 10) : undefined,
         questionOrder: Array.isArray(questionOrder) && questionOrder.length > 0 ? questionOrder : undefined,
+        // 👉 Thứ tự đáp án đã chốt CHUNG cho cả phòng (chỉ dùng ở chế độ Đồng bộ) —
+        // tránh mỗi người tự trộn riêng khiến "đáp án B" của người này khác người kia
+        resolvedOptions: resolvedOptions && typeof resolvedOptions === "object" ? resolvedOptions : undefined,
         currentQuestionIndex: 0,
         isRevealed: false,
       },
@@ -247,14 +250,37 @@ const endRoom = async (req, res) => {
 const submitAnswer = async (req, res) => {
   try {
     const { participantId, questionId, selectedAnswer, answerTime } = req.body;
+    const parsedQuestionId = parseInt(questionId, 10);
 
     const question = await prisma.flashcards.findUnique({
-      where: { id: parseInt(questionId) },
+      where: { id: parsedQuestionId },
       select: { correct_answers: true, answer: true },
     });
 
     if (!question) {
       return res.status(404).json({ success: false, message: "Không tìm thấy câu hỏi!" });
+    }
+
+    // 👉 Chế độ Đồng bộ: chặn nộp bài TRỄ sau khi giáo viên đã công bố đáp án cho đúng
+    // câu này — tránh lệch số liệu (bảng thống kê của giáo viên là ảnh chụp tại lúc công
+    // bố, không tự cập nhật nếu có câu trả lời "lẻn vào" sau đó)
+    const participant = await prisma.quickTestParticipant.findUnique({
+      where: { id: participantId },
+      select: { roomId: true },
+    });
+    if (participant) {
+      const room = await prisma.quickTestRoom.findUnique({ where: { id: participant.roomId } });
+      if (room?.pacingMode === "SYNC") {
+        const order = Array.isArray(room.questionOrder) ? room.questionOrder : [];
+        const currentQuestionId = order[room.currentQuestionIndex ?? 0];
+        if (room.isRevealed && currentQuestionId === parsedQuestionId) {
+          return res.status(400).json({
+            success: false,
+            message: "Câu này đã được công bố đáp án, không thể nộp bài nữa!",
+            tooLate: true,
+          });
+        }
+      }
     }
 
     // 👉 Chấm điểm ở server, bỏ qua hoàn toàn giá trị "isCorrect" client tự gửi lên
@@ -263,7 +289,7 @@ const submitAnswer = async (req, res) => {
     await prisma.quickTestAnswer.create({
       data: {
         participantId,
-        questionId: parseInt(questionId),
+        questionId: parsedQuestionId,
         selectedAnswer: selectedAnswer ? String(selectedAnswer) : null,
         isCorrect,
         answerTime: parseInt(answerTime)
@@ -405,6 +431,66 @@ const getQuestionStats = async (req, res) => {
   }
 };
 
+// 👉 Chế độ Tự do: thống kê phân bố đáp án cho TỪNG câu, gộp theo NỘI DUNG đáp án
+// (selectedAnswer lưu nguyên văn, không phụ thuộc vị trí A/B/C/D đã bị xáo trộn riêng
+// cho từng học sinh) — chỉ tiết lộ sau khi bài thi đã kết thúc để không ai còn đang làm
+// bài có thể lợi dụng số liệu này đoán ra đáp án đúng.
+const getAllQuestionStats = async (req, res) => {
+  try {
+    const roomCode = String(req.params.roomCode).toUpperCase().trim();
+    const room = await prisma.quickTestRoom.findUnique({
+      where: { roomCode },
+      include: { Exam: { include: { Flashcards: true } } },
+    });
+
+    if (!room) {
+      return res.status(404).json({ success: false, message: "Phòng QuickTest không tồn tại" });
+    }
+    if (room.status !== "FINISHED") {
+      return res.status(400).json({ success: false, message: "Bài thi chưa kết thúc, chưa thể xem thống kê." });
+    }
+
+    const flashcards = room.Exam?.Flashcards || [];
+    const stats = await Promise.all(
+      flashcards.map(async (card) => {
+        const answers = await prisma.quickTestAnswer.findMany({
+          where: { questionId: card.id, Participant: { roomId: room.id } },
+          select: { selectedAnswer: true, isCorrect: true },
+        });
+
+        const counts = new Map();
+        let correctCount = 0;
+        for (const a of answers) {
+          const key = a.selectedAnswer || "(Không trả lời)";
+          counts.set(key, (counts.get(key) || 0) + 1);
+          if (a.isCorrect) correctCount += 1;
+        }
+
+        const distribution = Array.from(counts.entries())
+          .map(([answer, count]) => ({
+            answer,
+            count,
+            isCorrect: gradeAnswer(answer, card.correct_answers || card.answer),
+          }))
+          .sort((a, b) => b.count - a.count);
+
+        return {
+          questionId: card.id,
+          question: card.question,
+          totalAnswered: answers.length,
+          correctCount,
+          distribution,
+        };
+      }),
+    );
+
+    res.status(200).json({ success: true, data: stats });
+  } catch (error) {
+    console.error("Error getting all question stats:", error);
+    res.status(500).json({ success: false, message: "Lỗi khi lấy thống kê câu hỏi" });
+  }
+};
+
 module.exports = {
   createRoom,
   getRoom,
@@ -417,4 +503,5 @@ module.exports = {
   advanceQuestion,
   revealQuestion,
   getQuestionStats,
+  getAllQuestionStats,
 };

@@ -7,6 +7,7 @@ import { useQuickTestSocket } from "../../../hooks/useQuickTestSocket";
 import api, { quickTestAPI } from "../../../services/api";
 import Sidebar from "../../Layout/Sidebar";
 import {
+  shuffleArray,
   buildQuestionPool,
   hydrateQuestionsFromOrder,
   getStoredQuestionOrder,
@@ -81,8 +82,16 @@ const QuickTestModalManager = ({
   const [hostActuallyStarted, setHostActuallyStarted] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
   const [participantId, setParticipantId] = useState(null);
+  // 👉 Điểm/số câu đúng của CHÍNH học sinh này — để hiện tóm tắt ngay khi làm xong bài
+  // (chế độ Tự do), thay vì bắt học sinh phải chờ giáo viên kết thúc mới biết kết quả
+  const [myScore, setMyScore] = useState(0);
+  const [myCorrectCount, setMyCorrectCount] = useState(0);
+  // 👉 Thống kê phân bố đáp án theo từng câu (chế độ Tự do) — chỉ lấy được sau khi bài thi
+  // đã kết thúc (server chặn nếu phòng chưa FINISHED), hiện trong màn Bảng xếp hạng chung cuộc
+  const [questionStatsList, setQuestionStatsList] = useState([]);
   const inputRef = useRef(null);
   const startTimeRef = useRef(null);
+  const hasFinishedRef = useRef(false);
 
   const {
     participants,
@@ -102,6 +111,7 @@ const QuickTestModalManager = ({
     startTest,
     submitAnswer,
     endTest,
+    finishTest,
     syncParticipants,
     syncRoomStatus,
     advanceQuestion,
@@ -167,7 +177,7 @@ const QuickTestModalManager = ({
         flashcards,
         roomData.questionOrder,
         { randomAnswers: roomData.randomAnswers ?? true },
-        { shuffleOrder: roomData.pacingMode !== "SYNC" },
+        { shuffleOrder: roomData.pacingMode !== "SYNC", resolvedOptions: roomData.resolvedOptions },
       );
       setRoomQuestions(prepared);
       return { prepared, roomData };
@@ -302,6 +312,31 @@ const QuickTestModalManager = ({
       setAnswerFeedback(null);
     }
   }, [isSync, syncQuestionIndex]);
+
+  // 👉 Chế độ Tự do: khi học sinh làm hết câu cuối (currentQuestion về null), báo cho cả
+  // phòng biết "đã nộp bài" — trước đây không có tín hiệu nào cả, khiến giáo viên luôn thấy
+  // "Đang làm..." và "Tỉ lệ nộp bài" tính sai (đếm nhầm số CÂU đã trả lời thay vì số HỌC SINH
+  // đã xong). hasFinishedRef đảm bảo chỉ bắn 1 lần dù component re-render nhiều lần.
+  useEffect(() => {
+    if (!isSync && role === "STUDENT" && hasJoined && !currentQuestion && currentQuestions.length > 0 && !hasFinishedRef.current) {
+      hasFinishedRef.current = true;
+      finishTest(roomCode, participantId, participantName);
+    }
+  }, [isSync, role, hasJoined, currentQuestion, currentQuestions.length, roomCode, participantId, participantName, finishTest]);
+
+  // 👉 Chỉ lấy thống kê phân bố đáp án theo câu SAU KHI bài thi đã kết thúc (server cũng
+  // tự chặn nếu phòng chưa FINISHED) — tránh học sinh còn đang làm bài lợi dụng số liệu
+  // này để đoán đáp án đúng của những câu chưa làm tới.
+  useEffect(() => {
+    if (step !== "leaderboard" || !roomCode) return;
+    let isMounted = true;
+    quickTestAPI.getAllQuestionStats(roomCode)
+      .then((res) => {
+        if (isMounted) setQuestionStatsList(res?.data || []);
+      })
+      .catch(() => {});
+    return () => { isMounted = false; };
+  }, [step, roomCode]);
 
   useEffect(() => {
     if (role === "TEACHER") {
@@ -454,7 +489,7 @@ const QuickTestModalManager = ({
         flashcards,
         questionOrderForMe,
         { randomAnswers: roomData.randomAnswers ?? true },
-        { shuffleOrder: shouldShuffle },
+        { shuffleOrder: shouldShuffle, resolvedOptions: roomData.resolvedOptions },
       );
 
       if (!isRoomSync && !getStoredQuestionOrder(normalizedCode)) {
@@ -467,12 +502,21 @@ const QuickTestModalManager = ({
       let myParticipantId = cachedIdentity?.participantId || null;
       if (!myParticipantId) {
         const joinRes = await quickTestAPI.joinRoom(normalizedCode, normalizedName);
-        myParticipantId = joinRes?.data?.data?.id || null;
+        // 👉 api.js đã unwrap response.data 1 lần rồi (xem interceptor), nên joinRes chính là
+        // { success, data: participant, roomData } — participantId nằm ở joinRes.data.id,
+        // KHÔNG PHẢI joinRes.data.data.id (bug cũ khiến participantId luôn null, mọi lần nộp
+        // bài đều thất bại ngầm ở backend vì participantId null vi phạm khóa ngoại, và phía
+        // client fallback về isCorrect:false bất kể học sinh chọn đúng hay sai)
+        myParticipantId = joinRes?.data?.id || null;
         storeIdentity(normalizedCode, { participantId: myParticipantId, participantName: normalizedName });
       }
       setParticipantId(myParticipantId);
+      // 👉 Chốt lại state participantName về đúng bản đã trim (dùng cho join) — tránh lệch
+      // với bản gõ thô nếu người dùng lỡ gõ dư khoảng trắng, vì participantName còn được
+      // dùng lại ở handleStudentAnswer/finishTest về sau (khớp tên với leaderboard)
+      setParticipantName(normalizedName);
 
-      joinRoom(normalizedCode, "STUDENT", normalizedName, { pacingMode: roomData.pacingMode });
+      joinRoom(normalizedCode, "STUDENT", normalizedName, { pacingMode: roomData.pacingMode, participantId: myParticipantId });
       setRoomCode(normalizedCode);
       setHasJoined(true);
       setStep("waiting");
@@ -495,10 +539,23 @@ const QuickTestModalManager = ({
     try {
       const deckResponse = await quickTestAPI.getDeckQuestions(selectedDeckId);
       const cards = deckResponse?.data || deckResponse || [];
-      const selectedQuestions = buildQuestionPool(Array.isArray(cards) ? cards : [], settings);
+      let selectedQuestions = buildQuestionPool(Array.isArray(cards) ? cards : [], settings);
 
       if (selectedQuestions.length === 0) {
         throw new Error("Không có câu hỏi hợp lệ trong bộ đề đã chọn.");
+      }
+
+      // 👉 Chế độ Đồng bộ: trộn đáp án MỘT LẦN DUY NHẤT ngay lúc tạo phòng và chốt lại
+      // (resolvedOptions) để cả giáo viên lẫn mọi học sinh cùng thấy đúng 1 thứ tự đáp án —
+      // nếu để mỗi client tự trộn riêng (như chế độ Tự do) thì "đáp án B" của người này sẽ
+      // là nội dung khác với "đáp án B" của người kia, làm bảng thống kê vô nghĩa.
+      let resolvedOptions;
+      if (settings.pacingMode === "SYNC" && settings.randomAnswers) {
+        selectedQuestions = selectedQuestions.map((q) => ({
+          ...q,
+          options: q.options.length > 0 ? shuffleArray(q.options) : q.options,
+        }));
+        resolvedOptions = Object.fromEntries(selectedQuestions.map((q) => [q.id, q.options]));
       }
 
       // 👉 Chốt thứ tự câu hỏi lúc tạo phòng — nguồn sự thật duy nhất cho chế độ Đồng bộ,
@@ -516,6 +573,7 @@ const QuickTestModalManager = ({
         pacingMode: settings.pacingMode,
         questionTimeLimit: settings.questionTimeLimit,
         questionOrder,
+        resolvedOptions,
       };
 
       let response;
@@ -566,7 +624,7 @@ const QuickTestModalManager = ({
     if (!currentQuestion) return;
     const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
     // 👉 Dùng đúng kết quả chấm điểm thật từ server (gradeAnswer), không tự đoán lại ở client nữa
-    const { isCorrect } = await submitAnswer({
+    const { isCorrect, tooLate, newScore } = await submitAnswer({
       roomCode,
       participantId,
       studentName: participantName,
@@ -574,6 +632,17 @@ const QuickTestModalManager = ({
       selectedAnswer: answer,
       answerTime: timeTaken > 0 ? timeTaken : 1,
     });
+
+    if (tooLate) {
+      // 👉 Giáo viên đã công bố đáp án trước khi kịp nộp — không tính là đã trả lời
+      setAnswerFeedback({ isCorrect: false, answer, tooLate: true });
+      return;
+    }
+
+    // 👉 Tự lưu điểm/số câu đúng của chính mình để hiện tóm tắt ngay khi làm xong bài,
+    // không phải chờ giáo viên kết thúc mới biết kết quả (newScore là điểm TỔNG server trả về)
+    setMyScore(newScore || 0);
+    if (isCorrect) setMyCorrectCount((prev) => prev + 1);
 
     if (isSync) {
       // Chế độ Đồng bộ: không tự chuyển câu, không lộ đúng/sai ngay — chờ giáo viên công bố
@@ -983,9 +1052,11 @@ const QuickTestModalManager = ({
                   question={currentQuestion}
                   progress={currentQuestionIndex + 1}
                   total={currentQuestions.length}
-                  resultMode="SHOW_END"
+                  resultMode={isRevealed ? "SHOW_NOW" : "SHOW_END"}
                   onAnswer={() => {}}
-                  answerFeedback={null}
+                  // 👉 Chỉ cần truyền một object khác null để panel bật chế độ hiện màu —
+                  // isActuallyCorrectOption tự so khớp đáp án đúng theo nội dung, không cần "answer" cụ thể
+                  answerFeedback={isRevealed ? { isCorrect: true } : null}
                   readOnly
                   hideNextButton
                 />
@@ -993,24 +1064,40 @@ const QuickTestModalManager = ({
                 <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>Đã hết câu hỏi.</div>
               )}
 
-              <div style={{ display: 'flex', gap: '16px', marginTop: '20px' }}>
-                <button
-                  className="quicktest-primary-btn"
-                  disabled={isRevealed || !currentQuestion}
-                  onClick={() => revealQuestion(roomCode, currentQuestion?.id)}
-                  style={{ opacity: (isRevealed || !currentQuestion) ? 0.5 : 1 }}
-                >
-                  📊 Công bố đáp án &amp; thống kê
-                </button>
-                <button
-                  className="quicktest-secondary-btn"
-                  disabled={!isRevealed || currentQuestionIndex + 1 >= currentQuestions.length}
-                  onClick={() => advanceQuestion(roomCode, currentQuestionIndex + 1)}
-                  style={{ opacity: (!isRevealed || currentQuestionIndex + 1 >= currentQuestions.length) ? 0.5 : 1 }}
-                >
-                  Câu tiếp theo →
-                </button>
-              </div>
+              {(() => {
+                const isLastQuestion = currentQuestionIndex + 1 >= currentQuestions.length;
+                return (
+                  <div style={{ display: 'flex', gap: '16px', marginTop: '20px' }}>
+                    <button
+                      className="quicktest-primary-btn"
+                      disabled={isRevealed || !currentQuestion}
+                      onClick={() => revealQuestion(roomCode, currentQuestion?.id)}
+                      style={{ opacity: (isRevealed || !currentQuestion) ? 0.5 : 1 }}
+                    >
+                      📊 Công bố đáp án &amp; thống kê
+                    </button>
+                    {isLastQuestion ? (
+                      <button
+                        className="quicktest-secondary-btn"
+                        disabled={!isRevealed}
+                        onClick={() => { handleEndHost(); setStep("leaderboard"); }}
+                        style={{ opacity: !isRevealed ? 0.5 : 1 }}
+                      >
+                        🏆 Kết thúc &amp; xem bảng tổng kết
+                      </button>
+                    ) : (
+                      <button
+                        className="quicktest-secondary-btn"
+                        disabled={!isRevealed}
+                        onClick={() => advanceQuestion(roomCode, currentQuestionIndex + 1)}
+                        style={{ opacity: !isRevealed ? 0.5 : 1 }}
+                      >
+                        Câu tiếp theo →
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
 
               {isRevealed && questionStats && (
                 <div style={{ marginTop: '24px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
@@ -1077,7 +1164,14 @@ const QuickTestModalManager = ({
                     </div>
                   ) : (
                     studentsList.map((st, idx) => {
-                      const lbItem = leaderboard.find(l => l.userName === st.userName || l.studentName === st.userName);
+                      // 👉 Khớp theo participantId trước (đáng tin cậy, không phụ thuộc tên
+                      // gõ có khoảng trắng/hoa-thường khác nhau giữa lúc join và lúc nộp bài),
+                      // rồi mới fallback khớp theo tên cho các phiên cũ chưa có participantId
+                      const lbItem = leaderboard.find(l =>
+                        (st.participantId && l.participantId === st.participantId) ||
+                        l.userName === st.userName ||
+                        l.studentName === st.userName
+                      );
                       const isDone = lbItem?.isFinished || false;
                       
                       return (
@@ -1195,7 +1289,13 @@ const QuickTestModalManager = ({
           </div>
 
           <div style={{ padding: '40px' }}>
-            {isSync && answerFeedback?.waitingForHost && !isRevealed ? (
+            {answerFeedback?.tooLate ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
+                <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '3rem', color: '#f59e0b', marginBottom: '20px' }}></i>
+                <h2 style={{ fontSize: '1.6rem', color: '#1e293b', marginBottom: '10px' }}>Nộp trễ rồi!</h2>
+                <p style={{ fontSize: '1.1rem', color: '#64748b' }}>Giáo viên đã công bố đáp án cho câu này trước khi bạn kịp trả lời.</p>
+              </div>
+            ) : isSync && answerFeedback?.waitingForHost && !isRevealed ? (
               <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
                 <i className="fa-solid fa-hourglass-half" style={{ fontSize: '3rem', color: '#4f46e5', marginBottom: '20px' }}></i>
                 <h2 style={{ fontSize: '1.6rem', color: '#1e293b', marginBottom: '10px' }}>Đã gửi câu trả lời!</h2>
@@ -1212,12 +1312,23 @@ const QuickTestModalManager = ({
                 answerFeedback={isSync ? (isRevealed ? answerFeedback : null) : answerFeedback}
                 onNext={handleNextQuestion}
                 hideNextButton={isSync}
+                timeUp={remainingSeconds <= 0}
               />
             ) : (
               <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
                  <div style={{ fontSize: '5rem', marginBottom: '20px' }}>🏁</div>
                  <h2 style={{ fontSize: '2.2rem', color: '#1e293b', marginBottom: '10px' }}>Bạn đã hoàn thành bài thi!</h2>
-                 <p style={{ fontSize: '1.2rem', color: '#64748b' }}>Hệ thống đã ghi nhận kết quả. Đợi giáo viên kết thúc để xem Bảng Xếp Hạng nhé.</p>
+                 <div style={{ display: 'inline-flex', gap: '30px', margin: '10px 0 20px', padding: '20px 40px', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                   <div>
+                     <div style={{ fontSize: '2rem', fontWeight: '800', color: '#4f46e5' }}>{myScore}</div>
+                     <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '600' }}>Điểm</div>
+                   </div>
+                   <div>
+                     <div style={{ fontSize: '2rem', fontWeight: '800', color: '#10b981' }}>{myCorrectCount}/{currentQuestions.length}</div>
+                     <div style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: '600' }}>Câu đúng</div>
+                   </div>
+                 </div>
+                 <p style={{ fontSize: '1.2rem', color: '#64748b' }}>Đợi giáo viên kết thúc để xem Bảng Xếp Hạng nhé.</p>
               </div>
             )}
           </div>
@@ -1252,6 +1363,39 @@ const QuickTestModalManager = ({
             <div className="quicktest-pill" style={{ fontSize: '1.2rem', padding: '12px 24px', background: '#fffbeb', color: '#d97706' }}>🏆 Bảng xếp hạng chung cuộc</div>
           </div>
           <QuickTestLeaderboardCard results={leaderboard} />
+
+          {questionStatsList.length > 0 && (
+            <div style={{ marginTop: '30px' }}>
+              <h3 style={{ fontSize: '1.3rem', color: '#1e293b', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <i className="fa-solid fa-chart-simple" style={{ color: '#4f46e5' }}></i> Thống kê theo từng câu
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {questionStatsList.map((qs, idx) => {
+                  const maxCount = Math.max(1, ...qs.distribution.map((d) => d.count));
+                  return (
+                    <div key={qs.questionId} style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: '16px', padding: '20px' }}>
+                      <div style={{ fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>Câu {idx + 1}: {qs.question}</div>
+                      <div style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '12px' }}>{qs.correctCount}/{qs.totalAnswered} học sinh trả lời đúng</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {qs.distribution.map((d, dIdx) => (
+                          <div key={dIdx} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ fontSize: '0.85rem', color: d.isCorrect ? '#166534' : '#475569', fontWeight: d.isCorrect ? '700' : '500', minWidth: '180px', flexShrink: 0 }}>
+                              {d.answer.replace(/^[A-Za-z][.)]\s*/, '')} {d.isCorrect ? '✅' : ''}
+                            </span>
+                            <div style={{ flex: 1, height: '10px', background: '#f1f5f9', borderRadius: '6px', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${(d.count / maxCount) * 100}%`, background: d.isCorrect ? '#10b981' : '#94a3b8', borderRadius: '6px' }}></div>
+                            </div>
+                            <span style={{ fontSize: '0.85rem', color: '#64748b', minWidth: '20px', textAlign: 'right', flexShrink: 0 }}>{d.count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="quicktest-center" style={{ marginTop: '30px' }}>
              <button className="quicktest-secondary-btn" style={{ padding: '16px 32px', fontSize: '1.1rem' }} onClick={handleClose}>Quay lại Trang chủ</button>
           </div>

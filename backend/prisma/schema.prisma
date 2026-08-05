@@ -216,6 +216,7 @@ model QuickTestRoom {
   // Nhịp độ thi + trạng thái Đồng bộ (Kahoot-style)
   pacingMode           String?   @default("SELF_PACED")   // "SELF_PACED" | "SYNC"
   questionOrder        Json?                                // mảng id câu hỏi, chốt lúc tạo phòng
+  resolvedOptions      Json?                                // { [questionId]: string[] } — thứ tự đáp án đã chốt CHUNG cho cả phòng (chỉ chế độ Đồng bộ)
   currentQuestionIndex Int?      @default(0)                 // chỉ dùng ở SYNC
   questionStartedAt    DateTime?                             // chỉ dùng ở SYNC (đồng hồ tham khảo cho host)
   questionTimeLimit    Int?      @default(25)                // thay cho setting "questionTime" bị chết trước đây
