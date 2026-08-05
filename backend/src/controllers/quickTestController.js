@@ -1,4 +1,28 @@
 const prisma = require("../services/prisma");
+
+// 👉 Tự chấm điểm ở backend, KHÔNG tin vào cờ "isCorrect" do client gửi lên
+// Hỗ trợ cả 2 kiểu lưu đáp án: chữ cái ("A", "A,C") lẫn so khớp nguyên văn (điền từ)
+const gradeAnswer = (selectedAnswer, correctAnswersRaw) => {
+  const selected = String(selectedAnswer || "").trim();
+  const correctList = String(correctAnswersRaw || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (!selected || correctList.length === 0) return false;
+
+  const selectedLetterMatch = selected.match(/^([A-Za-z])[.)]/);
+  const selectedLetter = selectedLetterMatch ? selectedLetterMatch[1].toUpperCase() : null;
+
+  const isLetterMatch =
+    !!selectedLetter && correctList.some((c) => c.toUpperCase() === selectedLetter);
+  const isExactMatch = correctList.some(
+    (c) => c.toLowerCase() === selected.toLowerCase(),
+  );
+
+  return isLetterMatch || isExactMatch;
+};
+
 const generateRoomCode = async () => {
   let roomCode;
   let isUnique = false;
@@ -12,7 +36,7 @@ const generateRoomCode = async () => {
 
 const createRoom = async (req, res) => {
   try {
-    const teacherId = req.user ? req.user.id : null;
+    const teacherId = req.user.id;
     const { examId, title, duration } = req.body;
 
     const roomCode = await generateRoomCode();
@@ -62,14 +86,10 @@ const getRoom = async (req, res) => {
 
 const getMyRoom = async (req, res) => {
   try {
-    const teacherId = req.user ? req.user.id : null;
-
-    const whereCondition = teacherId 
-      ? { teacherId, status: { in: ["WAITING", "IN_PROGRESS"] } }
-      : { status: { in: ["WAITING", "IN_PROGRESS"] } };
+    const teacherId = req.user.id;
 
     const room = await prisma.quickTestRoom.findFirst({
-      where: whereCondition,
+      where: { teacherId, status: { in: ["WAITING", "IN_PROGRESS"] } },
       orderBy: { createdAt: 'desc' },
       include: { Participants: true }
     });
@@ -145,15 +165,23 @@ const getLeaderboard = async (req, res) => {
 const startRoom = async (req, res) => {
   try {
     const roomCode = String(req.params.roomCode).toUpperCase().trim();
-    
+
+    const existingRoom = await prisma.quickTestRoom.findUnique({ where: { roomCode } });
+    if (!existingRoom) {
+      return res.status(404).json({ success: false, message: "Phòng QuickTest không tồn tại" });
+    }
+    if (existingRoom.teacherId !== req.user.id) {
+      return res.status(403).json({ success: false, message: "Bạn không có quyền điều khiển phòng này!" });
+    }
+
     const room = await prisma.quickTestRoom.update({
       where: { roomCode },
-      data: { 
+      data: {
         status: "IN_PROGRESS",
         startTime: new Date()
       }
     });
-    
+
     res.status(200).json({ success: true, message: "Đã phát lệnh BẮT ĐẦU thi!", data: room });
   } catch (error) {
     console.error("Error starting room:", error);
@@ -165,10 +193,18 @@ const startRoom = async (req, res) => {
 const endRoom = async (req, res) => {
   try {
     const roomCode = String(req.params.roomCode).toUpperCase().trim();
-    
+
+    const existingRoom = await prisma.quickTestRoom.findUnique({ where: { roomCode } });
+    if (!existingRoom) {
+      return res.status(404).json({ success: false, message: "Phòng QuickTest không tồn tại" });
+    }
+    if (existingRoom.teacherId !== req.user.id) {
+      return res.status(403).json({ success: false, message: "Bạn không có quyền điều khiển phòng này!" });
+    }
+
     const room = await prisma.quickTestRoom.update({
       where: { roomCode },
-      data: { 
+      data: {
         status: "FINISHED",
         endTime: new Date()
       }
@@ -184,14 +220,26 @@ const endRoom = async (req, res) => {
 
 const submitAnswer = async (req, res) => {
   try {
-    const { participantId, questionId, selectedAnswer, isCorrect, answerTime } = req.body;
+    const { participantId, questionId, selectedAnswer, answerTime } = req.body;
+
+    const question = await prisma.flashcards.findUnique({
+      where: { id: parseInt(questionId) },
+      select: { correct_answers: true, answer: true },
+    });
+
+    if (!question) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy câu hỏi!" });
+    }
+
+    // 👉 Chấm điểm ở server, bỏ qua hoàn toàn giá trị "isCorrect" client tự gửi lên
+    const isCorrect = gradeAnswer(selectedAnswer, question.correct_answers || question.answer);
 
     await prisma.quickTestAnswer.create({
       data: {
         participantId,
         questionId: parseInt(questionId),
         selectedAnswer: selectedAnswer ? String(selectedAnswer) : null,
-        isCorrect: Boolean(isCorrect),
+        isCorrect,
         answerTime: parseInt(answerTime)
       }
     });

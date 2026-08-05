@@ -1,5 +1,8 @@
 const jwt = require("jsonwebtoken");
-const JWT_SECRET = process.env.JWT_SECRET || "fmn_secret_key_2026";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("Thiếu biến môi trường JWT_SECRET! Vui lòng khai báo trong file .env");
+}
 
 const verifyToken = (req, res, next) => {
   // Lấy token từ header của request gửi lên

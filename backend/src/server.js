@@ -157,43 +157,11 @@ app.use(cors());
 app.use(express.json());
 
 // Phục vụ thư mục tệp tĩnh tải lên
+// (express.static tự chống path traversal, không cần route thủ công nào khác)
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
-
-app.get("/uploads/messages/:filename", (req, res) => {
-  const filename = req.params.filename;
-  const filePath = path.join(__dirname, "../uploads/messages", filename);
-  res.sendFile(filePath, (err) => {
-    if (err) {
-      res.status(404).send("File not found");
-    }
-  });
-});
-
-app.get("/api/debug/uploads", (req, res) => {
-  const fs = require("fs");
-  const dir = path.join(__dirname, "../uploads/messages");
-  fs.readdir(dir, (err, files) => {
-    if (err)
-      return res.status(500).json({ success: false, error: err.message });
-    res.json({ success: true, files });
-  });
-});
 
 app.get("/", (req, res) => {
   res.json({ message: "Hệ thống FORGETMENOT đã khởi chạy!" });
-});
-
-app.get("/api/test-db", async (req, res) => {
-  try {
-    const users = await prisma.users.findMany();
-    res.json({
-      success: true,
-      message: "Kết nối SQL Server thành công rực rỡ!",
-      data: users,
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
 });
 
 // ==========================================

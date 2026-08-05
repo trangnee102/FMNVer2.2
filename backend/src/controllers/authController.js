@@ -2,8 +2,11 @@ const prisma = require("../services/prisma");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-// Chìa khóa bí mật để tạo thẻ thông hành token (có thể đổi tùy ý)
-const JWT_SECRET = process.env.JWT_SECRET || "fmn_secret_key_2026";
+// Chìa khóa bí mật để tạo thẻ thông hành token (bắt buộc phải có trong .env)
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("Thiếu biến môi trường JWT_SECRET! Vui lòng khai báo trong file .env");
+}
 
 // --- CHỨC NĂNG ĐĂNG KÝ ---
 const register = async (req, res) => {
@@ -144,17 +147,9 @@ const login = async (req, res) => {
 // 👉 ĐÃ THÊM: --- CHỨC NĂNG CẬP NHẬT HỒ SƠ ---
 const updateProfile = async (req, res) => {
   try {
-    // Nhận ID từ body (do Frontend gửi xuống) và dữ liệu cần sửa
-    const { userId, full_name, email } = req.body;
-
-    if (!userId) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Không tìm thấy thông tin người dùng để cập nhật!",
-        });
-    }
+    // 👉 Lấy userId từ token đã xác thực (verifyToken), KHÔNG tin vào body
+    const userId = req.user.id;
+    const { full_name, email } = req.body;
 
     // Tiến hành cập nhật thông tin trong Database
     const updatedUser = await prisma.users.update({
