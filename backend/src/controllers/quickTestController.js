@@ -431,6 +431,24 @@ const getQuestionStats = async (req, res) => {
   }
 };
 
+const parseOptionsSafe = (raw) => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+// 👉 Điểm 1 câu đúng nhận được, khớp đúng công thức đang dùng ở submitAnswer (1000 nền +
+// speed bonus tối đa 500) — dùng để tính điểm trung bình mỗi câu cho màn thống kê cuối bài.
+const computePoints = (isCorrect, answerTime) => {
+  if (!isCorrect) return 0;
+  return 1000 + Math.max(0, 500 - parseInt(answerTime, 10) * 33);
+};
+
 // 👉 Chế độ Tự do: thống kê phân bố đáp án cho TỪNG câu, gộp theo NỘI DUNG đáp án
 // (selectedAnswer lưu nguyên văn, không phụ thuộc vị trí A/B/C/D đã bị xáo trộn riêng
 // cho từng học sinh) — chỉ tiết lộ sau khi bài thi đã kết thúc để không ai còn đang làm
@@ -455,30 +473,52 @@ const getAllQuestionStats = async (req, res) => {
       flashcards.map(async (card) => {
         const answers = await prisma.quickTestAnswer.findMany({
           where: { questionId: card.id, Participant: { roomId: room.id } },
-          select: { selectedAnswer: true, isCorrect: true },
+          select: { selectedAnswer: true, isCorrect: true, answerTime: true },
         });
+
+        const correctAnswersRaw = card.correct_answers || card.answer;
+        const options = parseOptionsSafe(card.options);
 
         const counts = new Map();
         let correctCount = 0;
+        let totalPoints = 0;
         for (const a of answers) {
           const key = a.selectedAnswer || "(Không trả lời)";
           counts.set(key, (counts.get(key) || 0) + 1);
           if (a.isCorrect) correctCount += 1;
+          totalPoints += computePoints(a.isCorrect, a.answerTime);
         }
 
-        const distribution = Array.from(counts.entries())
-          .map(([answer, count]) => ({
-            answer,
-            count,
-            isCorrect: gradeAnswer(answer, card.correct_answers || card.answer),
-          }))
-          .sort((a, b) => b.count - a.count);
+        let distribution;
+        if (options.length > 0) {
+          // 👉 Trắc nghiệm: hiện ĐỦ mọi phương án gốc (kể cả phương án không ai chọn),
+          // theo đúng thứ tự gốc của đề — không chỉ liệt kê những gì học sinh đã chọn
+          distribution = options.map((opt) => ({
+            answer: opt,
+            count: counts.get(opt) || 0,
+            isCorrect: gradeAnswer(opt, correctAnswersRaw),
+          }));
+          const noAnswerCount = counts.get("(Không trả lời)") || 0;
+          if (noAnswerCount > 0) {
+            distribution.push({ answer: "(Không trả lời)", count: noAnswerCount, isCorrect: false });
+          }
+        } else {
+          // 👉 Điền từ: không có sẵn danh sách phương án cố định, gộp theo nội dung đã gõ
+          distribution = Array.from(counts.entries())
+            .map(([answer, count]) => ({ answer, count, isCorrect: gradeAnswer(answer, correctAnswersRaw) }))
+            .sort((a, b) => b.count - a.count);
+        }
 
         return {
           questionId: card.id,
           question: card.question,
+          questionType: card.question_type,
+          // 👉 Dự phòng cho điền từ (không có "option" nào để tô xanh) — hiện thẳng đáp án đúng
+          correctAnswerText: options.find((opt) => gradeAnswer(opt, correctAnswersRaw)) || correctAnswersRaw || "",
           totalAnswered: answers.length,
           correctCount,
+          avgAnswerTime: answers.length > 0 ? answers.reduce((sum, a) => sum + a.answerTime, 0) / answers.length : 0,
+          avgPoints: answers.length > 0 ? Math.round(totalPoints / answers.length) : 0,
           distribution,
         };
       }),

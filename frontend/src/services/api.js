@@ -144,6 +144,10 @@ export const quickTestAPI = {
   // đã kết thúc (server chặn nếu phòng chưa FINISHED), tránh rò đáp án cho người chưa làm xong
   getAllQuestionStats: (roomCode) =>
     api.get(`/quicktest/rooms/${roomCode}/all-question-stats`),
+  // 👉 Xem trước số học sinh đã trả lời CÂU HIỆN TẠI (chế độ Đồng bộ) mà KHÔNG công bố —
+  // dùng để cảnh báo giáo viên trước khi bấm "Công bố đáp án" lúc chưa có ai trả lời
+  getQuestionStats: (roomCode, questionId) =>
+    api.get(`/quicktest/rooms/${roomCode}/question-stats/${questionId}`),
 };
 
 export default api;

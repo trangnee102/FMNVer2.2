@@ -612,6 +612,23 @@ const QuickTestModalManager = ({
     }
   };
 
+  // 👉 Chế độ Đồng bộ: cảnh báo trước khi công bố đáp án nếu CHƯA CÓ học sinh nào trả lời
+  // câu này — vẫn để giáo viên toàn quyền quyết định (có thể vẫn muốn công bố để giảng lại,
+  // bỏ qua câu tốn thời gian...), chỉ chặn bấm NHẦM chứ không chặn cứng, vì công bố xong sẽ
+  // khóa luôn việc nộp trễ cho câu đó (xem guard "tooLate" ở backend submitAnswer)
+  const handleRevealQuestion = async () => {
+    if (!roomCode || !currentQuestion) return;
+    try {
+      const res = await quickTestAPI.getQuestionStats(roomCode, currentQuestion.id);
+      const totalAnswered = res?.data?.totalAnswered ?? 0;
+      if (totalAnswered === 0) {
+        const ok = window.confirm("Chưa có học sinh nào trả lời câu này. Công bố đáp án bây giờ sẽ khóa luôn việc nộp bài cho câu này. Vẫn công bố?");
+        if (!ok) return;
+      }
+    } catch (e) {}
+    revealQuestion(roomCode, currentQuestion.id);
+  };
+
   const handleEndHost = async () => {
     if (!roomCode) return;
     try {
@@ -915,6 +932,12 @@ const QuickTestModalManager = ({
                 <span style={{ fontSize: '1.1rem' }}>Đảo đáp án</span>
               </label>
             </div>
+            {settings.pacingMode === "SYNC" && (settings.randomQuestions || settings.randomAnswers) && (
+              <span style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '8px', display: 'block' }}>
+                Ở chế độ Đồng bộ, thứ tự sau khi trộn được <strong>chốt 1 lần</strong> và dùng CHUNG cho cả phòng
+                (không phải mỗi học sinh 1 kiểu như chế độ Tự do) — chỉ để đề không giống hệt nhau giữa các lần tạo phòng.
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
             <button className="quicktest-primary-btn" onClick={() => setStep("hostStep3_preview")}>
@@ -1071,7 +1094,7 @@ const QuickTestModalManager = ({
                     <button
                       className="quicktest-primary-btn"
                       disabled={isRevealed || !currentQuestion}
-                      onClick={() => revealQuestion(roomCode, currentQuestion?.id)}
+                      onClick={handleRevealQuestion}
                       style={{ opacity: (isRevealed || !currentQuestion) ? 0.5 : 1 }}
                     >
                       📊 Công bố đáp án &amp; thống kê
@@ -1365,29 +1388,63 @@ const QuickTestModalManager = ({
           <QuickTestLeaderboardCard results={leaderboard} />
 
           {questionStatsList.length > 0 && (
-            <div style={{ marginTop: '30px' }}>
+            <div style={{ marginTop: '36px' }}>
               <h3 style={{ fontSize: '1.3rem', color: '#1e293b', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <i className="fa-solid fa-chart-simple" style={{ color: '#4f46e5' }}></i> Thống kê theo từng câu
               </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 {questionStatsList.map((qs, idx) => {
-                  const maxCount = Math.max(1, ...qs.distribution.map((d) => d.count));
+                  const accuracyPct = qs.totalAnswered > 0 ? Math.round((qs.correctCount / qs.totalAnswered) * 100) : 0;
+                  const accuracyColor = accuracyPct >= 70 ? '#10b981' : accuracyPct >= 40 ? '#f59e0b' : '#ef4444';
+                  const hasNoCorrectShown = !qs.distribution.some((d) => d.isCorrect);
                   return (
-                    <div key={qs.questionId} style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: '16px', padding: '20px' }}>
-                      <div style={{ fontWeight: '700', color: '#1e293b', marginBottom: '4px' }}>Câu {idx + 1}: {qs.question}</div>
-                      <div style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '12px' }}>{qs.correctCount}/{qs.totalAnswered} học sinh trả lời đúng</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {qs.distribution.map((d, dIdx) => (
-                          <div key={dIdx} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ fontSize: '0.85rem', color: d.isCorrect ? '#166534' : '#475569', fontWeight: d.isCorrect ? '700' : '500', minWidth: '180px', flexShrink: 0 }}>
-                              {d.answer.replace(/^[A-Za-z][.)]\s*/, '')} {d.isCorrect ? '✅' : ''}
-                            </span>
-                            <div style={{ flex: 1, height: '10px', background: '#f1f5f9', borderRadius: '6px', overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${(d.count / maxCount) * 100}%`, background: d.isCorrect ? '#10b981' : '#94a3b8', borderRadius: '6px' }}></div>
-                            </div>
-                            <span style={{ fontSize: '0.85rem', color: '#64748b', minWidth: '20px', textAlign: 'right', flexShrink: 0 }}>{d.count}</span>
+                    <div key={qs.questionId} style={{ background: '#fff', border: '1px solid #f1f5f9', borderRadius: '18px', padding: '24px', boxShadow: '0 2px 10px rgba(0,0,0,0.03)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '20px', marginBottom: '18px' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                            <span style={{ background: '#eef2ff', color: '#4338ca', fontSize: '0.8rem', fontWeight: '800', padding: '4px 12px', borderRadius: '999px' }}>Câu {idx + 1}</span>
+                            {qs.avgPoints > 0 && (
+                              <span style={{ background: '#fffbeb', color: '#b45309', fontSize: '0.8rem', fontWeight: '700', padding: '4px 12px', borderRadius: '999px' }}>⭐ TB {qs.avgPoints.toLocaleString('vi-VN')}đ</span>
+                            )}
+                            {qs.avgAnswerTime > 0 && (
+                              <span style={{ background: '#f0f9ff', color: '#0369a1', fontSize: '0.8rem', fontWeight: '700', padding: '4px 12px', borderRadius: '999px' }}>⏱ TB {qs.avgAnswerTime.toFixed(1)}s</span>
+                            )}
                           </div>
-                        ))}
+                          <div style={{ fontWeight: '700', fontSize: '1.05rem', color: '#1e293b', lineHeight: '1.5' }}>{qs.question}</div>
+                          {hasNoCorrectShown && qs.correctAnswerText && (
+                            <div style={{ marginTop: '8px', fontSize: '0.9rem', color: '#166534', fontWeight: '600' }}>
+                              ✅ Đáp án đúng: {String(qs.correctAnswerText).replace(/^[A-Za-z][.)]\s*/, '')}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '50%', background: `${accuracyColor}18`, border: `3px solid ${accuracyColor}` }}>
+                          <span style={{ fontSize: '1.05rem', fontWeight: '800', color: accuracyColor, lineHeight: 1 }}>{accuracyPct}%</span>
+                          <span style={{ fontSize: '0.65rem', color: accuracyColor, fontWeight: '600' }}>đúng</span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {qs.distribution.map((d, dIdx) => {
+                          const pct = qs.totalAnswered > 0 ? Math.round((d.count / qs.totalAnswered) * 100) : 0;
+                          return (
+                            <div key={dIdx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '12px', background: d.isCorrect ? '#f0fdf4' : '#f8fafc', border: `1px solid ${d.isCorrect ? '#bbf7d0' : '#f1f5f9'}` }}>
+                              <div style={{ width: '30px', height: '30px', flexShrink: 0, borderRadius: '8px', background: d.isCorrect ? '#10b981' : '#e2e8f0', color: d.isCorrect ? '#fff' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '0.9rem' }}>
+                                {String.fromCharCode(65 + dIdx)}
+                              </div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '5px' }}>
+                                  <span style={{ fontSize: '0.92rem', color: d.isCorrect ? '#166534' : '#334155', fontWeight: d.isCorrect ? '700' : '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {String(d.answer).replace(/^[A-Za-z][.)]\s*/, '')} {d.isCorrect && '✅'}
+                                  </span>
+                                  <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600', flexShrink: 0 }}>{d.count} ({pct}%)</span>
+                                </div>
+                                <div style={{ height: '8px', background: '#f1f5f9', borderRadius: '6px', overflow: 'hidden' }}>
+                                  <div style={{ height: '100%', width: `${pct}%`, background: d.isCorrect ? '#10b981' : '#94a3b8', borderRadius: '6px', transition: 'width 0.4s ease' }}></div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
