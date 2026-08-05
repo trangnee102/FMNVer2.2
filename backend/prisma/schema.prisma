@@ -195,16 +195,31 @@ model Users {
 // ==========================================
 
 model QuickTestRoom {
-  id          String    @id @default(uuid()) 
+  id          String    @id @default(uuid())
   teacherId   Int?      // 👉 ĐÃ FIX: Cho phép null tạm thời để ko xung đột dữ liệu cũ
   examId      Int?      // 👉 ĐÃ FIX: Cho phép null
-  roomCode    String    @unique 
+  roomCode    String    @unique
   title       String?   // 👉 ĐÃ FIX: Cho phép null
-  status      String    @default("WAITING") 
-  startTime   DateTime? 
-  endTime     DateTime? 
+  status      String    @default("WAITING")
+  startTime   DateTime?
+  endTime     DateTime?
   duration    Int?      // 👉 ĐÃ FIX: Cho phép null
   createdAt   DateTime  @default(now())
+
+  // Cấu hình phòng thi (trước đây chỉ sống ở state React của host, chưa từng lưu DB)
+  questionCount        Int?      @default(20)
+  difficulty           String?   @default("ALL")
+  randomQuestions      Boolean?  @default(true)
+  randomAnswers        Boolean?  @default(true)
+  resultMode           String?   @default("SHOW_NOW")
+
+  // Nhịp độ thi + trạng thái Đồng bộ (Kahoot-style)
+  pacingMode           String?   @default("SELF_PACED")   // "SELF_PACED" | "SYNC"
+  questionOrder        Json?                                // mảng id câu hỏi, chốt lúc tạo phòng
+  currentQuestionIndex Int?      @default(0)                 // chỉ dùng ở SYNC
+  questionStartedAt    DateTime?                             // chỉ dùng ở SYNC (đồng hồ tham khảo cho host)
+  questionTimeLimit    Int?      @default(25)                // thay cho setting "questionTime" bị chết trước đây
+  isRevealed           Boolean?  @default(false)             // chỉ dùng ở SYNC
 
   // Quan hệ
   Teacher      Users?                 @relation("TeacherRooms", fields: [teacherId], references: [id], onDelete: Cascade)

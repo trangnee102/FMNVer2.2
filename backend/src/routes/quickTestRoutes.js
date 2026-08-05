@@ -8,6 +8,9 @@ router.post("/rooms", verifyToken, quickTestController.createRoom);
 router.get("/my-room", verifyToken, quickTestController.getMyRoom);
 router.put("/rooms/:roomCode/start", verifyToken, quickTestController.startRoom);
 router.put("/rooms/:roomCode/end", verifyToken, quickTestController.endRoom);
+router.put("/rooms/:roomCode/advance", verifyToken, quickTestController.advanceQuestion);
+router.put("/rooms/:roomCode/reveal", verifyToken, quickTestController.revealQuestion);
+router.get("/rooms/:roomCode/question-stats/:questionId", verifyToken, quickTestController.getQuestionStats);
 
 // Học sinh có thể tham gia ẩn danh (không bắt buộc đăng nhập)
 router.get("/rooms/:roomCode", quickTestController.getRoom);

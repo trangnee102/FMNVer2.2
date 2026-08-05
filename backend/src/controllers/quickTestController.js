@@ -37,7 +37,11 @@ const generateRoomCode = async () => {
 const createRoom = async (req, res) => {
   try {
     const teacherId = req.user.id;
-    const { examId, title, duration } = req.body;
+    const {
+      examId, title, duration,
+      questionCount, difficulty, randomQuestions, randomAnswers,
+      resultMode, pacingMode, questionTimeLimit, questionOrder,
+    } = req.body;
 
     const roomCode = await generateRoomCode();
 
@@ -49,6 +53,16 @@ const createRoom = async (req, res) => {
         title: title || "Bài kiểm tra nhanh",
         duration: duration ? parseInt(duration) : 15 * 60,
         status: "WAITING",
+        questionCount: questionCount ? parseInt(questionCount, 10) : undefined,
+        difficulty: difficulty || undefined,
+        randomQuestions: typeof randomQuestions === "boolean" ? randomQuestions : undefined,
+        randomAnswers: typeof randomAnswers === "boolean" ? randomAnswers : undefined,
+        resultMode: resultMode || undefined,
+        pacingMode: pacingMode === "SYNC" ? "SYNC" : "SELF_PACED",
+        questionTimeLimit: questionTimeLimit ? parseInt(questionTimeLimit, 10) : undefined,
+        questionOrder: Array.isArray(questionOrder) && questionOrder.length > 0 ? questionOrder : undefined,
+        currentQuestionIndex: 0,
+        isRevealed: false,
       },
     });
 
@@ -67,9 +81,21 @@ const getRoom = async (req, res) => {
       where: { roomCode },
       include: {
         Exam: {
-          select: { title: true, Flashcards: { select: { id: true, question: true, options: true, question_type: true } } }
+          select: {
+            title: true,
+            Flashcards: {
+              select: {
+                id: true,
+                question: true,
+                options: true,
+                question_type: true,
+                correct_answers: true,
+                answer: true,
+              },
+            },
+          },
         },
-        Participants: true 
+        Participants: true
       }
     });
 
@@ -261,14 +287,121 @@ const submitAnswer = async (req, res) => {
       }
     });
 
-    res.status(200).json({ 
-      success: true, 
-      message: "Ghi nhận đáp án", 
-      data: { newScore: updatedParticipant.score, addedPoints: points } 
+    res.status(200).json({
+      success: true,
+      message: "Ghi nhận đáp án",
+      data: { newScore: updatedParticipant.score, addedPoints: points, isCorrect }
     });
   } catch (error) {
     console.error("Error submitting answer:", error);
     res.status(500).json({ success: false, message: "Lỗi ghi nhận điểm" });
+  }
+};
+
+// 👉 Đếm số học sinh chọn từng đáp án cho 1 câu hỏi, trong phạm vi 1 phòng cụ thể
+// (QuickTestAnswer không có cột roomId trực tiếp, phải lọc qua quan hệ Participant.roomId)
+const computeQuestionDistribution = async (roomId, questionId) => {
+  const answers = await prisma.quickTestAnswer.findMany({
+    where: { questionId: parseInt(questionId, 10), Participant: { roomId } },
+    select: { selectedAnswer: true, isCorrect: true },
+  });
+
+  const distribution = {};
+  let correctCount = 0;
+  let wrongCount = 0;
+  for (const a of answers) {
+    const key = a.selectedAnswer || "(Không trả lời)";
+    distribution[key] = (distribution[key] || 0) + 1;
+    if (a.isCorrect) correctCount += 1;
+    else wrongCount += 1;
+  }
+
+  return { totalAnswered: answers.length, correctCount, wrongCount, distribution };
+};
+
+const advanceQuestion = async (req, res) => {
+  try {
+    const roomCode = String(req.params.roomCode).toUpperCase().trim();
+    const { questionIndex } = req.body;
+
+    const existingRoom = await prisma.quickTestRoom.findUnique({ where: { roomCode } });
+    if (!existingRoom) {
+      return res.status(404).json({ success: false, message: "Phòng QuickTest không tồn tại" });
+    }
+    if (existingRoom.teacherId !== req.user.id) {
+      return res.status(403).json({ success: false, message: "Bạn không có quyền điều khiển phòng này!" });
+    }
+
+    const room = await prisma.quickTestRoom.update({
+      where: { roomCode },
+      data: {
+        currentQuestionIndex: parseInt(questionIndex, 10) || 0,
+        questionStartedAt: new Date(),
+        isRevealed: false,
+      },
+    });
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`quicktest_${roomCode}`).emit("question_changed", {
+        questionIndex: room.currentQuestionIndex,
+        questionStartedAt: room.questionStartedAt,
+      });
+    }
+
+    res.status(200).json({ success: true, data: room });
+  } catch (error) {
+    console.error("Error advancing question:", error);
+    res.status(500).json({ success: false, message: "Lỗi khi chuyển câu hỏi" });
+  }
+};
+
+const revealQuestion = async (req, res) => {
+  try {
+    const roomCode = String(req.params.roomCode).toUpperCase().trim();
+    const { questionId } = req.body;
+
+    const existingRoom = await prisma.quickTestRoom.findUnique({ where: { roomCode } });
+    if (!existingRoom) {
+      return res.status(404).json({ success: false, message: "Phòng QuickTest không tồn tại" });
+    }
+    if (existingRoom.teacherId !== req.user.id) {
+      return res.status(403).json({ success: false, message: "Bạn không có quyền điều khiển phòng này!" });
+    }
+
+    const stats = await computeQuestionDistribution(existingRoom.id, questionId);
+    const room = await prisma.quickTestRoom.update({ where: { roomCode }, data: { isRevealed: true } });
+
+    const payload = { questionIndex: room.currentQuestionIndex, questionId: parseInt(questionId, 10), ...stats };
+
+    const io = req.app.get("io");
+    if (io) io.to(`quicktest_${roomCode}`).emit("question_revealed", payload);
+
+    res.status(200).json({ success: true, data: payload });
+  } catch (error) {
+    console.error("Error revealing question:", error);
+    res.status(500).json({ success: false, message: "Lỗi khi công bố đáp án" });
+  }
+};
+
+const getQuestionStats = async (req, res) => {
+  try {
+    const roomCode = String(req.params.roomCode).toUpperCase().trim();
+    const questionId = parseInt(req.params.questionId, 10);
+
+    const existingRoom = await prisma.quickTestRoom.findUnique({ where: { roomCode } });
+    if (!existingRoom) {
+      return res.status(404).json({ success: false, message: "Phòng QuickTest không tồn tại" });
+    }
+    if (existingRoom.teacherId !== req.user.id) {
+      return res.status(403).json({ success: false, message: "Bạn không có quyền điều khiển phòng này!" });
+    }
+
+    const stats = await computeQuestionDistribution(existingRoom.id, questionId);
+    res.status(200).json({ success: true, data: stats });
+  } catch (error) {
+    console.error("Error fetching question stats:", error);
+    res.status(500).json({ success: false, message: "Lỗi khi lấy thống kê câu hỏi" });
   }
 };
 
@@ -280,5 +413,8 @@ module.exports = {
   getLeaderboard,
   startRoom,
   endRoom,
-  submitAnswer
+  submitAnswer,
+  advanceQuestion,
+  revealQuestion,
+  getQuestionStats,
 };

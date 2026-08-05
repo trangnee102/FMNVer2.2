@@ -17,7 +17,14 @@ export const useQuickTestSocket = () => {
   const [totalTime, setTotalTime] = useState(0);
   const [questionTime, setQuestionTime] = useState(25);
   const [resultMode, setResultMode] = useState("SHOW_NOW");
+  const [pacingMode, setPacingMode] = useState("SELF_PACED");
   const [error, setError] = useState("");
+
+  // 👉 Trạng thái chế độ Đồng bộ (SYNC): câu hỏi hiện tại + đáp án đã công bố hay chưa
+  const [syncQuestionIndex, setSyncQuestionIndex] = useState(0);
+  const [questionStartedAt, setQuestionStartedAt] = useState(null);
+  const [isRevealed, setIsRevealed] = useState(false);
+  const [questionStats, setQuestionStats] = useState(null);
 
   const isStartedRef = useRef(false);
   const isEndedRef = useRef(false);
@@ -87,9 +94,10 @@ export const useQuickTestSocket = () => {
     if (userRole === "HOST") {
       setQuestions(initialQuestions);
       setTotalTime(settings.totalTime || 600);
-      setQuestionTime(settings.questionTime || 25);
+      setQuestionTime(settings.questionTimeLimit || settings.questionTime || 25);
       setResultMode(settings.resultMode || "SHOW_NOW");
     }
+    setPacingMode(settings.pacingMode === "SYNC" ? "SYNC" : "SELF_PACED");
 
     newSocket.emit("join_quicktest", {
       roomCode,
@@ -139,6 +147,20 @@ export const useQuickTestSocket = () => {
       setIsEnded(true);
       setIsStarted(false);
     });
+
+    // 👉 Chế độ Đồng bộ (SYNC): giáo viên chuyển câu -> mọi client (kể cả chính giáo viên) nhận cùng lúc
+    newSocket.on("question_changed", (data) => {
+      setSyncQuestionIndex(data.questionIndex);
+      setQuestionStartedAt(data.questionStartedAt);
+      setIsRevealed(false);
+      setQuestionStats(null);
+    });
+
+    // 👉 Giáo viên công bố đáp án + thống kê -> mọi client nhận cùng lúc
+    newSocket.on("question_revealed", (data) => {
+      setIsRevealed(true);
+      setQuestionStats(data);
+    });
   }, []);
 
   const startTest = useCallback((roomCode, duration) => {
@@ -153,30 +175,48 @@ export const useQuickTestSocket = () => {
     setIsStarted(false);
   }, [socket]);
 
-  const submitAnswer = useCallback(async ({ roomCode, questionId, selectedAnswer, answerTime }) => {
+  const submitAnswer = useCallback(async ({ roomCode, participantId, studentName, questionId, selectedAnswer, answerTime }) => {
     try {
-      const payload = {
-        participantId: "guest-01",
-        questionId,
-        selectedAnswer,
-        isCorrect: true,
-        answerTime
-      };
+      const payload = { participantId, questionId, selectedAnswer, answerTime };
       const res = await api.post("/quicktest/submit", payload);
       const newScore = res.data?.data?.newScore || 0;
+      // 👉 Dùng đúng kết quả chấm điểm thật từ server (gradeAnswer), không tự gán "true" nữa
+      const isCorrect = !!res.data?.data?.isCorrect;
 
       if (socket) {
         socket.emit("submit_answer", {
           roomCode,
-          participantId: payload.participantId,
-          studentName: "Học sinh",
+          participantId,
+          studentName,
           score: newScore,
-          isCorrect: payload.isCorrect,
+          isCorrect,
           selectedAnswer
         });
       }
-    } catch (err) {}
+
+      return { newScore, isCorrect };
+    } catch (err) {
+      setError("Không thể gửi câu trả lời.");
+      return { newScore: 0, isCorrect: false };
+    }
   }, [socket]);
+
+  // 👉 Chế độ Đồng bộ: giáo viên chuyển câu / công bố đáp án cho cả phòng
+  const advanceQuestion = useCallback(async (roomCode, questionIndex) => {
+    try {
+      await api.put(`/quicktest/rooms/${roomCode}/advance`, { questionIndex });
+    } catch (err) {
+      setError("Không thể chuyển câu hỏi.");
+    }
+  }, []);
+
+  const revealQuestion = useCallback(async (roomCode, questionId) => {
+    try {
+      await api.put(`/quicktest/rooms/${roomCode}/reveal`, { questionId });
+    } catch (err) {
+      setError("Không thể công bố đáp án.");
+    }
+  }, []);
 
   return {
     participants,
@@ -188,12 +228,19 @@ export const useQuickTestSocket = () => {
     totalTime,
     questionTime,
     resultMode,
+    pacingMode,
     error,
+    syncQuestionIndex,
+    questionStartedAt,
+    isRevealed,
+    questionStats,
     joinRoom,
     startTest,
     submitAnswer,
     endTest,
     syncParticipants,
-    syncRoomStatus
+    syncRoomStatus,
+    advanceQuestion,
+    revealQuestion,
   };
 };

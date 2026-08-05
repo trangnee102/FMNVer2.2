@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Latex from "react-latex-next";
 import "katex/dist/katex.min.css";
 
-const QuickTestQuestionPanel = ({ question, progress, total, timeLeft, resultMode, onAnswer, answerFeedback, onNext }) => {
+const QuickTestQuestionPanel = ({ question, progress, total, timeLeft, resultMode, onAnswer, answerFeedback, onNext, readOnly = false, hideNextButton = false }) => {
   const [selectedOption, setSelectedOption] = useState(null);
   const [textAnswer, setTextAnswer] = useState("");
 
@@ -12,7 +12,7 @@ const QuickTestQuestionPanel = ({ question, progress, total, timeLeft, resultMod
   }, [question]);
 
   const handleSelect = (opt) => {
-    if (selectedOption || answerFeedback) return;
+    if (readOnly || selectedOption || answerFeedback) return;
     setSelectedOption(opt);
     onAnswer(opt);
   };
@@ -124,7 +124,7 @@ const QuickTestQuestionPanel = ({ question, progress, total, timeLeft, resultMod
                 </div>
                 
                 <span style={{ flex: 1, wordBreak: 'break-word', lineHeight: '1.4' }}>
-                  {renderMath(opt.replace(/^[A-D]\.\s*/i, ''))}
+                  {renderMath(opt.replace(/^[A-Za-z][.)]\s*/, ''))}
                 </span>
 
                 {answerFeedback && resultMode === "SHOW_NOW" && selectedOption === opt && (
@@ -210,30 +210,32 @@ const QuickTestQuestionPanel = ({ question, progress, total, timeLeft, resultMod
              </div>
            )}
 
-           <div style={{ textAlign: 'center' }}>
-             <button
-               onClick={onNext}
-               style={{
-                 padding: '16px 45px',
-                 background: '#4f46e5',
-                 color: 'white',
-                 border: 'none',
-                 borderRadius: '14px',
-                 fontSize: '1.2rem',
-                 fontWeight: '800',
-                 cursor: 'pointer',
-                 boxShadow: '0 6px 20px rgba(79, 70, 229, 0.3)',
-                 transition: 'all 0.2s ease',
-                 display: 'inline-flex',
-                 alignItems: 'center',
-                 gap: '10px'
-               }}
-               onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-               onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-             >
-               {progress < total ? "Câu tiếp theo" : "Hoàn thành"} <i className="fa-solid fa-arrow-right"></i>
-             </button>
-           </div>
+           {!hideNextButton && (
+             <div style={{ textAlign: 'center' }}>
+               <button
+                 onClick={onNext}
+                 style={{
+                   padding: '16px 45px',
+                   background: '#4f46e5',
+                   color: 'white',
+                   border: 'none',
+                   borderRadius: '14px',
+                   fontSize: '1.2rem',
+                   fontWeight: '800',
+                   cursor: 'pointer',
+                   boxShadow: '0 6px 20px rgba(79, 70, 229, 0.3)',
+                   transition: 'all 0.2s ease',
+                   display: 'inline-flex',
+                   alignItems: 'center',
+                   gap: '10px'
+                 }}
+                 onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                 onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+               >
+                 {progress < total ? "Câu tiếp theo" : "Hoàn thành"} <i className="fa-solid fa-arrow-right"></i>
+               </button>
+             </div>
+           )}
         </div>
       )}
     </div>

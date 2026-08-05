@@ -1,10 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { BarChart, Bar, Cell, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LabelList } from "recharts";
 import QuickTestLeaderboardCard from "./QuickTestLeaderboardCard";
 import QuickTestQuestionPanel from "./QuickTestQuestionPanel";
 import { useQuickTestSocket } from "../../../hooks/useQuickTestSocket";
 import api, { quickTestAPI } from "../../../services/api";
 import Sidebar from "../../Layout/Sidebar";
+import {
+  buildQuestionPool,
+  hydrateQuestionsFromOrder,
+  getStoredQuestionOrder,
+  storeQuestionOrder,
+  getStoredIdentity,
+  storeIdentity,
+  isValidParticipantName,
+} from "./quickTestQuestionUtils";
 
 // 👉 ĐÃ FIX: Cập nhật đường dẫn vào đúng thư mục Dashboard mới của bạn
 import "../../../pages/Dashboard/DashboardPage.css";
@@ -15,37 +25,29 @@ const DEFAULT_SETTINGS = {
   randomQuestions: true,
   randomAnswers: true,
   totalTime: 600,
-  questionTime: 25,
-  difficulty: "MEDIUM",
+  questionTimeLimit: 25,
+  difficulty: "ALL",
   resultMode: "SHOW_NOW",
-};
-
-const shuffleArray = (array) => {
-  const result = [...array];
-  for (let i = result.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [result[i], result[j]] = [result[j], result[i]];
-  }
-  return result;
-};
-
-const parseOptions = (raw) => {
-  if (!raw) return [];
-  if (Array.isArray(raw)) return raw;
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed;
-    return [String(parsed)];
-  } catch {
-    return String(raw)
-      .split(/[|,;\n]+/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
+  pacingMode: "SELF_PACED",
 };
 
 const formatDeckCount = (deck) => {
   return deck?.totalCards || deck?._count?.Flashcards || deck?.cards?.length || deck?.cardCount || deck?.questions?.length || 0;
+};
+
+// 👉 Backend không có field "difficulty" trên deck, chỉ có easyCount/mediumCount/hardCount
+// (xem deckController.getMyDecks) — tự suy ra nhãn độ khó thật từ 3 số đếm này
+const getDeckDifficultyLabel = (deck) => {
+  const easy = deck?.easyCount || 0;
+  const medium = deck?.mediumCount || 0;
+  const hard = deck?.hardCount || 0;
+  const nonZeroLevels = [easy, medium, hard].filter((count) => count > 0).length;
+
+  if (nonZeroLevels === 0) return "Chưa có câu hỏi";
+  if (nonZeroLevels > 1) return "Mixed";
+  if (hard > 0) return "Khó";
+  if (medium > 0) return "Trung bình";
+  return "Dễ";
 };
 
 const QuickTestModalManager = ({ 
@@ -78,6 +80,7 @@ const QuickTestModalManager = ({
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [hostActuallyStarted, setHostActuallyStarted] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
+  const [participantId, setParticipantId] = useState(null);
   const inputRef = useRef(null);
   const startTimeRef = useRef(null);
 
@@ -90,19 +93,52 @@ const QuickTestModalManager = ({
     questions,
     totalTime,
     resultMode,
+    pacingMode,
+    syncQuestionIndex,
+    questionStartedAt,
+    isRevealed,
+    questionStats,
     joinRoom,
     startTest,
     submitAnswer,
     endTest,
     syncParticipants,
-    syncRoomStatus
+    syncRoomStatus,
+    advanceQuestion,
+    revealQuestion
   } = useQuickTestSocket();
+
+  // 👉 Nguồn sự thật cho việc phòng đang chạy chế độ Đồng bộ hay Tự do là state của hook
+  // (đã được đồng bộ qua socket lúc joinRoom), không phải settings cục bộ — vì học sinh
+  // không tự cấu hình settings, chỉ giáo viên mới có settings "sống" trước khi tạo phòng.
+  const isSync = pacingMode === "SYNC";
 
   const currentQuestions = questions?.length > 0 ? questions : roomQuestions;
   const currentQuestion = currentQuestions?.[currentQuestionIndex] || null;
   const studentCount = participants.filter((item) => item.userRole === "STUDENT").length;
   const selectedDeck = useMemo(() => decks.find((item) => item.id === Number(selectedDeckId)) || null, [decks, selectedDeckId]);
   const actualTotalTime = totalTime > 0 ? totalTime : (settings.totalTime > 0 ? settings.totalTime : 600);
+
+  // 👉 Dữ liệu biểu đồ phân bố lựa chọn cho màn hình "Công bố đáp án" của giáo viên (chế độ Đồng bộ)
+  const answerDistributionChartData = useMemo(() => {
+    if (!isRevealed || !questionStats) return [];
+    const correctRaw = String(
+      currentQuestion?.correctAnswer || currentQuestion?.answer || currentQuestion?.correctAnswers || ""
+    ).trim().toLowerCase();
+    return Object.entries(questionStats.distribution).map(([answer, count]) => ({
+      answer: answer.length > 24 ? `${answer.slice(0, 24)}…` : answer,
+      count,
+      fill: String(answer).trim().toLowerCase() === correctRaw ? "#10b981" : "#94a3b8",
+    }));
+  }, [isRevealed, questionStats, currentQuestion]);
+
+  // 👉 Đồng hồ đếm ngược THAM KHẢO cho giáo viên ở chế độ Đồng bộ — không tự động kích hoạt gì cả
+  const [hostTickNow, setHostTickNow] = useState(Date.now());
+  useEffect(() => {
+    if (!isSync || step !== "hostLive" || isRevealed) return undefined;
+    const timer = setInterval(() => setHostTickNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [isSync, step, isRevealed]);
 
   const getCleanTitle = (titleRaw) => {
     if (!titleRaw) return "Bài thi QuickTest";
@@ -111,8 +147,10 @@ const QuickTestModalManager = ({
 
   const selectedDeckTitle = getCleanTitle(selectedDeck?.title || selectedDeck?.name);
 
+  // 👉 Hàm dùng chung (host xem lại phòng / effect đồng bộ trạng thái) — KHÔNG áp dụng cơ chế
+  // "không trộn lại khi tải lại trang" (đó là việc riêng của handleStudentJoin, xem bên dưới),
+  // vì ở đây chỉ cần lấy đúng bộ câu hỏi hiện tại của phòng để hiển thị.
   const fetchQuestionsForRoom = async (code) => {
-    let fetchedCards = [];
     try {
       const roomRes = await quickTestAPI.getRoom(code);
       const roomData = roomRes?.data?.data || roomRes?.data || {};
@@ -124,44 +162,18 @@ const QuickTestModalManager = ({
         }
       }
 
-      if (Array.isArray(roomData.questions) && roomData.questions.length > 0) fetchedCards = roomData.questions;
-      else if (Array.isArray(roomData.Questions) && roomData.Questions.length > 0) fetchedCards = roomData.Questions;
-      else if (Array.isArray(roomData.exam?.Flashcards) && roomData.exam.Flashcards.length > 0) fetchedCards = roomData.exam.Flashcards;
-      else if (Array.isArray(roomData.Exam?.Flashcards) && roomData.Exam.Flashcards.length > 0) fetchedCards = roomData.Exam.Flashcards;
-      else if (Array.isArray(roomData.exam?.cards) && roomData.exam.cards.length > 0) fetchedCards = roomData.exam.cards;
-      else if (Array.isArray(roomData.Exam?.cards) && roomData.Exam.cards.length > 0) fetchedCards = roomData.Exam.cards;
-      else if (Array.isArray(roomData.exam?.questions) && roomData.exam.questions.length > 0) fetchedCards = roomData.exam.questions;
-      else if (Array.isArray(roomData.Exam?.questions) && roomData.Exam.questions.length > 0) fetchedCards = roomData.Exam.questions;
-    } catch (e) {}
-
-    if (fetchedCards.length === 0) {
-      try {
-        const qRes = await api.get(`/quicktest/rooms/${code}/questions`);
-        const qData = qRes?.data?.data || qRes?.data || [];
-        if (Array.isArray(qData) && qData.length > 0) {
-          fetchedCards = qData;
-        }
-      } catch (e) {}
-    }
-
-    if (fetchedCards.length > 0) {
-      const prepared = fetchedCards.map((card) => {
-        const options = parseOptions(card.options || card.Options || card.choices || []);
-        return {
-          id: card.id,
-          text: card.question || card.front_content || card.prompt || "",
-          options: options.length > 0 ? shuffleArray(options) : options,
-          correctAnswers: card.correct_answers || card.correctAnswer || card.answer || "",
-          correctAnswer: card.correct_answers || card.correctAnswer || card.answer || "",
-          answer: card.answer || card.correct_answers || "",
-          type: card.question_type || card.QuestionType || "SINGLE_CHOICE",
-          explanation: card.explanation || card.Explanation || card.note || card.reason || ""
-        };
-      });
+      const flashcards = roomData.Exam?.Flashcards || roomData.exam?.Flashcards || [];
+      const prepared = hydrateQuestionsFromOrder(
+        flashcards,
+        roomData.questionOrder,
+        { randomAnswers: roomData.randomAnswers ?? true },
+        { shuffleOrder: roomData.pacingMode !== "SYNC" },
+      );
       setRoomQuestions(prepared);
-      return prepared;
+      return { prepared, roomData };
+    } catch (e) {
+      return { prepared: [], roomData: null };
     }
-    return [];
   };
 
   useEffect(() => {
@@ -202,13 +214,56 @@ const QuickTestModalManager = ({
     fetchDecks();
   }, [open, role, decks.length]);
 
+  // 👉 Vá lỗi trắng màn hình khi vào thẳng URL /quicktest/host/:roomCode: tải lại đúng
+  // trạng thái phòng (cấu hình + câu hỏi + step thật) thay vì để "hostLobby" treo mãi
+  useEffect(() => {
+    if (!open || initialStep !== "hostLobby" || !roomCode) return undefined;
+    let cancelled = false;
+    (async () => {
+      setRoomLoading(true);
+      setRoomError("");
+      try {
+        const res = await quickTestAPI.getRoom(roomCode);
+        const room = res?.data?.data || res?.data;
+        if (!room || cancelled) return;
+
+        setRole("TEACHER");
+        setSelectedDeckId(room.examId || "");
+        setSettings((prev) => ({
+          ...prev,
+          totalTime: room.duration || prev.totalTime,
+          questionCount: room.questionCount || prev.questionCount,
+          difficulty: room.difficulty || prev.difficulty,
+          randomQuestions: room.randomQuestions ?? prev.randomQuestions,
+          randomAnswers: room.randomAnswers ?? prev.randomAnswers,
+          resultMode: room.resultMode || prev.resultMode,
+          pacingMode: room.pacingMode || prev.pacingMode,
+          questionTimeLimit: room.questionTimeLimit || prev.questionTimeLimit,
+        }));
+
+        const { prepared } = await fetchQuestionsForRoom(roomCode);
+        setRoomCreated(true);
+        joinRoom(roomCode, "HOST", "Giáo Viên", { ...room, totalTime: room.duration }, prepared);
+
+        if (room.status === "FINISHED") setStep("result");
+        else if (room.status === "IN_PROGRESS") setStep("hostLive");
+        else setStep("hostStep4_waiting");
+      } catch (err) {
+        if (!cancelled) setRoomError("Không thể tải lại phòng. Vui lòng kiểm tra lại mã phòng.");
+      } finally {
+        if (!cancelled) setRoomLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, initialStep, roomCode]);
+
   useEffect(() => {
     let isMounted = true;
     if (role === "STUDENT" && isStarted) {
       if (currentQuestions.length > 0) {
         setHostActuallyStarted(true);
       } else {
-        fetchQuestionsForRoom(roomCode).then(prepared => {
+        fetchQuestionsForRoom(roomCode).then(({ prepared }) => {
           if (isMounted && prepared.length > 0) {
             setHostActuallyStarted(true);
           }
@@ -239,6 +294,14 @@ const QuickTestModalManager = ({
   useEffect(() => {
     setQuestionStartTime(Date.now());
   }, [currentQuestionIndex]);
+
+  // 👉 Chế độ Đồng bộ: câu hỏi hiện tại do giáo viên điều khiển qua socket, không tự tăng nữa
+  useEffect(() => {
+    if (isSync && syncQuestionIndex != null) {
+      setCurrentQuestionIndex(syncQuestionIndex);
+      setAnswerFeedback(null);
+    }
+  }, [isSync, syncQuestionIndex]);
 
   useEffect(() => {
     if (role === "TEACHER") {
@@ -321,33 +384,6 @@ const QuickTestModalManager = ({
     setRoomError("");
   };
 
-  const loadQuestionsForDeck = (cards) => {
-    const filtered = (cards || []).filter((card) => {
-      if (settings.difficulty !== "ALL" && card.difficulty) {
-        if (String(card.difficulty).toUpperCase() !== settings.difficulty) {
-          return false;
-        }
-      }
-      return true;
-    });
-
-    const prepared = filtered.map((card) => {
-      const options = parseOptions(card.options || card.Options || card.choices || []);
-      return {
-        id: card.id,
-        text: card.question || card.front_content || card.prompt || "",
-        options: settings.randomAnswers && options.length > 0 ? shuffleArray(options) : options,
-        correctAnswers: card.correct_answers || card.correctAnswer || card.answer || "",
-        correctAnswer: card.correct_answers || card.correctAnswer || card.answer || "",
-        answer: card.answer || card.correct_answers || "",
-        type: card.question_type || card.QuestionType || "SINGLE_CHOICE",
-      };
-    });
-
-    const selected = settings.randomQuestions ? shuffleArray(prepared) : prepared;
-    return selected.slice(0, Math.max(1, Number(settings.questionCount) || 1));
-  };
-
   const handleSelectRole = (selectedRole) => {
     setRole(selectedRole);
     setRoomError("");
@@ -384,17 +420,59 @@ const QuickTestModalManager = ({
     event?.preventDefault();
     const normalizedCode = roomCode.trim().toUpperCase();
     const normalizedName = participantName.trim();
-    if (!normalizedName) {
-      setJoinError("Vui lòng nhập tên của bạn.");
+    if (!isValidParticipantName(normalizedName)) {
+      setJoinError("Tên phải có ít nhất 2 ký tự và không được chỉ chứa ký hiệu.");
       return;
     }
 
     setJoinLoading(true);
     setJoinError("");
     try {
-      await fetchQuestionsForRoom(normalizedCode);
-      await quickTestAPI.joinRoom(normalizedCode, normalizedName);
-      joinRoom(normalizedCode, "STUDENT", normalizedName);
+      const roomRes = await quickTestAPI.getRoom(normalizedCode);
+      const roomData = roomRes?.data?.data || roomRes?.data || {};
+      const flashcards = roomData.Exam?.Flashcards || roomData.exam?.Flashcards || [];
+      const isRoomSync = roomData.pacingMode === "SYNC";
+
+      if (roomData.duration) {
+        const dt = parseInt(roomData.duration, 10);
+        if (!isNaN(dt) && dt > 0) setSettings((prev) => ({ ...prev, totalTime: dt }));
+      }
+
+      // 👉 Chế độ Tự do: mỗi học sinh trộn 1 bản thứ tự riêng, và không trộn lại nếu
+      // đã từng tham gia phòng này trước đó (tải lại trang không được "chọn lại" thứ tự dễ hơn)
+      let questionOrderForMe = roomData.questionOrder;
+      let shouldShuffle = !isRoomSync;
+      if (!isRoomSync) {
+        const cachedOrder = getStoredQuestionOrder(normalizedCode);
+        if (cachedOrder) {
+          questionOrderForMe = cachedOrder;
+          shouldShuffle = false;
+        }
+      }
+
+      const prepared = hydrateQuestionsFromOrder(
+        flashcards,
+        questionOrderForMe,
+        { randomAnswers: roomData.randomAnswers ?? true },
+        { shuffleOrder: shouldShuffle },
+      );
+
+      if (!isRoomSync && !getStoredQuestionOrder(normalizedCode)) {
+        storeQuestionOrder(normalizedCode, prepared.map((q) => q.id));
+      }
+      setRoomQuestions(prepared);
+
+      // 👉 Giữ nguyên danh tính nếu đã từng vào phòng này (tránh tạo participant mới, mất điểm cũ)
+      const cachedIdentity = getStoredIdentity(normalizedCode);
+      let myParticipantId = cachedIdentity?.participantId || null;
+      if (!myParticipantId) {
+        const joinRes = await quickTestAPI.joinRoom(normalizedCode, normalizedName);
+        myParticipantId = joinRes?.data?.data?.id || null;
+        storeIdentity(normalizedCode, { participantId: myParticipantId, participantName: normalizedName });
+      }
+      setParticipantId(myParticipantId);
+
+      joinRoom(normalizedCode, "STUDENT", normalizedName, { pacingMode: roomData.pacingMode });
       setRoomCode(normalizedCode);
       setHasJoined(true);
       setStep("waiting");
@@ -417,16 +495,27 @@ const QuickTestModalManager = ({
     try {
       const deckResponse = await quickTestAPI.getDeckQuestions(selectedDeckId);
       const cards = deckResponse?.data || deckResponse || [];
-      const selectedQuestions = loadQuestionsForDeck(Array.isArray(cards) ? cards : []);
+      const selectedQuestions = buildQuestionPool(Array.isArray(cards) ? cards : [], settings);
 
       if (selectedQuestions.length === 0) {
         throw new Error("Không có câu hỏi hợp lệ trong bộ đề đã chọn.");
       }
 
+      // 👉 Chốt thứ tự câu hỏi lúc tạo phòng — nguồn sự thật duy nhất cho chế độ Đồng bộ,
+      // và là "hồ câu hỏi gốc" để mỗi học sinh tự trộn riêng ở chế độ Tự do (xem handleStudentJoin)
+      const questionOrder = selectedQuestions.map((q) => q.id);
       const payload = {
         examId: selectedDeckId,
         title: selectedDeckTitle,
-        duration: settings.totalTime
+        duration: settings.totalTime,
+        questionCount: settings.questionCount,
+        difficulty: settings.difficulty,
+        randomQuestions: settings.randomQuestions,
+        randomAnswers: settings.randomAnswers,
+        resultMode: settings.resultMode,
+        pacingMode: settings.pacingMode,
+        questionTimeLimit: settings.questionTimeLimit,
+        questionOrder,
       };
 
       let response;
@@ -444,7 +533,7 @@ const QuickTestModalManager = ({
       setRoomCode(code);
       setRoomQuestions(selectedQuestions);
       setRoomCreated(true);
-      joinRoom(code, "HOST", "Giáo Viên", { ...settings, resultMode: settings.resultMode }, selectedQuestions);
+      joinRoom(code, "HOST", "Giáo Viên", { ...settings }, selectedQuestions);
     } catch (err) {
       const backendMessage = err?.message || err?.data?.message || err?.response?.data?.message;
       setRoomError(backendMessage || "Không thể tạo phòng QuickTest.");
@@ -459,6 +548,10 @@ const QuickTestModalManager = ({
       await api.put(`/quicktest/rooms/${roomCode}/start`);
     } catch (e) {}
     startTest(roomCode, settings.totalTime, roomQuestions);
+    // 👉 Chế độ Đồng bộ: phát câu hỏi đầu tiên (index 0) cho cả phòng ngay khi bắt đầu
+    if (settings.pacingMode === "SYNC") {
+      advanceQuestion(roomCode, 0);
+    }
   };
 
   const handleEndHost = async () => {
@@ -469,21 +562,23 @@ const QuickTestModalManager = ({
     endTest(roomCode);
   };
 
-  const handleStudentAnswer = (answer) => {
+  const handleStudentAnswer = async (answer) => {
     if (!currentQuestion) return;
     const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
-    submitAnswer({
+    // 👉 Dùng đúng kết quả chấm điểm thật từ server (gradeAnswer), không tự đoán lại ở client nữa
+    const { isCorrect } = await submitAnswer({
       roomCode,
+      participantId,
+      studentName: participantName,
       questionId: currentQuestion.id,
       selectedAnswer: answer,
       answerTime: timeTaken > 0 ? timeTaken : 1,
     });
 
-    const isCorrect = currentQuestion.correctAnswers
-      ? String(answer).trim().toLowerCase() === String(currentQuestion.correctAnswer || currentQuestion.answer || currentQuestion.correctAnswers).trim().toLowerCase()
-      : false;
-
-    if (resultMode === "SHOW_NOW") {
+    if (isSync) {
+      // Chế độ Đồng bộ: không tự chuyển câu, không lộ đúng/sai ngay — chờ giáo viên công bố
+      setAnswerFeedback({ isCorrect, answer, waitingForHost: true });
+    } else if (resultMode === "SHOW_NOW") {
       setAnswerFeedback({ isCorrect, answer });
     } else {
       setCurrentQuestionIndex((prev) => prev + 1);
@@ -506,6 +601,16 @@ const QuickTestModalManager = ({
   };
 
   const renderModalContent = () => {
+    if (step === "hostLobby") {
+      return (
+        <div className="quicktest-modal-card" style={{ marginTop: '60px', textAlign: 'center', padding: '60px' }}>
+          <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '3rem', color: '#4f46e5' }}></i>
+          <p style={{ marginTop: '20px', color: '#64748b' }}>Đang tải lại phòng của bạn...</p>
+          {roomError && <div className="quicktest-inline-error" style={{ marginTop: '16px' }}>{roomError}</div>}
+        </div>
+      );
+    }
+
     if (step === "role") {
       return (
         <div className="quicktest-modal-card quicktest-role-card" style={{ marginTop: '40px', position: 'relative' }}>
@@ -592,7 +697,7 @@ const QuickTestModalManager = ({
               />
             </label>
             {joinError && <div className="quicktest-inline-error">{joinError}</div>}
-            <button type="submit" className="quicktest-primary-btn" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }} disabled={joinLoading || !participantName}>
+            <button type="submit" className="quicktest-primary-btn" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }} disabled={joinLoading || !isValidParticipantName(participantName)}>
               {joinLoading ? "⏳ Đang tham gia..." : "Vào Phòng Ngay"}
             </button>
           </form>
@@ -639,7 +744,7 @@ const QuickTestModalManager = ({
                     <h3 style={{ margin: '0 0 8px 0', color: '#0f172a', fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {cleanTitle}
                     </h3>
-                    <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>{formatDeckCount(deck)} Questions • {deck.difficulty || "Mixed"}</p>
+                    <p style={{ margin: 0, color: '#64748b', fontSize: '0.95rem' }}>{formatDeckCount(deck)} Questions • {getDeckDifficultyLabel(deck)}</p>
                   </div>
                 );
               })
@@ -666,6 +771,24 @@ const QuickTestModalManager = ({
           </div>
           <div className="quicktest-host-panel" style={{ padding: '30px' }}>
             <div className="quicktest-grid-2">
+              <label className="quicktest-input-group">
+                <span>Nhịp độ thi</span>
+                <select value={settings.pacingMode} onChange={(e) => setSettings({ ...settings, pacingMode: e.target.value })}>
+                  <option value="SELF_PACED">Tự do (mỗi học sinh làm theo tốc độ riêng)</option>
+                  <option value="SYNC">Đồng bộ (cả lớp cùng 1 câu, GV điều khiển)</option>
+                </select>
+              </label>
+              <label className="quicktest-input-group">
+                <span>Thời gian mỗi câu (giây, tham khảo)</span>
+                <input
+                  type="number"
+                  min="5"
+                  value={settings.questionTimeLimit}
+                  onChange={(e) => setSettings({ ...settings, questionTimeLimit: Math.max(5, Number(e.target.value) || 5) })}
+                />
+              </label>
+            </div>
+            <div className="quicktest-grid-2" style={{ marginTop: '20px' }}>
               <label className="quicktest-input-group">
                 <span>Số lượng câu hỏi (Tối đa {maxQuestions})</span>
                 <input 
@@ -697,11 +820,20 @@ const QuickTestModalManager = ({
                 </select>
               </label>
               <label className="quicktest-input-group">
-                <span>Chế độ hiển thị</span>
-                <select value={settings.resultMode} onChange={(e) => setSettings({ ...settings, resultMode: e.target.value })}>
+                <span>Chế độ hiển thị {settings.pacingMode === "SYNC" && <em style={{ fontStyle: 'normal', color: '#94a3b8', fontWeight: 400 }}>(không áp dụng ở chế độ Đồng bộ)</em>}</span>
+                <select
+                  value={settings.resultMode}
+                  disabled={settings.pacingMode === "SYNC"}
+                  onChange={(e) => setSettings({ ...settings, resultMode: e.target.value })}
+                >
                   <option value="SHOW_NOW">Hiện đáp án ngay</option>
                   <option value="SHOW_END">Chỉ hiện cuối bài</option>
                 </select>
+                {settings.pacingMode === "SYNC" && (
+                  <span style={{ fontSize: '0.85rem', color: '#94a3b8', marginTop: '6px', display: 'block' }}>
+                    Ở chế độ Đồng bộ, việc công bố đáp án hoàn toàn do giáo viên chủ động bấm.
+                  </span>
+                )}
               </label>
             </div>
             <div className="quicktest-toggle-stack" style={{ marginTop: '30px', flexDirection: 'row', gap: '30px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
@@ -736,6 +868,7 @@ const QuickTestModalManager = ({
           <div className="quicktest-host-panel quicktest-host-side-panel" style={{ padding: '32px' }}>
             <h3 style={{ fontSize: '1.6rem', color: '#1e40af', marginBottom: '20px', marginTop: 0 }}>{selectedDeckTitle}</h3>
             <ul className="quicktest-info-list" style={{ fontSize: '1.15rem', lineHeight: '2.2', paddingLeft: 0, listStyle: 'none' }}>
+              <li style={{ borderBottom: '1px solid #c7d2fe', display: 'flex', justifyContent: 'space-between' }}><strong>Nhịp độ thi:</strong> <span>{settings.pacingMode === "SYNC" ? "Đồng bộ (GV điều khiển)" : "Tự do"}</span></li>
               <li style={{ borderBottom: '1px solid #c7d2fe', display: 'flex', justifyContent: 'space-between' }}><strong>Số câu hỏi:</strong> <span>{settings.questionCount}</span></li>
               <li style={{ borderBottom: '1px solid #c7d2fe', display: 'flex', justifyContent: 'space-between' }}><strong>Thời gian:</strong> <span>{Math.ceil(settings.totalTime / 60)} phút</span></li>
               <li style={{ borderBottom: '1px solid #c7d2fe', display: 'flex', justifyContent: 'space-between' }}><strong>Độ khó:</strong> <span>{settings.difficulty === "ALL" ? "Tất cả" : settings.difficulty}</span></li>
@@ -830,6 +963,78 @@ const QuickTestModalManager = ({
             <h2 style={{ fontSize: '2rem', margin: '0 0 8px 0', color: '#0f172a', fontWeight: '900' }}>{selectedDeckTitle}</h2>
             <p style={{ margin: 0, color: '#64748b', fontSize: '1.1rem' }}>Giám sát tiến độ học sinh trực tiếp theo thời gian thực</p>
           </div>
+
+          {isSync && (
+            <div className="quicktest-dashboard-panel" style={{ padding: '24px', background: '#fff', borderRadius: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                <h3 style={{ fontSize: '1.2rem', margin: 0, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <i className="fa-solid fa-chalkboard-user" style={{ color: '#4f46e5' }}></i> Điều khiển Đồng bộ — Câu {currentQuestionIndex + 1}/{currentQuestions.length || 0}
+                </h3>
+                {questionStartedAt && !isRevealed && (
+                  <div style={{ background: '#f1f5f9', color: '#334155', padding: '8px 16px', borderRadius: '10px', fontWeight: '800' }}>
+                    <i className="fa-solid fa-clock"></i>{" "}
+                    {Math.max(0, (settings.questionTimeLimit || 25) - Math.floor((hostTickNow - new Date(questionStartedAt).getTime()) / 1000))}s (tham khảo)
+                  </div>
+                )}
+              </div>
+
+              {currentQuestion ? (
+                <QuickTestQuestionPanel
+                  question={currentQuestion}
+                  progress={currentQuestionIndex + 1}
+                  total={currentQuestions.length}
+                  resultMode="SHOW_END"
+                  onAnswer={() => {}}
+                  answerFeedback={null}
+                  readOnly
+                  hideNextButton
+                />
+              ) : (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#94a3b8' }}>Đã hết câu hỏi.</div>
+              )}
+
+              <div style={{ display: 'flex', gap: '16px', marginTop: '20px' }}>
+                <button
+                  className="quicktest-primary-btn"
+                  disabled={isRevealed || !currentQuestion}
+                  onClick={() => revealQuestion(roomCode, currentQuestion?.id)}
+                  style={{ opacity: (isRevealed || !currentQuestion) ? 0.5 : 1 }}
+                >
+                  📊 Công bố đáp án &amp; thống kê
+                </button>
+                <button
+                  className="quicktest-secondary-btn"
+                  disabled={!isRevealed || currentQuestionIndex + 1 >= currentQuestions.length}
+                  onClick={() => advanceQuestion(roomCode, currentQuestionIndex + 1)}
+                  style={{ opacity: (!isRevealed || currentQuestionIndex + 1 >= currentQuestions.length) ? 0.5 : 1 }}
+                >
+                  Câu tiếp theo →
+                </button>
+              </div>
+
+              {isRevealed && questionStats && (
+                <div style={{ marginTop: '24px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+                  <p style={{ margin: '0 0 12px 0', color: '#334155', fontWeight: '700' }}>
+                    Đã trả lời: {questionStats.totalAnswered} · Đúng: {questionStats.correctCount} · Sai: {questionStats.wrongCount}
+                  </p>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={answerDistributionChartData}>
+                      <CartesianGrid vertical={false} stroke="#e2e8f0" strokeDasharray="4 4" />
+                      <XAxis dataKey="answer" tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                      <Tooltip />
+                      <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                        <LabelList dataKey="count" position="top" style={{ fill: "#334155", fontWeight: 700 }} />
+                        {answerDistributionChartData.map((entry, idx) => (
+                          <Cell key={idx} fill={entry.fill} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -990,16 +1195,23 @@ const QuickTestModalManager = ({
           </div>
 
           <div style={{ padding: '40px' }}>
-            {currentQuestion ? (
+            {isSync && answerFeedback?.waitingForHost && !isRevealed ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
+                <i className="fa-solid fa-hourglass-half" style={{ fontSize: '3rem', color: '#4f46e5', marginBottom: '20px' }}></i>
+                <h2 style={{ fontSize: '1.6rem', color: '#1e293b', marginBottom: '10px' }}>Đã gửi câu trả lời!</h2>
+                <p style={{ fontSize: '1.1rem', color: '#64748b' }}>Chờ giáo viên công bố đáp án nhé...</p>
+              </div>
+            ) : currentQuestion ? (
               <QuickTestQuestionPanel
                 question={currentQuestion}
                 progress={currentQuestionIndex + 1}
                 total={currentQuestions.length}
                 timeLeft={remainingSeconds}
-                resultMode={resultMode}
+                resultMode={isSync ? "SHOW_NOW" : resultMode}
                 onAnswer={handleStudentAnswer}
-                answerFeedback={answerFeedback}
+                answerFeedback={isSync ? (isRevealed ? answerFeedback : null) : answerFeedback}
                 onNext={handleNextQuestion}
+                hideNextButton={isSync}
               />
             ) : (
               <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' }}>
