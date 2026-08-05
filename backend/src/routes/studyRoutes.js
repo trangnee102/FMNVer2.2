@@ -31,6 +31,7 @@ router.post("/review", reviewCard);
 router.get("/exam/:deckId/random", generateRandomExam);
 
 // Cổng nộp kết quả bài thi trắc nghiệm (Tự động chấm điểm & đồng bộ SM-2)
-router.post("/exam/submit", submitExamResults);
+// 👉 FIX: Frontend gọi kèm deckId trên URL (/study/exam/:deckId/submit), route cũ thiếu :deckId nên luôn 404
+router.post("/exam/:deckId/submit", submitExamResults);
 
 module.exports = router;

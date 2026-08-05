@@ -133,9 +133,9 @@ const StatisticsPage = ({ onNavigate }) => {
   const dueFcCards = Math.max(0, totalFcCards - learnedFcCards);
   const fcProgress = totalFcCards > 0 ? Math.round((learnedFcCards / totalFcCards) * 100) : 0;
 
-  // 🌟 Đếm Đề Thi Đã Làm: Chỉ tính những đề có score khác null
+  // 🌟 Đếm Đề Thi Đã Làm: tính cả Ôn Luyện lẫn Kiểm Tra (không cần biết điểm số)
   const totalExams = examDecks.length;
-  const examsDone = examDecks.filter((d) => d.score !== null && d.score !== undefined).length;
+  const examsDone = examDecks.filter((d) => d.attempted).length;
   const examsDue = Math.max(0, totalExams - examsDone);
   const examProgress = totalExams > 0 ? Math.round((examsDone / totalExams) * 100) : 0;
 
@@ -452,7 +452,17 @@ const StatisticsPage = ({ onNavigate }) => {
                               <div className="item-name">
                                 {exam.name?.replace(/\(ai generated\)/i, "").trim() || "Đề thi"}
                               </div>
-                              <div className="item-time">Tổng số: {exam.total || 0} câu</div>
+                              <div className="item-time">
+                                Tổng số: {exam.total || 0} câu
+                                {exam.correct !== null && exam.correct !== undefined && (
+                                  <>
+                                    {" · "}
+                                    <span className="text-green">Đúng {exam.correct}</span>
+                                    {" · "}
+                                    <span className="text-red">Sai {exam.wrong}</span>
+                                  </>
+                                )}
+                              </div>
                             </div>
                             <div className="item-score-action">
                               <span className="score-text text-green">

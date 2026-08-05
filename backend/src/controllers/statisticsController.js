@@ -194,17 +194,29 @@ const getStatistics = async (req, res) => {
 
         let score = null;
         let updatedAt = null;
+        let examCorrect = null;
+        let examWrong = null;
+        let examTotal = null;
+        let attempted = false;
 
-        // 🌟 TÍNH ĐIỂM CHÍNH XÁC 100% CHO ĐỀ THI TỪ LỊCH SỬ LOG
+        // 🌟 TÍNH ĐIỂM CHO ĐỀ THI TỪ LỊCH SỬ LOG — CHỈ TÍNH LOG Ở CHẾ ĐỘ "KIỂM TRA"
+        // (is_exam_mode: true), để không lẫn với các log của chế độ "Ôn Luyện"
         if (deck.is_exam) {
-          const latestLog = await prisma.studyLogs.findFirst({
+          // 👉 "Đã làm" (attempted) tính cả Ôn Luyện lẫn Kiểm Tra — không cần biết điểm số
+          const anyLog = await prisma.studyLogs.findFirst({
             where: { user_id: parseInt(userId), deck_id: deck.id },
+            select: { id: true },
+          });
+          attempted = !!anyLog;
+
+          const latestLog = await prisma.studyLogs.findFirst({
+            where: { user_id: parseInt(userId), deck_id: deck.id, is_exam_mode: true },
             orderBy: { reviewed_at: 'desc' }
           });
 
           if (latestLog) {
             updatedAt = latestLog.reviewed_at;
-            // Thuật toán: Gom nhóm các câu trả lời trong khoảng 2 phút của lần nộp cuối
+            // Gom nhóm các câu trả lời trong khoảng 2 phút quanh lần nộp cuối = 1 lượt thi
             const startTime = new Date(updatedAt.getTime() - 120000);
             const endTime = new Date(updatedAt.getTime() + 120000);
 
@@ -212,21 +224,27 @@ const getStatistics = async (req, res) => {
                 where: {
                     user_id: parseInt(userId),
                     deck_id: deck.id,
+                    is_exam_mode: true,
                     reviewed_at: { gte: startTime, lte: endTime }
                 }
             });
 
-            // Chỉ công nhận là thi thực sự nếu nộp nhiều câu cùng lúc
-            if (attemptCount > 1 || totalCards <= 1) {
+            if (attemptCount > 0) {
                 const correctCount = await prisma.studyLogs.count({
                     where: {
                         user_id: parseInt(userId),
                         deck_id: deck.id,
+                        is_exam_mode: true,
                         rating: { gte: 3 }, // 3 là đúng
                         reviewed_at: { gte: startTime, lte: endTime }
                     }
                 });
-                score = totalCards > 0 ? (correctCount / totalCards) * 10 : 0;
+                // 👉 Tính theo SỐ CÂU THỰC TẾ ĐÃ THI (attemptCount), không tính theo tổng số thẻ
+                // trong cả bộ đề — vì 1 lượt thi có thể chỉ lấy 1 phần câu hỏi trong bộ đề đó
+                examTotal = attemptCount;
+                examCorrect = correctCount;
+                examWrong = attemptCount - correctCount;
+                score = Math.round((correctCount / attemptCount) * 10 * 10) / 10;
             }
           }
         }
@@ -237,9 +255,12 @@ const getStatistics = async (req, res) => {
           is_exam: deck.is_exam || false,
           isExam: deck.is_exam || false,
           learned: learnedCount,
-          total: totalCards,
+          total: examTotal !== null ? examTotal : totalCards,
           percent: totalCards > 0 ? Math.round((learnedCount / totalCards) * 100) : 0,
           score: score, // Trả về null nếu chưa làm ở chế độ Kiểm tra
+          correct: examCorrect,
+          wrong: examWrong,
+          attempted: attempted, // true nếu đã đụng vào đề (kể cả Ôn Luyện), không cần điểm
           updated_at: updatedAt,
           last_studied: updatedAt
         };
