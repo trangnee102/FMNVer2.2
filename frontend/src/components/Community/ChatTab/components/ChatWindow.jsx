@@ -31,7 +31,7 @@ const ChatWindow = ({ logic }) => {
     handleFileChange,
     handleSendMessage,
 
-    // 👉 ĐÃ THÊM: Các state và hàm quản lý sự kiện "Đang gõ..."
+    // Các state và hàm quản lý sự kiện "Đang gõ..."
     typingUsers,
     handleTyping,
 
@@ -47,7 +47,7 @@ const ChatWindow = ({ logic }) => {
     handleClearHistory,
   } = logic;
 
-  // 👉 HÀM PHỤ TRỢ: Kiểm tra xem 2 ngày có cùng nhau không
+  // HÀM PHỤ TRỢ: Kiểm tra xem 2 ngày có cùng nhau không
   const isSameDay = (date1, date2) => {
     if (!date1 || !date2) return false;
     const d1 = new Date(date1);
@@ -59,7 +59,7 @@ const ChatWindow = ({ logic }) => {
     );
   };
 
-  // 👉 HÀM PHỤ TRỢ: Định dạng ngày hiển thị (VD: "Hôm nay", "T3 21/07/2026")
+  // HÀM PHỤ TRỢ: Định dạng ngày hiển thị (VD: "Hôm nay", "T3 21/07/2026")
   const formatDateDivider = (dateString) => {
     const msgDate = new Date(dateString);
     const today = new Date();
@@ -90,15 +90,38 @@ const ChatWindow = ({ logic }) => {
     if (handleTyping) handleTyping(); // Báo cáo cho hệ thống là đang gõ
   };
 
+  // 👉 ĐÃ FIX: Khung chờ (Empty State) được bọc đầy đủ flex wrapper để lấp đầy toàn bộ diện tích bên phải
   if (!selectedChat) {
     return (
-      <div className="chat-main">
-        <div className="empty-chat-state">
-          <div className="empty-icon">
-            <i className="fa-regular fa-comments"></i>
+      <div className="chat-main-wrapper" style={{ display: "flex", flex: 1, height: "100%", overflow: "hidden", background: "#fff" }}>
+        <div style={{
+          flex: 1,
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "#ffffff",
+          borderLeft: "1px solid #f1f5f9"
+        }}>
+          <div style={{
+            width: "90px",
+            height: "90px",
+            backgroundColor: "#eff6ff",
+            borderRadius: "50%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: "20px",
+            border: "1px solid #dbeafe"
+          }}>
+            <i className="fa-solid fa-comments" style={{ fontSize: "3rem", color: "#3b82f6" }}></i>
           </div>
-          <h3>Bắt đầu cuộc trò chuyện</h3>
-          <p>
+          <h2 style={{ fontSize: "1.5rem", fontWeight: "700", color: "#1e293b", marginBottom: "10px", marginTop: "0", letterSpacing: "-0.025em" }}>
+            Bắt đầu cuộc trò chuyện
+          </h2>
+          <p style={{ color: "#64748b", textAlign: "center", maxWidth: "320px", fontSize: "0.9rem", lineHeight: "1.5", margin: "0" }}>
             Chọn một người bạn hoặc nhóm từ danh sách bên trái để kết nối nhé!
           </p>
         </div>
@@ -107,8 +130,8 @@ const ChatWindow = ({ logic }) => {
   }
 
   return (
-    <div className="chat-main-wrapper">
-      <div className="chat-conversation-area">
+    <div className="chat-main-wrapper" style={{ display: "flex", flex: 1, height: "100%", overflow: "hidden", background: "var(--bg-card, #fff)" }}>
+      <div className="chat-conversation-area" style={{ display: "flex", flexDirection: "column", flex: 1, height: "100%", overflow: "hidden" }}>
         {selectedChat.isGroup ? (
           <div
             className="chat-header group-chat-header"
@@ -116,29 +139,43 @@ const ChatWindow = ({ logic }) => {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
+              padding: "15px 25px",
+              borderBottom: "1px solid var(--border, #e2e8f0)",
+              background: "var(--bg-card, #fff)"
             }}
           >
-            <div className="chat-header-info">
+            <div className="chat-header-info" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <div
                 className="header-avatar"
-                style={{ backgroundColor: "#8b5cf6" }}
+                style={{ 
+                  backgroundColor: "#8b5cf6", 
+                  width: "45px", 
+                  height: "45px", 
+                  borderRadius: "50%", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center", 
+                  color: "#fff", 
+                  fontSize: "1.2rem",
+                  boxShadow: "0 4px 10px rgba(139, 92, 246, 0.25)"
+                }}
               >
                 <i className="fa-solid fa-users"></i>
               </div>
               <div>
-                <h4>{selectedChat.name}</h4>
+                <h4 style={{ margin: 0, fontSize: "1.1rem", fontWeight: "700", color: "var(--text-dark, #1e293b)" }}>{selectedChat.name}</h4>
                 <p
                   className="group-meta"
                   style={{
                     margin: "2px 0 0 0",
-                    color: "#64748b",
+                    color: "var(--text-gray, #64748b)",
                     fontSize: "0.85rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "5px"
                   }}
                 >
-                  <i
-                    className="fa-solid fa-user-group"
-                    style={{ marginRight: "5px" }}
-                  ></i>
+                  <i className="fa-solid fa-user-group"></i>
                   {selectedChat.member_count || 1} thành viên
                 </p>
               </div>
@@ -149,49 +186,63 @@ const ChatWindow = ({ logic }) => {
                 className={`group-info-toggle-btn ${showGroupInfo ? "active" : ""}`}
                 onClick={() => setShowGroupInfo(!showGroupInfo)}
                 title="Thông tin nhóm"
+                style={{ background: "transparent", border: "none", cursor: "pointer", padding: "8px", borderRadius: "50%", transition: "background 0.2s" }}
               >
                 <i
                   className="fa-solid fa-circle-info"
                   style={{
-                    fontSize: "1.4rem",
-                    color: showGroupInfo ? "#3b82f6" : "#64748b",
+                    fontSize: "1.5rem",
+                    color: showGroupInfo ? "var(--primary, #4f46e5)" : "var(--text-gray, #64748b)",
                   }}
                 ></i>
               </button>
             </div>
           </div>
         ) : (
-          <div className="chat-header">
-            <div className="chat-header-info">
+          <div className="chat-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "15px 25px", borderBottom: "1px solid var(--border, #e2e8f0)", background: "var(--bg-card, #fff)" }}>
+            <div className="chat-header-info" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
               <div
                 className="header-avatar"
                 style={{
                   backgroundColor: selectedChat.avatar_color || "#10b981",
+                  width: "45px",
+                  height: "45px",
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#fff",
+                  fontWeight: "700",
+                  fontSize: "1.1rem",
+                  boxShadow: "0 4px 10px rgba(16, 185, 129, 0.2)"
                 }}
               >
                 {selectedChat.avatar_text || "U"}
               </div>
               <div>
-                <h4>
+                <h4 style={{ margin: 0, fontSize: "1.1rem", fontWeight: "700", color: "var(--text-dark, #1e293b)" }}>
                   {selectedChat.full_name || selectedChat.email || "Người dùng"}
                 </h4>
-                <span className="status">
+                <span className="status" style={{ fontSize: "0.85rem", color: selectedChat.is_online ? "#10b981" : "var(--text-gray, #64748b)", display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
+                  <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: selectedChat.is_online ? "#10b981" : "#94a3b8", display: "inline-block" }}></span>
                   {selectedChat.is_online ? "Đang hoạt động" : "Ngoại tuyến"}
                 </span>
               </div>
             </div>
-            <div className="chat-options-container" ref={chatOptionsRef}>
+            <div className="chat-options-container" ref={chatOptionsRef} style={{ position: "relative" }}>
               <button
                 className="chat-options-btn"
                 onClick={toggleChatOptionsMenu}
+                style={{ background: "transparent", border: "none", cursor: "pointer", padding: "8px 12px", borderRadius: "8px", color: "var(--text-gray, #64748b)" }}
               >
-                <i className="fa-solid fa-ellipsis-vertical"></i>
+                <i className="fa-solid fa-ellipsis-vertical" style={{ fontSize: "1.2rem" }}></i>
               </button>
               {showChatOptionsMenu && (
-                <div className="chat-options-menu">
+                <div className="chat-options-menu" style={{ position: "absolute", right: 0, top: "100%", background: "#fff", border: "1px solid var(--border, #e2e8f0)", borderRadius: "12px", boxShadow: "0 10px 25px rgba(0,0,0,0.1)", zIndex: 10, minWidth: "160px", padding: "6px" }}>
                   <button
                     className="chat-options-item"
                     onClick={handleTogglePinChat}
+                    style={{ width: "100%", textAlign: "left", padding: "10px 14px", background: "none", border: "none", borderRadius: "8px", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", fontWeight: "600", fontSize: "0.9rem", color: "var(--text-dark, #1e293b)" }}
                   >
                     <i className="fa-solid fa-thumbtack"></i>{" "}
                     {isChatPinned ? "Bỏ ghim" : "Ghim"}
@@ -199,13 +250,15 @@ const ChatWindow = ({ logic }) => {
                   <button
                     className="chat-options-item"
                     onClick={handleHideChat}
+                    style={{ width: "100%", textAlign: "left", padding: "10px 14px", background: "none", border: "none", borderRadius: "8px", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", fontWeight: "600", fontSize: "0.9rem", color: "var(--text-dark, #1e293b)" }}
                   >
                     <i className="fa-solid fa-eye-slash"></i> Ẩn trò chuyện
                   </button>
-                  <div className="chat-options-divider" />
+                  <div className="chat-options-divider" style={{ height: "1px", background: "var(--border, #e2e8f0)", margin: "4px 0" }} />
                   <button
                     className="chat-options-item"
                     onClick={handleDeleteConversation}
+                    style={{ width: "100%", textAlign: "left", padding: "10px 14px", background: "none", border: "none", borderRadius: "8px", cursor: "pointer", display: "flex", alignItems: "center", gap: "10px", fontWeight: "600", fontSize: "0.9rem", color: "#ef4444" }}
                   >
                     <i className="fa-solid fa-trash"></i> Xóa hội thoại
                   </button>
@@ -215,7 +268,7 @@ const ChatWindow = ({ logic }) => {
           </div>
         )}
 
-        <div className="chat-messages" ref={messagesContainerRef}>
+        <div className="chat-messages" ref={messagesContainerRef} style={{ flex: 1, overflowY: "auto", padding: "20px 25px", display: "flex", flexDirection: "column", gap: "4px", background: "var(--bg-main, #f8fafc)" }}>
           {messages.map((msg, index) => {
             const avatarChar =
               msg.Sender?.avatar_text ||
@@ -226,14 +279,13 @@ const ChatWindow = ({ logic }) => {
             const isMyMessage =
               msg.isMine || (user && msg.sender_id === user.id);
 
-            // 👉 THUẬT TOÁN 1: XÁC ĐỊNH VÁCH NGĂN NGÀY
+            // THUẬT TOÁN 1: XÁC ĐỊNH VÁCH NGĂN NGÀY
             const prevMsg = messages[index - 1];
             const showDateDivider =
               !prevMsg || !isSameDay(prevMsg.created_at, msg.created_at);
 
-            // 👉 THUẬT TOÁN 2: XÁC ĐỊNH GỘP TIN NHẮN (Nhìn xuống người kế tiếp)
+            // THUẬT TOÁN 2: XÁC ĐỊNH GỘP TIN NHẮN (Nhìn xuống người kế tiếp)
             const nextMsg = messages[index + 1];
-            // Sẽ gộp nếu: Tin nhắn tiếp theo do CÙNG MỘT NGƯỜI gửi VÀ gửi trong CÙNG MỘT NGÀY
             const isGroupedWithNext =
               nextMsg &&
               nextMsg.sender_id === msg.sender_id &&
@@ -270,8 +322,12 @@ const ChatWindow = ({ logic }) => {
                 <div
                   className={`message-wrapper ${isMyMessage ? "mine" : "theirs"} ${isGroupedWithNext ? "grouped" : ""}`}
                   style={{
+                    display: "flex",
+                    alignItems: "flex-end",
+                    gap: "10px",
+                    margin: isGroupedWithNext ? "2px 0" : "8px 0",
+                    flexDirection: isMyMessage ? "row-reverse" : "row",
                     opacity: msg.isSending ? 0.6 : 1,
-                    marginBottom: isGroupedWithNext ? "2px" : "16px", // 👉 Thu hẹp khoảng cách nếu bị gộp
                   }}
                 >
                   {!isMyMessage && (
@@ -279,7 +335,17 @@ const ChatWindow = ({ logic }) => {
                       className="message-sender-avatar"
                       style={{
                         backgroundColor: msg.Sender?.avatar_color || "#94a3b8",
-                        opacity: isGroupedWithNext ? 0 : 1, // 👉 Giấu Avatar nếu tin nhắn chưa phải là chốt sổ
+                        width: "32px",
+                        height: "32px",
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#fff",
+                        fontSize: "0.85rem",
+                        fontWeight: "700",
+                        flexShrink: 0,
+                        opacity: isGroupedWithNext ? 0 : 1, // Giấu Avatar nếu tin nhắn chưa phải là chốt sổ
                       }}
                       title={msg.Sender?.full_name || msg.Sender?.email}
                     >
@@ -287,9 +353,9 @@ const ChatWindow = ({ logic }) => {
                     </div>
                   )}
 
-                  <div className="message-content-col">
-                    {!isMyMessage && selectedChat.isGroup && (
-                      <span className="sender-name">
+                  <div className="message-content-col" style={{ maxWidth: "65%", display: "flex", flexDirection: "column", alignItems: isMyMessage ? "flex-end" : "flex-start" }}>
+                    {!isMyMessage && selectedChat.isGroup && !isGroupedWithNext && (
+                      <span className="sender-name" style={{ fontSize: "0.75rem", fontWeight: "600", color: "var(--text-gray, #64748b)", marginBottom: "3px", marginLeft: "4px" }}>
                         {msg.Sender?.full_name ||
                           msg.Sender?.email?.split("@")[0] ||
                           "Thành viên"}
@@ -299,12 +365,16 @@ const ChatWindow = ({ logic }) => {
                     <div
                       className="message-bubble"
                       style={{
-                        borderBottomRightRadius:
-                          isMyMessage && isGroupedWithNext ? "16px" : undefined,
-                        borderBottomLeftRadius:
-                          !isMyMessage && isGroupedWithNext
-                            ? "16px"
-                            : undefined,
+                        padding: "10px 14px",
+                        borderRadius: "16px",
+                        background: isMyMessage ? "var(--primary, #4f46e5)" : "#fff",
+                        color: isMyMessage ? "#fff" : "var(--text-dark, #1e293b)",
+                        boxShadow: "0 2px 5px rgba(0,0,0,0.02)",
+                        wordBreak: "break-word",
+                        fontSize: "0.95rem",
+                        lineHeight: "1.4",
+                        borderBottomRightRadius: isMyMessage && isGroupedWithNext ? "16px" : undefined,
+                        borderBottomLeftRadius: !isMyMessage && isGroupedWithNext ? "16px" : undefined,
                       }}
                     >
                       {msg.message_type === "image" && msg.file_url && (
@@ -316,6 +386,7 @@ const ChatWindow = ({ logic }) => {
                               : getFullUrl(msg.file_url)
                           }
                           alt="Đính kèm"
+                          style={{ maxWidth: "220px", borderRadius: "10px", display: "block", marginBottom: msg.content ? "8px" : "0", cursor: "pointer" }}
                           onClick={() =>
                             !msg.isSending &&
                             window.open(getFullUrl(msg.file_url), "_blank")
@@ -333,6 +404,7 @@ const ChatWindow = ({ logic }) => {
                           download={msg.file_name || ""}
                           target="_blank"
                           rel="noopener noreferrer"
+                          style={{ display: "flex", alignItems: "center", gap: "10px", color: isMyMessage ? "#fff" : "var(--primary, #4f46e5)", textDecoration: "none" }}
                         >
                           <i
                             className="fa-solid fa-file-lines"
@@ -355,9 +427,9 @@ const ChatWindow = ({ logic }) => {
                       {msg.content && <div>{msg.content}</div>}
                     </div>
 
-                    {/* 👉 CHỈ HIỆN THỜI GIAN/TRẠNG THÁI Ở TIN NHẮN CUỐI CÙNG CỦA KHỐI (Khi không bị gộp nữa) */}
+                    {/* CHỈ HIỆN THỜI GIAN/TRẠNG THÁI Ở TIN NHẮN CUỐI CÙNG CỦA KHỐI */}
                     {!isGroupedWithNext && (
-                      <div className="message-meta-footer">
+                      <div className="message-meta-footer" style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px", fontSize: "0.7rem", color: "#94a3b8" }}>
                         <span className="message-time">
                           {new Date(msg.created_at).toLocaleTimeString([], {
                             hour: "2-digit",
@@ -369,8 +441,7 @@ const ChatWindow = ({ logic }) => {
                           <span className="message-status-icon">
                             {msg.isSending ? (
                               <span title="Đang gửi...">
-                                <i className="fa-solid fa-paper-plane"></i> Đang
-                                gửi...
+                                <i className="fa-solid fa-paper-plane"></i> Đang gửi...
                               </span>
                             ) : (
                               <span title="Đã nhận">Đã nhận</span>
@@ -386,21 +457,23 @@ const ChatWindow = ({ logic }) => {
           })}
         </div>
 
-        {/* 👉 ĐÃ THÊM: KHU VỰC HIỂN THỊ "ĐANG GÕ..." BÊN TRONG KHUNG CHAT */}
+        {/* KHU VỰC HIỂN THỊ "ĐANG GÕ..." BÊN TRONG KHUNG CHAT */}
         {typingUsers && typingUsers.length > 0 && (
           <div
             className="typing-indicator-wrapper"
             style={{
-              padding: "0 20px 10px 20px",
+              padding: "8px 25px",
               fontSize: "0.85rem",
               color: "#64748b",
               fontStyle: "italic",
               display: "flex",
               alignItems: "center",
               gap: "8px",
+              background: "var(--bg-main, #f8fafc)",
+              borderTop: "1px solid var(--border, #e2e8f0)"
             }}
           >
-            <div className="typing-dots">
+            <div className="typing-dots" style={{ display: "flex", gap: "2px" }}>
               <span className="dot">.</span>
               <span className="dot">.</span>
               <span className="dot">.</span>
@@ -413,14 +486,15 @@ const ChatWindow = ({ logic }) => {
           </div>
         )}
 
-        <div className="chat-input-container">
+        <div className="chat-input-container" style={{ padding: "15px 25px", background: "var(--bg-card, #fff)", borderTop: "1px solid var(--border, #e2e8f0)" }}>
           {attachedFile && (
-            <div className="file-preview-box">
+            <div className="file-preview-box" style={{ display: "flex", alignItems: "center", gap: "10px", background: "#f1f5f9", padding: "8px 12px", borderRadius: "10px", marginBottom: "10px" }}>
               {attachedFile.type.startsWith("image/") ? (
                 <img
                   className="file-preview-img"
                   src={URL.createObjectURL(attachedFile)}
                   alt="Preview"
+                  style={{ width: "40px", height: "40px", objectFit: "cover", borderRadius: "6px" }}
                 />
               ) : (
                 <i
@@ -428,18 +502,19 @@ const ChatWindow = ({ logic }) => {
                   style={{ fontSize: "1.5rem", color: "#64748b" }}
                 ></i>
               )}
-              <div className="file-preview-info">
+              <div className="file-preview-info" style={{ flex: 1, fontSize: "0.85rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 <b>{attachedFile.name}</b>
               </div>
               <button
                 className="remove-file-btn"
                 onClick={() => setAttachedFile(null)}
+                style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "1.1rem" }}
               >
                 <i className="fa-solid fa-circle-xmark"></i>
               </button>
             </div>
           )}
-          <div className="chat-input-row">
+          <div className="chat-input-row" style={{ display: "flex", alignItems: "center", gap: "12px", background: "var(--bg-main, #f8fafc)", border: "1px solid var(--border, #e2e8f0)", borderRadius: "14px", padding: "8px 15px" }}>
             <input
               type="file"
               ref={fileInputRef}
@@ -449,12 +524,12 @@ const ChatWindow = ({ logic }) => {
             <button
               className="attach-btn"
               onClick={() => fileInputRef.current.click()}
-              style={{ color: attachedFile ? "#3b82f6" : "#64748b" }}
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: "1.2rem", color: attachedFile ? "#3b82f6" : "#64748b" }}
             >
               <i className="fa-solid fa-paperclip"></i>
             </button>
 
-            {/* 👉 ĐÃ SỬA: Bắt sự kiện onChange để phát tín hiệu Typing */}
+            {/* Bắt sự kiện onChange để phát tín hiệu Typing */}
             <input
               type="text"
               placeholder={
@@ -465,8 +540,9 @@ const ChatWindow = ({ logic }) => {
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleSendMessage();
               }}
+              style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: "0.95rem", color: "var(--text-dark, #1e293b)" }}
             />
-            <button className="send-btn" onClick={handleSendMessage}>
+            <button className="send-btn" onClick={handleSendMessage} style={{ background: "var(--primary, #4f46e5)", color: "#fff", border: "none", width: "38px", height: "38px", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 4px 10px rgba(79, 70, 229, 0.25)" }}>
               <i className="fa-solid fa-paper-plane"></i>
             </button>
           </div>
