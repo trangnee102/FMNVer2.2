@@ -50,27 +50,63 @@ const ChatSidebar = ({ logic }) => {
       <div className="chat-sidebar-header">
         {chatType === "friends" ? (
           <>
-            <div className="chat-search">
-              <input
-                type="email"
-                placeholder="Nhập Email tìm bạn..."
-                value={searchEmail}
-                onChange={(e) => setSearchEmail(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearchFriend()}
-              />
-              <button
-                className="send-btn"
-                onClick={handleSearchFriend}
-                disabled={isSearching}
-              >
-                {isSearching ? (
-                  <i className="fa-solid fa-spinner fa-spin"></i>
-                ) : (
-                  <i className="fa-solid fa-magnifying-glass"></i>
-                )}
-              </button>
+            {/* 👉 ĐÃ FIX: Ô tìm kiếm màu xanh liền khối chuẩn phong cách Zalo/Messenger bằng Inline Style */}
+            <div style={{ marginBottom: "12px" }}>
+              <div style={{ 
+                display: "flex", 
+                width: "100%", 
+                overflow: "hidden", 
+                borderRadius: "12px", 
+                border: "1px solid #e2e8f0", 
+                backgroundColor: "#f8fafc",
+                boxShadow: "0 1px 2px rgba(0,0,0,0.02)"
+              }}>
+                <input
+                  type="email"
+                  placeholder="Nhập Email tìm bạn..."
+                  style={{
+                    width: "100%",
+                    backgroundColor: "transparent",
+                    padding: "10px 14px",
+                    fontSize: "0.9rem",
+                    outline: "none",
+                    border: "none",
+                    color: "#1e293b"
+                  }}
+                  value={searchEmail}
+                  onChange={(e) => setSearchEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearchFriend()}
+                />
+                <button
+                  style={{
+                    backgroundColor: "#3b82f6",
+                    color: "#ffffff",
+                    padding: "0 18px",
+                    border: "none",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    transition: "background-color 0.2s",
+                    opacity: isSearching ? 0.7 : 1
+                  }}
+                  onClick={handleSearchFriend}
+                  disabled={isSearching}
+                >
+                  {isSearching ? (
+                    <i className="fa-solid fa-spinner fa-spin"></i>
+                  ) : (
+                    <i className="fa-solid fa-magnifying-glass"></i>
+                  )}
+                </button>
+              </div>
+              {searchError && (
+                <p style={{ color: "#ef4444", fontSize: "13px", marginTop: "8px", fontWeight: "500", margin: "8px 0 0 0" }}>
+                  {searchError}
+                </p>
+              )}
             </div>
-            {searchError && <p className="search-error">{searchError}</p>}
+
             {searchResult && (
               <div className="search-result-card">
                 <div className="search-user-info">
@@ -221,14 +257,13 @@ const ChatSidebar = ({ logic }) => {
           }}
           style={{ position: "relative" }}
         >
-          Bạn bè
-          {/* 👉 ĐÃ THÊM: Hiển thị chấm đỏ số lượng lời mời ngay trên Tab */}
+          <i className="fa-solid fa-user-group" style={{ marginRight: "6px" }}></i> Bạn bè
           {pendingRequests?.length > 0 && (
             <span
               style={{
                 position: "absolute",
-                top: "2px",
-                right: "5px",
+                top: "4px",
+                right: "8px",
                 backgroundColor: "#ef4444",
                 color: "white",
                 fontSize: "10px",
@@ -249,7 +284,7 @@ const ChatSidebar = ({ logic }) => {
             setShowGroupAction(null);
           }}
         >
-          Nhóm học
+          <i className="fa-solid fa-people-roof" style={{ marginRight: "6px" }}></i> Nhóm học
         </button>
       </div>
 
@@ -314,7 +349,6 @@ const ChatSidebar = ({ logic }) => {
               </div>
             )}
 
-            {/* 👉 ĐÃ SỬA: Ẩn chữ "Chưa có bạn bè" nếu đang có lời mời kết bạn để tránh đè giao diện */}
             {contacts?.length > 0
               ? contacts.map((contact) => (
                   <div
@@ -401,7 +435,6 @@ const ChatSidebar = ({ logic }) => {
                           {contact.last_message_preview}
                         </p>
 
-                        {/* Cục chấm đỏ 🔴 */}
                         {contact.unread_count > 0 && (
                           <div
                             style={{
@@ -513,7 +546,6 @@ const ChatSidebar = ({ logic }) => {
                         {group.last_message_preview}
                       </p>
 
-                      {/* Cục chấm đỏ 🔴 */}
                       {group.unread_count > 0 && (
                         <div
                           style={{
