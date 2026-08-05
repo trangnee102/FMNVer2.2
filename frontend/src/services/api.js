@@ -1,7 +1,8 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL:
+    import.meta.env.VITE_API_URL || "https://fmn-backend.onrender.com/api",
 });
 
 api.interceptors.request.use(
@@ -60,7 +61,8 @@ export const studyAPI = {
     return api.get(`/study/exam/${deckId}/random`, { params });
   },
 
-  submitExamResults: (deckId, results) => api.post(`/study/exam/${deckId}/submit`, results),
+  submitExamResults: (deckId, results) =>
+    api.post(`/study/exam/${deckId}/submit`, results),
 };
 
 export const statisticsAPI = {
@@ -68,11 +70,21 @@ export const statisticsAPI = {
 };
 
 export const aiAPI = {
-  generateExam: (formData) => api.post("/ai/generate-exam", formData, {
-    headers: { "Content-Type": "multipart/form-data" }
-  }),
+  generateExam: (formData) =>
+    api.post("/ai/generate-exam", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
   saveExam: (examData) => api.post("/ai/save-exam", examData),
-  editExamQuestion: (questionData) => api.post("/ai/edit-exam-question", questionData),
+  editExamQuestion: (questionData) =>
+    api.post("/ai/edit-exam-question", questionData),
+};
+
+// 👉 ĐÃ THÊM MỚI: Cỗ máy API chuyên dụng để tạo Flashcard bằng AI (gửi kèm file)
+export const aiFlashcardAPI = {
+  generate: (formData) =>
+    api.post("/ai/generate", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
 };
 
 export const communityAPI = {
@@ -122,7 +134,8 @@ export const quickTestAPI = {
   getDeckQuestions: (deckId) => api.get(`/study/deck/${deckId}/due-cards`),
   createRoom: (payload) => api.post("/quicktest/rooms", payload),
   getRoom: (roomCode) => api.get(`/quicktest/rooms/${roomCode}`),
-  joinRoom: (roomCode, participantName) => api.post("/quicktest/join", { roomCode, participantName }),
+  joinRoom: (roomCode, participantName) =>
+    api.post("/quicktest/join", { roomCode, participantName }),
 };
 
 export default api;

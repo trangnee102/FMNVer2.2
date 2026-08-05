@@ -39,7 +39,7 @@ app.set("io", io);
 io.engine.on("connection_error", (err) => {
   console.error(
     "🚨 [SYSTEM] Có một trình duyệt bị chặn kết nối Socket:",
-    err.message
+    err.message,
   );
 });
 
@@ -49,10 +49,17 @@ io.engine.on("connection_error", (err) => {
 io.on("connection", async (socket) => {
   const userId = socket.handshake.query.userId;
 
-  if (userId && userId !== "undefined" && userId !== "null") {
+  // 👉 ĐÃ FIX: Chặn thêm chữ "guest" và kiểm tra xem userId có ĐÚNG LÀ MỘT SỐ hay không (!isNaN)
+  if (
+    userId &&
+    userId !== "undefined" &&
+    userId !== "null" &&
+    userId !== "guest" &&
+    !isNaN(parseInt(userId, 10))
+  ) {
     socket.join(userId.toString());
     console.log(
-      `✅ [SYSTEM] Người dùng ID: ${userId} (Socket: ${socket.id}) đã kết nối THÀNH CÔNG!`
+      `✅ [SYSTEM] Người dùng ID: ${userId} (Socket: ${socket.id}) đã kết nối THÀNH CÔNG!`,
     );
 
     try {
@@ -66,7 +73,7 @@ io.on("connection", async (socket) => {
         socket.join(chat.conversation_id.toString());
       });
       console.log(
-        `✅ [SYSTEM] Đã đăng ký nhận tin ngầm cho ${myChats.length} hội thoại của User ${userId}`
+        `✅ [SYSTEM] Đã đăng ký nhận tin ngầm cho ${myChats.length} hội thoại của User ${userId}`,
       );
     } catch (error) {
       console.error("❌ Lỗi khi đăng ký kênh chat ngầm:", error);
@@ -80,7 +87,7 @@ io.on("connection", async (socket) => {
     if (conversationId) {
       socket.join(conversationId.toString());
       console.log(
-        `User ${userId || socket.id} đã vào phòng chat ${conversationId}`
+        `User ${userId || socket.id} đã vào phòng chat ${conversationId}`,
       );
     }
   });
@@ -107,7 +114,7 @@ io.on("connection", async (socket) => {
       const roomStr = `quicktest_${roomCode}`;
       socket.join(roomStr);
       console.log(
-        `⚡ [QuickTest] ${userType} [${userName || socket.id}] đã vào phòng: ${roomCode}`
+        `⚡ [QuickTest] ${userType} [${userName || socket.id}] đã vào phòng: ${roomCode}`,
       );
 
       if (userType === "student" || userType === "participant") {
@@ -130,7 +137,7 @@ io.on("connection", async (socket) => {
         score,
         isCorrect,
       });
-    }
+    },
   );
 
   socket.on("end_quicktest", (roomCode) => {
@@ -209,7 +216,7 @@ const startServerWithPort = (port) => {
   const onError = (error) => {
     if (error.code === "EADDRINUSE") {
       console.warn(
-        `⚠️ Cổng ${port} đang bị chiếm, đang thử cổng ${port + 1}...`
+        `⚠️ Cổng ${port} đang bị chiếm, đang thử cổng ${port + 1}...`,
       );
       server.removeListener("error", onError);
       startServerWithPort(port + 1);
@@ -223,7 +230,7 @@ const startServerWithPort = (port) => {
 
   server.listen(port, "0.0.0.0", () => {
     console.log(
-      `✅ Server Backend & Socket.io đang chạy tại http://localhost:${port} (Mạng: 0.0.0.0)`
+      `✅ Server Backend & Socket.io đang chạy tại http://localhost:${port} (Mạng: 0.0.0.0)`,
     );
   });
 };
