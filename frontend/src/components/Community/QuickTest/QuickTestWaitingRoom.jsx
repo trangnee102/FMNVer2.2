@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../../services/api";
 import { io } from "socket.io-client";
 import Sidebar from "../../Layout/Sidebar";
-import "../../../pages/DashboardPage.css";
+import "../../../pages/Dashboard/DashboardPage.css";
 
 const QuickTestWaitingRoom = ({ onNavigate, participants: propParticipants }) => {
   const navigate = useNavigate();

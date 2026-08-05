@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import Sidebar from "../components/Layout/Sidebar";
-import CramModeModal from "../components/Modals/CramModeModal";
-import ManageDeckModal from "../components/Modals/ManageDeckModal";
-import api from "../services/api";
-import "./DashboardPage.css";
+import Sidebar from "../../components/Layout/Sidebar";
+import CramModeModal from "../../components/Modals/CramModeModal";
+import ManageDeckModal from "../../components/Modals/ManageDeckModal";
+import api from "../../services/api";
+import "../Dashboard/DashboardPage.css";
 import "./MyDecksPage.css";
 
 const MyDecksPage = ({ onNavigate, onStudy }) => {

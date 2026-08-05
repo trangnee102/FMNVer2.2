@@ -31,6 +31,11 @@ api.interceptors.response.use(
 
 export const authAPI = {
   login: (email, password) => api.post("/auth/login", { email, password }),
+  updateProfile: (data) => api.put("/auth/update-profile", data),
+};
+
+export const dashboardAPI = {
+  checkin: () => api.post("/dashboard/checkin"),
 };
 
 export const deckAPI = {
@@ -54,10 +59,20 @@ export const studyAPI = {
 
     return api.get(`/study/exam/${deckId}/random`, { params });
   },
+
+  submitExamResults: (deckId, results) => api.post(`/study/exam/${deckId}/submit`, results),
 };
 
 export const statisticsAPI = {
   getStats: (timeFilter) => api.get(`/statistics?filter=${timeFilter}`),
+};
+
+export const aiAPI = {
+  generateExam: (formData) => api.post("/ai/generate-exam", formData, {
+    headers: { "Content-Type": "multipart/form-data" }
+  }),
+  saveExam: (examData) => api.post("/ai/save-exam", examData),
+  editExamQuestion: (questionData) => api.post("/ai/edit-exam-question", questionData),
 };
 
 export const communityAPI = {

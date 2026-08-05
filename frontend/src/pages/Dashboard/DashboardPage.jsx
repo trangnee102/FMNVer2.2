@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 
-import Sidebar from "../components/Layout/Sidebar";
-import DashboardHeader from "../components/Dashboard/DashboardHeader";
-import DashboardStats from "../components/Dashboard/DashboardStats";
-import DashboardActions from "../components/Dashboard/DashboardActions";
-import DeckList from "../components/Dashboard/DeckList";
-import CalendarWidget from "../components/Dashboard/CalendarWidget";
-import FlashcardSetupModal from "../components/Modals/FlashcardSetupModal";
+import Sidebar from "../../components/Layout/Sidebar";
+import DashboardHeader from "../../components/Dashboard/DashboardHeader";
+import DashboardStats from "../../components/Dashboard/DashboardStats";
+import DashboardActions from "../../components/Dashboard/DashboardActions";
+import DeckList from "../../components/Dashboard/DeckList";
+import CalendarWidget from "../../components/Dashboard/CalendarWidget";
+import FlashcardSetupModal from "../../components/Modals/FlashcardSetupModal";
 
-import StreakWidget from "../components/Dashboard/StreakWidget";
-import RecentExamsWidget from "../components/Dashboard/RecentExamsWidget";
+import StreakWidget from "../../components/Dashboard/StreakWidget";
+import RecentExamsWidget from "../../components/Dashboard/RecentExamsWidget";
 
-import api from "../services/api";
+import api from "../../services/api";
 import "./DashboardPage.css";
 
 const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {

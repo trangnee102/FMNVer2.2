@@ -307,7 +307,9 @@ const submitExamResults = async (req, res) => {
         .json({ success: false, message: "Vui lòng đăng nhập!" });
     }
 
-    const { results } = req.body;
+    // 🌟 FIX: Bắt thêm deckId từ URL và các thông số tổng kết điểm từ Frontend
+    const deckId = parseInt(req.params.deckId, 10);
+    const { results, mode, score, total, percent } = req.body;
 
     if (!Array.isArray(results) || results.length === 0) {
       return res
@@ -315,6 +317,7 @@ const submitExamResults = async (req, res) => {
         .json({ success: false, message: "Dữ liệu kết quả thi không hợp lệ!" });
     }
 
+    // 1. CẬP NHẬT TIẾN ĐỘ CHO TỪNG THẺ FLASHCARD (SM2)
     const updatePromises = results.map(async (item) => {
       const cardId = parseInt(item.flashcard_id || item.id || item.questionId || item.cardId, 10);
       const isCorrect = item.is_correct !== undefined ? item.is_correct : item.isCorrect;
@@ -404,6 +407,52 @@ const submitExamResults = async (req, res) => {
     });
 
     await Promise.all(updatePromises);
+
+    // 2. 🌟 FIX: LƯU TỔNG ĐIỂM CỦA BỘ ĐỀ VÀO DATABASE (Đây là mấu chốt để hiện thị 10/10)
+    if (deckId && !isNaN(deckId) && mode === "exam" && score !== undefined) {
+      try {
+        // Tìm xem user đã từng làm đề này chưa (Dựa vào bảng DeckProgress hoặc bảng tương tự của bạn)
+        // Lưu ý: Nếu Schema Prisma của bạn đặt tên bảng khác (như examResults, deckPerformance...), hãy đổi `deckProgress` thành tên bảng đó nhé.
+        const existingProgress = await prisma.deckProgress.findFirst({
+          where: { user_id: userId, deck_id: deckId }
+        });
+
+        if (existingProgress) {
+          // Nếu đã làm, cập nhật lại điểm số (Giữ lại điểm cao nhất)
+          const highest = Math.max(existingProgress.highest_score || 0, score);
+          await prisma.deckProgress.update({
+            where: { id: existingProgress.id },
+            data: {
+              score: score, // Điểm vừa làm xong
+              highest_score: highest,
+              percent: percent || existingProgress.percent,
+              total: total || existingProgress.total,
+              learned: score, // Lấy số câu đúng làm learned
+              is_completed: true,
+              is_exam: true,
+              updated_at: new Date() // Cập nhật thời gian làm gần nhất để nó trồi lên mục "Gần đây"
+            }
+          });
+        } else {
+          // Nếu chưa làm bao giờ, tạo mới bản ghi
+          await prisma.deckProgress.create({
+            data: {
+              user_id: userId,
+              deck_id: deckId,
+              score: score,
+              highest_score: score,
+              percent: percent || 0,
+              total: total || 0,
+              learned: score,
+              is_completed: true,
+              is_exam: true
+            }
+          });
+        }
+      } catch (dbError) {
+        console.error("Lưu điểm tổng kết đề thi bị lỗi (Bỏ qua lỗi này để không ảnh hưởng thuật toán SM2):", dbError.message);
+      }
+    }
 
     res.json({
       success: true,

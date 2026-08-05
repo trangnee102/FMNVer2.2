@@ -105,7 +105,7 @@ const Sidebar = ({ currentView, onNavigate }) => {
       text: "Cộng đồng",
       subItems: [
         { id: "explore", icon: "fa-compass", text: "Khám phá" },
-        
+        { id: "quicktest", icon: "fa-bolt", text: "QuickTest" }, 
         { id: "contacts", icon: "fa-address-book", text: "Liên hệ" },
       ],
     },

@@ -1,9 +1,10 @@
 import React from "react";
-import Sidebar from "../components/Layout/Sidebar";
-import CreateOptionCard from "../components/Cards/CreateOptionCard";
+import Sidebar from "../../../components/Layout/Sidebar";
+import CreateOptionCard from "../../../components/Cards/CreateOptionCard";
 import "./CreateCardPage.css";
-import "./DashboardPage.css"; // Kế thừa layout lưới dashboard-layout và dashboard-content
 
+// 👉 ĐÃ FIX: Trỏ chính xác vào thư mục Dashboard mới
+import "../../../pages/Dashboard/DashboardPage.css";
 // 👉 1. Thêm onNavigate vào đây để nhận "remote" từ App.jsx
 const CreateCardPage = ({ onNavigate }) => {
   return (

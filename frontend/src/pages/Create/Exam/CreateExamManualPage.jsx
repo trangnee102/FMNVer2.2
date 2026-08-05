@@ -1,7 +1,7 @@
 // frontend/src/pages/CreateExamManualPage.jsx
 import React, { useState } from "react";
 // 👉 ĐÃ FIX: Sửa lại đường dẫn import api chuẩn xác (chỉ lùi 1 bậc) để cứu sập Vite
-import api from "../services/api";
+import api from "../../../services/api";
 import "./CreateExamManualPage.css";
 
 const CreateExamManualPage = ({ onNavigate }) => {

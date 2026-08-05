@@ -5,7 +5,9 @@ import QuickTestQuestionPanel from "./QuickTestQuestionPanel";
 import { useQuickTestSocket } from "../../../hooks/useQuickTestSocket";
 import api, { quickTestAPI } from "../../../services/api";
 import Sidebar from "../../Layout/Sidebar";
-import "../../../pages/DashboardPage.css";
+
+// 👉 ĐÃ FIX: Cập nhật đường dẫn vào đúng thư mục Dashboard mới của bạn
+import "../../../pages/Dashboard/DashboardPage.css";
 import "./quicktest.css";
 
 const DEFAULT_SETTINGS = {
@@ -1072,5 +1074,5 @@ const QuickTestModalManager = ({
     </div>
   );
 };
-
+ 
 export default QuickTestModalManager;

@@ -1,4 +1,3 @@
-// backend/src/routes/aiRoutes.js
 const express = require("express");
 const router = express.Router();
 const multer = require("multer");
@@ -9,17 +8,16 @@ const {
   refineGeneratedCards,
 } = require("../controllers/aiController");
 
-// Gọi Controller xử lý Đề thi
 const aiExamController = require("../controllers/aiExamController");
-
 const { verifyToken } = require("../middlewares/authMiddleware");
 
-// Cấu hình Multer: Lưu file vào bộ nhớ tạm (RAM) để xử lý luôn, giới hạn 5MB
+// ==========================================
+// 1. CẤU HÌNH MULTER (UPLOAD FILE TRONG BỘ NHỚ)
+// ==========================================
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 }, // Tối đa 5MB
+  limits: { fileSize: 5 * 1024 * 1024 }, // Giới hạn 5MB
   fileFilter: (req, file, cb) => {
-    // Cho phép PDF, Word VÀ CẢ ẢNH (png, jpg, jpeg)
     if (
       file.mimetype === "application/pdf" ||
       file.mimetype === "application/msword" ||
@@ -29,53 +27,73 @@ const upload = multer({
     ) {
       cb(null, true);
     } else {
-      cb(new Error("Chỉ hỗ trợ định dạng PDF, Word hoặc Ảnh (.png, .jpg)!"));
+      cb(new Error("Chỉ hỗ trợ định dạng PDF, Word hoặc Ảnh (.png, .jpg, .jpeg)!"));
     }
   },
 });
 
-// =========================================================================
-// API ROUTES
-// =========================================================================
+// Middleware xử lý lỗi Multer (tránh crash app khi upload sai định dạng / quá dung lượng)
+const handleMulterUpload = (req, res, next) => {
+  const uploadSingle = upload.single("file");
+  uploadSingle(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          success: false,
+          message: "Dung lượng file vượt quá giới hạn 5MB!",
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: `Lỗi upload file: ${err.message}`,
+      });
+    } else if (err) {
+      return res.status(400).json({
+        success: false,
+        message: err.message || "File không hợp lệ!",
+      });
+    }
+    next();
+  });
+};
 
-// =========================================================================
-// TÍNH NĂNG 1: TẠO FLASHCARD (LẬT TRUYỀN THỐNG)
-// =========================================================================
-
-// Route 1: Tạo thẻ gốc (Nhận File + Text + customPrompt từ Frontend -> Trả về JSON thẻ)
+// ==========================================
+// 2. CÁC ROUTES AI - FLASHCARD
+// ==========================================
 router.post(
   "/generate",
   verifyToken,
-  upload.single("file"),
-  generateFlashcards,
+  handleMulterUpload,
+  generateFlashcards
 );
 
-// Route 2: Lưu thẻ vào Database
 router.post("/save", verifyToken, saveGeneratedCards);
 
-// Route 3: AI tự động sửa thẻ theo Prompt
 router.post("/refine", verifyToken, refineGeneratedCards);
 
-// =========================================================================
-// TÍNH NĂNG 2: TẠO ĐỀ THI TRẮC NGHIỆM (MỚI)
-// =========================================================================
-
-// Route 4: AI sinh ra đề thi trắc nghiệm từ text hoặc file
+// ==========================================
+// 3. CÁC ROUTES AI - ĐỀ THI TRẮC NGHIỆM (EXAM)
+// ==========================================
 router.post(
   "/generate-exam",
   verifyToken,
-  upload.single("file"),
-  aiExamController.generateExam,
+  handleMulterUpload,
+  aiExamController.generateExam
 );
 
-// Route 5: Lưu đề thi vào Database
 router.post("/save-exam", verifyToken, aiExamController.saveGeneratedExam);
 
-// 👉 ĐÃ THÊM: Route 6: Sửa câu hỏi thi bằng AI
 router.post(
   "/edit-exam-question",
   verifyToken,
-  aiExamController.editQuestionWithAI,
+  aiExamController.editQuestionWithAI
+);
+
+// Bổ sung route Tạo đề thi thích ứng (Adaptive Exam) còn thiếu
+router.post(
+  "/generate-adaptive-exam/:deckId",
+  verifyToken,
+  aiExamController.generateAdaptiveExam
 );
 
 module.exports = router;

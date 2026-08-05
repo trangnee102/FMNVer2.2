@@ -1,4 +1,3 @@
-// frontend/src/pages/ExamPage.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { studyAPI } from "../services/api";
 
@@ -212,7 +211,16 @@ const ExamPage = ({ deckId, onNavigate, onFinish }) => {
     setIsSubmitted(true);
 
     try {
-      await studyAPI.submitExamResults(resultsPayload);
+      // FIX LỖI: Cập nhật hàm gọi API truyền đúng cấu trúc tham số (deckId, payload)
+      // Bao gồm đầy đủ dữ liệu mode, score, percent để Backend ghi nhận chính xác ở chế độ "Kiểm tra"
+      const payload = {
+        mode: examMode, 
+        score: finalScore,
+        total: questions.length,
+        percent: Math.round((finalScore / questions.length) * 100),
+        results: resultsPayload
+      };
+      await studyAPI.submitExamResults(deckId, payload);
     } catch (err) {
       console.error("Lỗi đồng bộ kết quả thi:", err);
     }
@@ -225,11 +233,19 @@ const ExamPage = ({ deckId, onNavigate, onFinish }) => {
     setIsSubmitted(true);
 
     try {
-      await studyAPI.submitExamResults(resultsPayload);
+      // Tương tự, gọi API chuẩn với đầy đủ deckId và payload
+      const payload = {
+        mode: examMode,
+        score: finalScore,
+        total: questions.length,
+        percent: Math.round((finalScore / questions.length) * 100),
+        results: resultsPayload
+      };
+      await studyAPI.submitExamResults(deckId, payload);
     } catch (err) {
       console.error("Lỗi tự động đồng bộ kết quả thi:", err);
     }
-  }, [evaluateExam]);
+  }, [evaluateExam, examMode, questions.length, deckId]);
 
   if (isLoading) {
     return (

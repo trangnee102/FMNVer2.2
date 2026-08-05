@@ -1,9 +1,10 @@
-import React from "react";
-import Sidebar from "../components/Layout/Sidebar";
-import CreateFlashcardForm from "../components/Forms/CreateFlashcardForm";
-import "./DashboardPage.css";
-import "./CreateCardPage.css";
+import React, { useState, useRef, useEffect } from "react";
+import Sidebar from "../../../components/Layout/Sidebar";
+import CreateFlashcardForm from "../../../components/Forms/CreateFlashcardForm";
 
+// 👉 ĐÃ FIX: Lùi ra 3 cấp thư mục để tìm đúng file DashboardPage.css trong thư mục Dashboard
+import "../../../pages/Dashboard/DashboardPage.css";
+import "./CreateCardPage.css";
 const CreateFlashcardManualPage = ({ onNavigate }) => {
   return (
     <div className="dashboard-layout">

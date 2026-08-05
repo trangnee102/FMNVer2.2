@@ -42,9 +42,20 @@ const getStatistics = async (req, res) => {
     const retentionRate =
       totalReviews > 0 ? Math.round((goodReviews / totalReviews) * 100) : 0;
 
+    const userDecks = await prisma.decks.findMany({
+      where: { user_id: parseInt(userId) },
+      include: {
+        _count: { select: { Flashcards: true } },
+      },
+    });
+
+    const examDeckIds = new Set(
+      userDecks.filter((d) => d.is_exam).map((d) => d.id)
+    );
+
     const historyDates = await prisma.studyLogs.findMany({
       where: { user_id: parseInt(userId) },
-      select: { reviewed_at: true },
+      select: { reviewed_at: true, deck_id: true },
       orderBy: { reviewed_at: "desc" },
     });
 
@@ -90,16 +101,17 @@ const getStatistics = async (req, res) => {
         const logsInMonth = historyDates.filter((log) =>
           log.reviewed_at.toISOString().startsWith(monthStr),
         );
-        const cardCount = logsInMonth.length;
+        
+        const cardCount = logsInMonth.filter(log => !examDeckIds.has(log.deck_id)).length;
         const examCount = new Set(
-          logsInMonth.map((log) => log.reviewed_at.toISOString().split("T")[0])
+          logsInMonth.filter(log => examDeckIds.has(log.deck_id)).map(log => log.deck_id)
         ).size;
 
         dailyActivity.push({
-          date: `Th${d.getMonth() + 1}`,
+          date: `${monthStr}-01`,
           day: `Th${d.getMonth() + 1}`,
           cards: cardCount,
-          exams: examCount > cardCount ? cardCount : Math.min(cardCount, Math.ceil(cardCount / 5)),
+          exams: examCount,
         });
       }
     } else if (filter === "Tháng" || filter === "month") {
@@ -111,11 +123,14 @@ const getStatistics = async (req, res) => {
         const logsInDay = historyDates.filter(
           (log) => log.reviewed_at.toISOString().split("T")[0] === dateStr,
         );
-        const cardCount = logsInDay.length;
-        const examCount = cardCount > 0 ? 1 : 0;
+
+        const cardCount = logsInDay.filter(log => !examDeckIds.has(log.deck_id)).length;
+        const examCount = new Set(
+          logsInDay.filter(log => examDeckIds.has(log.deck_id)).map(log => log.deck_id)
+        ).size;
 
         dailyActivity.push({
-          date: `${d.getDate()}/${d.getMonth() + 1}`,
+          date: dateStr,
           day: `${d.getDate()}/${d.getMonth() + 1}`,
           cards: cardCount,
           exams: examCount,
@@ -130,14 +145,17 @@ const getStatistics = async (req, res) => {
         const logsInDay = historyDates.filter(
           (log) => log.reviewed_at.toISOString().split("T")[0] === dateStr,
         );
-        const cardCount = logsInDay.length;
-        const examCount = cardCount > 0 ? 1 : 0;
+
+        const cardCount = logsInDay.filter(log => !examDeckIds.has(log.deck_id)).length;
+        const examCount = new Set(
+          logsInDay.filter(log => examDeckIds.has(log.deck_id)).map(log => log.deck_id)
+        ).size;
 
         const daysArr = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
         const dayLabel = daysArr[d.getDay()];
 
         dailyActivity.push({
-          date: dayLabel,
+          date: dateStr,
           day: dayLabel,
           cards: cardCount,
           exams: examCount,
@@ -162,13 +180,6 @@ const getStatistics = async (req, res) => {
       });
     }
 
-    const userDecks = await prisma.decks.findMany({
-      where: { user_id: parseInt(userId) },
-      include: {
-        _count: { select: { Flashcards: true } },
-      },
-    });
-
     const deckPerformance = await Promise.all(
       userDecks.map(async (deck) => {
         const learnedCount = await prisma.studyProgress.count({
@@ -180,6 +191,46 @@ const getStatistics = async (req, res) => {
         });
 
         const totalCards = deck._count.Flashcards;
+
+        let score = null;
+        let updatedAt = null;
+
+        // 🌟 TÍNH ĐIỂM CHÍNH XÁC 100% CHO ĐỀ THI TỪ LỊCH SỬ LOG
+        if (deck.is_exam) {
+          const latestLog = await prisma.studyLogs.findFirst({
+            where: { user_id: parseInt(userId), deck_id: deck.id },
+            orderBy: { reviewed_at: 'desc' }
+          });
+
+          if (latestLog) {
+            updatedAt = latestLog.reviewed_at;
+            // Thuật toán: Gom nhóm các câu trả lời trong khoảng 2 phút của lần nộp cuối
+            const startTime = new Date(updatedAt.getTime() - 120000);
+            const endTime = new Date(updatedAt.getTime() + 120000);
+
+            const attemptCount = await prisma.studyLogs.count({
+                where: {
+                    user_id: parseInt(userId),
+                    deck_id: deck.id,
+                    reviewed_at: { gte: startTime, lte: endTime }
+                }
+            });
+
+            // Chỉ công nhận là thi thực sự nếu nộp nhiều câu cùng lúc
+            if (attemptCount > 1 || totalCards <= 1) {
+                const correctCount = await prisma.studyLogs.count({
+                    where: {
+                        user_id: parseInt(userId),
+                        deck_id: deck.id,
+                        rating: { gte: 3 }, // 3 là đúng
+                        reviewed_at: { gte: startTime, lte: endTime }
+                    }
+                });
+                score = totalCards > 0 ? (correctCount / totalCards) * 10 : 0;
+            }
+          }
+        }
+
         return {
           id: deck.id,
           name: deck.title || deck.name,
@@ -187,8 +238,10 @@ const getStatistics = async (req, res) => {
           isExam: deck.is_exam || false,
           learned: learnedCount,
           total: totalCards,
-          percent:
-            totalCards > 0 ? Math.round((learnedCount / totalCards) * 100) : 0,
+          percent: totalCards > 0 ? Math.round((learnedCount / totalCards) * 100) : 0,
+          score: score, // Trả về null nếu chưa làm ở chế độ Kiểm tra
+          updated_at: updatedAt,
+          last_studied: updatedAt
         };
       }),
     );

@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Layout/Sidebar";
-import api from "../services/api";
+import api, { aiAPI } from "../services/api";
 import CreateExamInput from "../components/Cards/CreateExamInput";
 import CreateExamPreview from "../components/Cards/CreateExamPreview";
 import CreateOptionCard from "../components/Cards/CreateOptionCard";
-import "./DashboardPage.css";
-import "./CreateExam.css";
-import "./CreateCardPage.css"; 
+import "./Dashboard/DashboardPage.css";
+import "./Create/Exam/CreateExam.css";
+import "./Create/Flashcard/CreateCardPage.css";
 
 const CreateExamPage = ({ onNavigate }) => {
   const navigate = useNavigate();
@@ -154,7 +154,7 @@ ${configText}
       const finalPrompt = `Tổng số lượng cần tạo TỐI ĐA: ${totalQuestions} câu. Yêu cầu thêm từ người dùng: ${customPrompt}. \n\n${antiHallucinationRules}`;
       formData.append("customPrompt", finalPrompt);
 
-      const res = await api.post("/ai/generate-exam", formData);
+      const res = await aiAPI.generateExam(formData);
 
       let rawData = res?.data || res?.questions || res?.result || (Array.isArray(res) ? res : []);
       if (!Array.isArray(rawData)) rawData = [];
@@ -189,7 +189,7 @@ ${configText}
         topic: topic.trim(),
         questions: generatedQuestions,
       };
-      const res = await api.post("/ai/save-exam", payload);
+      const res = await aiAPI.saveExam(payload);
       alert(res.message || "Lưu đề thi thành công!");
       setGeneratedQuestions([]);
       if (onNavigate) onNavigate("my-exams");

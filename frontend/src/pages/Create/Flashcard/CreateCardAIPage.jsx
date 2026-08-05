@@ -1,10 +1,11 @@
-// frontend/src/pages/CreateCardAIPage.jsx
 import React, { useState, useRef, useEffect } from "react";
-import Sidebar from "../components/Layout/Sidebar";
-import AIInputSection from "../components/Cards/AIInputSection";
-import AIPreviewSection from "../components/Cards/AIPreviewSection";
-import api from "../services/api";
-import "./DashboardPage.css";
+import Sidebar from "../../../components/Layout/Sidebar";
+import AIInputSection from "../../../components/Cards/AIInputSection";
+import AIPreviewSection from "../../../components/Cards/AIPreviewSection";
+import api from "../../../services/api";
+
+// ĐÃ FIX: Sửa lại đường dẫn lùi ra 2 cấp thư mục để tìm đúng file DashboardPage.css
+import "../../Dashboard/DashboardPage.css";
 import "./CreateCardAIPage.css";
 
 const CreateCardAIPage = ({ onNavigate }) => {
@@ -78,12 +79,9 @@ const CreateCardAIPage = ({ onNavigate }) => {
       formData.append("customPrompt", finalPrompt);
 
       const res = await api.post("/ai/generate", formData);
-      console.log("📦 Dữ liệu thô từ Backend gửi về Frontend:", res); // Radar theo dõi data
+      console.log("📦 Dữ liệu thô từ Backend gửi về Frontend:", res);
 
-      // 👉 ĐÃ FIX: Bóc tách lớp vỏ thông minh, bao xài cho mọi kiểu trả về của Axios
       const responseData = res.data ? res.data : res;
-
-      // Backend của mình đang trả về data: [...] hoặc cards: [...]
       let rawData = responseData.data || responseData.cards || responseData;
 
       if (!Array.isArray(rawData)) {
@@ -137,7 +135,6 @@ const CreateCardAIPage = ({ onNavigate }) => {
           : `${cleanTopic} (AI Generated)`;
       }
 
-      // 👉 Gói hàng gửi cho /decks/bulk để lưu thẳng vào Database (Đã đồng bộ)
       const payload = {
         description: "Tạo tự động bằng AI",
         is_public: false,

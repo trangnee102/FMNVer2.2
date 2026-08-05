@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import Sidebar from "../components/Layout/Sidebar";
-import DiscoveryTab from "../components/Community/DiscoveryTab";
-import LeaderboardTab from "../components/Community/LeaderboardTab";
-import ChatTab from "../components/Community/ChatTab";
-import "./DashboardPage.css";
+import Sidebar from "../../components/Layout/Sidebar";
+import DiscoveryTab from "../../components/Community/DiscoveryTab";
+import LeaderboardTab from "../../components/Community/LeaderboardTab";
+import ChatTab from "../../components/Community/ChatTab";
+import "../Dashboard/DashboardPage.css"; 
 import "./CommunityPage.css";
-
 const CommunityPage = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState("explore");
 

@@ -2,7 +2,7 @@ import React from "react";
 import { useParams } from "react-router-dom";
 import QuickTestModalManager from "./QuickTestModalManager";
 import Sidebar from "../../Layout/Sidebar";
-import "../../../pages/DashboardPage.css";
+import "../../../pages/Dashboard/DashboardPage.css";
 
 const QuickTestHostPage = ({ onNavigate }) => {
   const { roomCode } = useParams();
