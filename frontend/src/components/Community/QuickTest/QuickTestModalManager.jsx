@@ -89,6 +89,9 @@ const QuickTestModalManager = ({
   // 👉 Thống kê phân bố đáp án theo từng câu (chế độ Tự do) — chỉ lấy được sau khi bài thi
   // đã kết thúc (server chặn nếu phòng chưa FINISHED), hiện trong màn Bảng xếp hạng chung cuộc
   const [questionStatsList, setQuestionStatsList] = useState([]);
+  // 👉 Chi tiết bài làm của 1 học sinh, hiện trong popup khi bấm vào học sinh đó ở bảng xếp hạng
+  const [selectedStudentDetail, setSelectedStudentDetail] = useState(null);
+  const [studentDetailLoading, setStudentDetailLoading] = useState(false);
   const inputRef = useRef(null);
   const startTimeRef = useRef(null);
   const hasFinishedRef = useRef(false);
@@ -627,6 +630,23 @@ const QuickTestModalManager = ({
       }
     } catch (e) {}
     revealQuestion(roomCode, currentQuestion.id);
+  };
+
+  // 👉 Bấm vào 1 học sinh ở bảng xếp hạng cuối bài -> mở popup xem chi tiết từng câu học
+  // sinh đó đã chọn gì, đúng/sai so với đáp án đúng
+  const handleSelectStudent = async (item) => {
+    const targetParticipantId = item?.participantId || item?.id;
+    if (!roomCode || !targetParticipantId) return;
+    setStudentDetailLoading(true);
+    setSelectedStudentDetail({ participant: { studentName: item?.studentName || item?.userName }, answers: [] });
+    try {
+      const res = await quickTestAPI.getParticipantDetail(roomCode, targetParticipantId);
+      setSelectedStudentDetail(res?.data || null);
+    } catch {
+      setSelectedStudentDetail(null);
+    } finally {
+      setStudentDetailLoading(false);
+    }
   };
 
   const handleEndHost = async () => {
@@ -1378,6 +1398,7 @@ const QuickTestModalManager = ({
 
     if (step === "leaderboard") {
       return (
+        <>
         <div className="quicktest-modal-card quicktest-wide-card" style={{ marginTop: '20px', position: 'relative' }}>
           <button style={{ ...btnCloseStyle, position: 'absolute', top: '24px', right: '24px', zIndex: 10 }} onClick={handleClose} onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#0f172a'; }} onMouseOut={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#64748b'; }}>
             <i className="fa-solid fa-xmark"></i>
@@ -1385,7 +1406,7 @@ const QuickTestModalManager = ({
           <div className="quicktest-modal-topbar" style={{ marginBottom: '24px' }}>
             <div className="quicktest-pill" style={{ fontSize: '1.2rem', padding: '12px 24px', background: '#fffbeb', color: '#d97706' }}>🏆 Bảng xếp hạng chung cuộc</div>
           </div>
-          <QuickTestLeaderboardCard results={leaderboard} />
+          <QuickTestLeaderboardCard results={leaderboard} onSelectStudent={handleSelectStudent} />
 
           {questionStatsList.length > 0 && (
             <div style={{ marginTop: '36px' }}>
@@ -1426,20 +1447,28 @@ const QuickTestModalManager = ({
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         {qs.distribution.map((d, dIdx) => {
                           const pct = qs.totalAnswered > 0 ? Math.round((d.count / qs.totalAnswered) * 100) : 0;
+                          // 👉 3 trạng thái rõ rệt: đúng (xanh), SAI nhưng có người chọn (đỏ — cần
+                          // nổi bật vì đây mới là thứ giáo viên cần biết để sửa lỗ hổng kiến thức),
+                          // và sai nhưng không ai chọn (xám trung tính, không đáng chú ý)
+                          const isWrongChosen = !d.isCorrect && d.count > 0;
+                          const accent = d.isCorrect ? '#10b981' : isWrongChosen ? '#ef4444' : '#cbd5e1';
+                          const rowBg = d.isCorrect ? '#f0fdf4' : isWrongChosen ? '#fef2f2' : '#f8fafc';
+                          const rowBorder = d.isCorrect ? '#bbf7d0' : isWrongChosen ? '#fecaca' : '#f1f5f9';
+                          const textColor = d.isCorrect ? '#166534' : isWrongChosen ? '#991b1b' : '#94a3b8';
                           return (
-                            <div key={dIdx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '12px', background: d.isCorrect ? '#f0fdf4' : '#f8fafc', border: `1px solid ${d.isCorrect ? '#bbf7d0' : '#f1f5f9'}` }}>
-                              <div style={{ width: '30px', height: '30px', flexShrink: 0, borderRadius: '8px', background: d.isCorrect ? '#10b981' : '#e2e8f0', color: d.isCorrect ? '#fff' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '0.9rem' }}>
+                            <div key={dIdx} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '12px', background: rowBg, border: `1px solid ${rowBorder}` }}>
+                              <div style={{ width: '30px', height: '30px', flexShrink: 0, borderRadius: '8px', background: accent, color: (d.isCorrect || isWrongChosen) ? '#fff' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '0.9rem' }}>
                                 {String.fromCharCode(65 + dIdx)}
                               </div>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '10px', marginBottom: '5px' }}>
-                                  <span style={{ fontSize: '0.92rem', color: d.isCorrect ? '#166534' : '#334155', fontWeight: d.isCorrect ? '700' : '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {String(d.answer).replace(/^[A-Za-z][.)]\s*/, '')} {d.isCorrect && '✅'}
+                                  <span style={{ fontSize: '0.92rem', color: textColor, fontWeight: (d.isCorrect || isWrongChosen) ? '700' : '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {String(d.answer).replace(/^[A-Za-z][.)]\s*/, '')} {d.isCorrect ? '✅' : isWrongChosen ? '❌' : ''}
                                   </span>
                                   <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: '600', flexShrink: 0 }}>{d.count} ({pct}%)</span>
                                 </div>
                                 <div style={{ height: '8px', background: '#f1f5f9', borderRadius: '6px', overflow: 'hidden' }}>
-                                  <div style={{ height: '100%', width: `${pct}%`, background: d.isCorrect ? '#10b981' : '#94a3b8', borderRadius: '6px', transition: 'width 0.4s ease' }}></div>
+                                  <div style={{ height: '100%', width: `${pct}%`, background: accent, borderRadius: '6px', transition: 'width 0.4s ease' }}></div>
                                 </div>
                               </div>
                             </div>
@@ -1457,6 +1486,66 @@ const QuickTestModalManager = ({
              <button className="quicktest-secondary-btn" style={{ padding: '16px 32px', fontSize: '1.1rem' }} onClick={handleClose}>Quay lại Trang chủ</button>
           </div>
         </div>
+
+        {selectedStudentDetail && (
+          <div style={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(15, 23, 42, 0.64)', backdropFilter: 'blur(6px)' }} onClick={() => setSelectedStudentDetail(null)} />
+            <div style={{ position: 'relative', zIndex: 1, width: 'min(100%, 720px)', maxHeight: '88vh', overflowY: 'auto', background: '#fff', borderRadius: '24px', padding: '28px', boxShadow: '0 30px 80px rgba(15,23,42,0.3)' }}>
+              <button
+                style={{ position: 'absolute', top: '20px', right: '20px', width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: '#f1f5f9', color: '#64748b', fontSize: '1.2rem', cursor: 'pointer' }}
+                onClick={() => setSelectedStudentDetail(null)}
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
+                <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'linear-gradient(135deg, #4f46e5 0%, #8b5cf6 100%)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '1.3rem', flexShrink: 0 }}>
+                  {(selectedStudentDetail.participant?.studentName || "?").charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.4rem', color: '#0f172a' }}>{selectedStudentDetail.participant?.studentName || "Học sinh"}</h3>
+                  <p style={{ margin: '2px 0 0', color: '#94a3b8', fontSize: '0.9rem' }}>Chi tiết bài làm</p>
+                </div>
+              </div>
+
+              {studentDetailLoading ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                  <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '2rem' }}></i>
+                </div>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                    <span style={{ background: '#eef2ff', color: '#4338ca', fontWeight: 800, padding: '8px 16px', borderRadius: '999px', fontSize: '0.9rem' }}>⭐ {selectedStudentDetail.participant?.score ?? 0}đ</span>
+                    <span style={{ background: '#f0fdf4', color: '#166534', fontWeight: 800, padding: '8px 16px', borderRadius: '999px', fontSize: '0.9rem' }}>✅ Đúng {selectedStudentDetail.participant?.correctCount ?? 0}</span>
+                    <span style={{ background: '#fef2f2', color: '#991b1b', fontWeight: 800, padding: '8px 16px', borderRadius: '999px', fontSize: '0.9rem' }}>❌ Sai {selectedStudentDetail.participant?.wrongCount ?? 0}</span>
+                    <span style={{ background: '#f0f9ff', color: '#0369a1', fontWeight: 800, padding: '8px 16px', borderRadius: '999px', fontSize: '0.9rem' }}>⏱ TB {(selectedStudentDetail.participant?.averageAnswerTime ?? 0).toFixed(1)}s</span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {(selectedStudentDetail.answers || []).map((a, idx) => (
+                      <div key={a.questionId} style={{ border: `1px solid ${!a.answered ? '#e2e8f0' : a.isCorrect ? '#bbf7d0' : '#fecaca'}`, background: !a.answered ? '#f8fafc' : a.isCorrect ? '#f0fdf4' : '#fef2f2', borderRadius: '14px', padding: '16px' }}>
+                        <div style={{ fontWeight: 700, color: '#1e293b', marginBottom: '8px', fontSize: '0.95rem' }}>Câu {idx + 1}: {a.question}</div>
+                        {!a.answered ? (
+                          <div style={{ color: '#94a3b8', fontSize: '0.88rem', fontWeight: 600 }}>⚪ Không trả lời</div>
+                        ) : (
+                          <div style={{ fontSize: '0.88rem', fontWeight: 600, color: a.isCorrect ? '#166534' : '#991b1b' }}>
+                            {a.isCorrect ? '✅' : '❌'} Đã chọn: {String(a.selectedAnswer || "").replace(/^[A-Za-z][.)]\s*/, '')}
+                          </div>
+                        )}
+                        {(!a.answered || !a.isCorrect) && a.correctAnswerText && (
+                          <div style={{ fontSize: '0.85rem', color: '#166534', marginTop: '4px' }}>
+                            Đáp án đúng: {String(a.correctAnswerText).replace(/^[A-Za-z][.)]\s*/, '')}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+        </>
       );
     }
 

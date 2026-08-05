@@ -124,18 +124,30 @@ export const useQuickTestSocket = () => {
       setLeaderboard(prev => {
         const existingIndex = prev.findIndex(p => p.participantId === data.participantId || p.studentName === data.studentName);
         let updated = [...prev];
+        const answerTime = Number(data.answerTime) || 0;
         if (existingIndex >= 0) {
+          const item = updated[existingIndex];
+          // 👉 wrongCount/averageAnswerTime trước đây chưa từng được tính (luôn undefined ->
+          // cột "Sai"/"Tốc độ TB" ở bảng xếp hạng luôn hiện 0/0.0s bất kể thực tế) — giờ cộng
+          // dồn đúng, và tính trung bình động dựa trên tổng số câu ĐÃ trả lời trước đó
+          const prevAnsweredCount = (item.correctCount || 0) + (item.wrongCount || 0);
+          const newAnsweredCount = prevAnsweredCount + 1;
+          const newAvgAnswerTime = ((item.averageAnswerTime || 0) * prevAnsweredCount + answerTime) / newAnsweredCount;
           updated[existingIndex] = {
-            ...updated[existingIndex],
+            ...item,
             score: data.score,
-            correctCount: data.isCorrect ? (updated[existingIndex].correctCount || 0) + 1 : (updated[existingIndex].correctCount || 0)
+            correctCount: data.isCorrect ? (item.correctCount || 0) + 1 : (item.correctCount || 0),
+            wrongCount: !data.isCorrect ? (item.wrongCount || 0) + 1 : (item.wrongCount || 0),
+            averageAnswerTime: newAvgAnswerTime,
           };
         } else {
           updated.push({
             participantId: data.participantId,
             studentName: data.studentName,
             score: data.score,
-            correctCount: data.isCorrect ? 1 : 0
+            correctCount: data.isCorrect ? 1 : 0,
+            wrongCount: !data.isCorrect ? 1 : 0,
+            averageAnswerTime: answerTime,
           });
         }
         return updated.sort((a, b) => b.score - a.score);
@@ -220,7 +232,10 @@ export const useQuickTestSocket = () => {
           studentName,
           score: newScore,
           isCorrect,
-          selectedAnswer
+          selectedAnswer,
+          // 👉 Cần gửi kèm để tính "Tốc độ TB" ở bảng xếp hạng — trước đây thiếu, khiến
+          // cột này luôn hiện 0.0s bất kể học sinh trả lời nhanh hay chậm
+          answerTime,
         });
       }
 

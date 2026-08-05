@@ -266,7 +266,7 @@ const submitAnswer = async (req, res) => {
     // bố, không tự cập nhật nếu có câu trả lời "lẻn vào" sau đó)
     const participant = await prisma.quickTestParticipant.findUnique({
       where: { id: participantId },
-      select: { roomId: true },
+      select: { roomId: true, correctCount: true, wrongCount: true, averageAnswerTime: true },
     });
     if (participant) {
       const room = await prisma.quickTestRoom.findUnique({ where: { id: participant.roomId } });
@@ -304,12 +304,18 @@ const submitAnswer = async (req, res) => {
       points += speedBonus;
     }
 
+    // 👉 averageAnswerTime trước đây có cột nhưng chưa từng được cập nhật (luôn giữ giá trị
+    // mặc định 0) — tính trung bình động dựa trên số câu ĐÃ trả lời trước đó của participant
+    const prevAnsweredCount = (participant?.correctCount || 0) + (participant?.wrongCount || 0);
+    const newAverageAnswerTime = ((participant?.averageAnswerTime || 0) * prevAnsweredCount + parseInt(answerTime, 10)) / (prevAnsweredCount + 1);
+
     const updatedParticipant = await prisma.quickTestParticipant.update({
       where: { id: participantId },
       data: {
         score: { increment: points },
         correctCount: { increment: isCorrect ? 1 : 0 },
-        wrongCount: { increment: !isCorrect ? 1 : 0 }
+        wrongCount: { increment: !isCorrect ? 1 : 0 },
+        averageAnswerTime: newAverageAnswerTime,
       }
     });
 
@@ -531,6 +537,77 @@ const getAllQuestionStats = async (req, res) => {
   }
 };
 
+// 👉 Chi tiết bài làm của MỘT học sinh — bấm vào học sinh trong bảng xếp hạng cuối bài để
+// xem từng câu họ đã chọn gì, đúng/sai, so với đáp án đúng. Chỉ xem được sau khi kết thúc
+// bài thi, giống getAllQuestionStats.
+const getParticipantDetail = async (req, res) => {
+  try {
+    const roomCode = String(req.params.roomCode).toUpperCase().trim();
+    const { participantId } = req.params;
+
+    const room = await prisma.quickTestRoom.findUnique({
+      where: { roomCode },
+      include: { Exam: { include: { Flashcards: true } } },
+    });
+    if (!room) {
+      return res.status(404).json({ success: false, message: "Phòng QuickTest không tồn tại" });
+    }
+    if (room.status !== "FINISHED") {
+      return res.status(400).json({ success: false, message: "Bài thi chưa kết thúc, chưa thể xem chi tiết." });
+    }
+
+    const participant = await prisma.quickTestParticipant.findFirst({
+      where: { id: participantId, roomId: room.id },
+    });
+    if (!participant) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy học sinh này trong phòng" });
+    }
+
+    const myAnswers = await prisma.quickTestAnswer.findMany({
+      where: { participantId },
+      select: { questionId: true, selectedAnswer: true, isCorrect: true, answerTime: true },
+    });
+    const answerByQuestionId = new Map(myAnswers.map((a) => [a.questionId, a]));
+
+    const flashcards = room.Exam?.Flashcards || [];
+    const answers = flashcards.map((card) => {
+      const correctAnswersRaw = card.correct_answers || card.answer;
+      const options = parseOptionsSafe(card.options);
+      const mine = answerByQuestionId.get(card.id);
+
+      return {
+        questionId: card.id,
+        question: card.question,
+        questionType: card.question_type,
+        options,
+        correctAnswerText: options.find((opt) => gradeAnswer(opt, correctAnswersRaw)) || correctAnswersRaw || "",
+        selectedAnswer: mine?.selectedAnswer ?? null,
+        isCorrect: mine?.isCorrect ?? false,
+        answered: !!mine,
+        answerTime: mine?.answerTime ?? null,
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        participant: {
+          id: participant.id,
+          studentName: participant.studentName,
+          score: participant.score,
+          correctCount: participant.correctCount,
+          wrongCount: participant.wrongCount,
+          averageAnswerTime: participant.averageAnswerTime,
+        },
+        answers,
+      },
+    });
+  } catch (error) {
+    console.error("Error getting participant detail:", error);
+    res.status(500).json({ success: false, message: "Lỗi khi lấy chi tiết bài làm" });
+  }
+};
+
 module.exports = {
   createRoom,
   getRoom,
@@ -544,4 +621,5 @@ module.exports = {
   revealQuestion,
   getQuestionStats,
   getAllQuestionStats,
+  getParticipantDetail,
 };

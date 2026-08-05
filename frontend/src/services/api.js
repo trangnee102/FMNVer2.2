@@ -148,6 +148,10 @@ export const quickTestAPI = {
   // dùng để cảnh báo giáo viên trước khi bấm "Công bố đáp án" lúc chưa có ai trả lời
   getQuestionStats: (roomCode, questionId) =>
     api.get(`/quicktest/rooms/${roomCode}/question-stats/${questionId}`),
+  // 👉 Chi tiết bài làm của 1 học sinh (từng câu chọn gì, đúng/sai) — bấm vào học sinh ở
+  // bảng xếp hạng cuối bài, cũng chỉ xem được sau khi bài thi đã kết thúc
+  getParticipantDetail: (roomCode, participantId) =>
+    api.get(`/quicktest/rooms/${roomCode}/participant/${participantId}/detail`),
 };
 
 export default api;

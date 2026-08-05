@@ -18,5 +18,6 @@ router.post("/join", quickTestController.joinRoom);
 router.get("/leaderboard", quickTestController.getLeaderboard);
 router.post("/submit", quickTestController.submitAnswer);
 router.get("/rooms/:roomCode/all-question-stats", quickTestController.getAllQuestionStats);
+router.get("/rooms/:roomCode/participant/:participantId/detail", quickTestController.getParticipantDetail);
 
 module.exports = router;

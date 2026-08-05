@@ -130,12 +130,13 @@ io.on("connection", async (socket) => {
 
   socket.on(
     "submit_answer",
-    ({ roomCode, participantId, studentName, score, isCorrect }) => {
+    ({ roomCode, participantId, studentName, score, isCorrect, answerTime }) => {
       io.to(`quicktest_${roomCode}`).emit("live_update", {
         participantId,
         studentName,
         score,
         isCorrect,
+        answerTime,
       });
     },
   );
