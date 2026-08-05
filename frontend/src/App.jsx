@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import Login from "./components/Auth/Login";
 import Register from "./components/Auth/Register";
 import ProtectedRoute from "./components/Auth/ProtectedRoute";
+import ResetPassword from "./components/Auth/ResetPassword"; // 👉 ĐÃ BỔ SUNG
 
 import DashboardPage from "./pages/Dashboard/DashboardPage";
 import CreateCardPage from "./pages/Create/Flashcard/CreateCardPage";
@@ -130,6 +131,12 @@ function App() {
               onNavigateToLogin={() => handleNavigate("login")}
             />
           }
+        />
+
+        {/* 👉 ĐÃ BỔ SUNG: Route để bắt link Khôi phục mật khẩu */}
+        <Route
+          path="/reset-password"
+          element={<ResetPassword onNavigate={() => handleNavigate("login")} />}
         />
 
         <Route 

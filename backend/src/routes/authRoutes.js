@@ -5,6 +5,8 @@ const {
   register,
   login,
   updateProfile,
+  forgotPassword,
+  resetPassword,
 } = require("../controllers/authController");
 const { verifyToken } = require("../middlewares/authMiddleware");
 
@@ -16,6 +18,12 @@ router.post("/login", login);
 
 // 👉 Cánh cửa API nhận dữ liệu Cập nhật hồ sơ từ Frontend (yêu cầu đã đăng nhập)
 router.put("/update-profile", verifyToken, updateProfile);
+
+// Khai báo đường dẫn API cho Quên mật khẩu
+router.post("/forgot-password", forgotPassword);
+
+// Khai báo đường dẫn API cho Đặt lại mật khẩu
+router.post("/reset-password", resetPassword);
 
 // Xuất router ra cho server.js sử dụng
 module.exports = router;

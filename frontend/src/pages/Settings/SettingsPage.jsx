@@ -1,8 +1,7 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Sidebar from "../../components/Layout/Sidebar";
 import { translations } from "../../translations";
 import { useAuth } from "../../context/AuthContext";
-import { authAPI } from "../../services/api";
 import "./SettingsPage.css";
 
 const SettingsPage = ({ onNavigate }) => {
@@ -11,14 +10,13 @@ const SettingsPage = ({ onNavigate }) => {
   const [currentLang, setCurrentLang] = useState(
     localStorage.getItem("language") || "vi",
   );
-  
-  const t = translations?.[currentLang] || {};
+  const t = translations[currentLang] || {};
 
+  // 2. QUẢN LÝ ẢNH ĐẠI DIỆN
   const [avatar, setAvatar] = useState(
     localStorage.getItem("user_avatar") || null,
   );
   const fileInputRef = useRef(null);
-  const [isSaving, setIsSaving] = useState(false);
 
   const formatJoinDate = (dateString) => {
     if (!dateString) return new Date().toLocaleDateString("vi-VN");
@@ -43,6 +41,7 @@ const SettingsPage = ({ onNavigate }) => {
     }
   }, [user]);
 
+  // 4. QUẢN LÝ NÚT GẠT
   const [toggles, setToggles] = useState({
     darkMode: localStorage.getItem("theme") === "dark",
     communityNotification: false,
@@ -73,10 +72,10 @@ const SettingsPage = ({ onNavigate }) => {
       const newState = !prev[key];
       if (key === "darkMode") {
         if (newState) {
-          document.documentElement?.classList.add("dark-mode");
+          document.documentElement.classList.add("dark-mode");
           localStorage.setItem("theme", "dark");
         } else {
-          document.documentElement?.classList.remove("dark-mode");
+          document.documentElement.classList.remove("dark-mode");
           localStorage.setItem("theme", "light");
         }
       }
@@ -89,35 +88,71 @@ const SettingsPage = ({ onNavigate }) => {
     setShow2FAModal(false);
   };
 
-  const handlePasswordSubmit = (e) => {
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setPasswordError("");
     setPasswordSuccess("");
 
     if (passwordStep === "current") {
-      if (currentPassword === "123456") {
-        setPasswordStep("new");
-      } else {
-        setPasswordError("Mật khẩu hiện tại không chính xác!");
+      if (!currentPassword) {
+        setPasswordError("Vui lòng nhập mật khẩu hiện tại!");
+        return;
       }
+      // Lưu lại mật khẩu hiện tại và chuyển sang bước nhập mật khẩu mới
+      setPasswordStep("new");
     } else if (passwordStep === "new") {
       if (newPassword.length < 6) {
         setPasswordError("Mật khẩu mới phải có ít nhất 6 ký tự!");
         return;
       }
-      setPasswordSuccess("🎉 Đổi mật khẩu thành công!");
-      setTimeout(() => {
-        closePasswordModal();
-      }, 2000);
+      
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/change-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.id,
+            currentPassword: currentPassword,
+            newPassword: newPassword
+          }),
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          setPasswordSuccess("🎉 Đổi mật khẩu thành công!");
+          setTimeout(() => {
+            closePasswordModal();
+          }, 2000);
+        } else {
+          setPasswordError(data.message || "Đổi mật khẩu thất bại!");
+        }
+      } catch (error) {
+        setPasswordError("Lỗi kết nối máy chủ!");
+      }
+
     } else if (passwordStep === "forgot") {
       if (!forgotEmail) {
         setPasswordError("Vui lòng nhập email!");
         return;
       }
-      setPasswordSuccess("✅ Đã gửi yêu cầu tạo lại mật khẩu vào email!");
-      setTimeout(() => {
-        closePasswordModal();
-      }, 3000);
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/forgot-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: forgotEmail }),
+        });
+        const data = await response.json();
+        if (data.success) {
+           setPasswordSuccess("✅ Đã gửi yêu cầu tạo lại mật khẩu vào email!");
+           setTimeout(() => {
+             closePasswordModal();
+           }, 3000);
+        } else {
+           setPasswordError(data.message || "Gửi yêu cầu thất bại!");
+        }
+      } catch (error) {
+        setPasswordError("Lỗi kết nối máy chủ!");
+      }
     }
   };
 
@@ -143,47 +178,78 @@ const SettingsPage = ({ onNavigate }) => {
     setUserInfo((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleAvatarChange = (e) => {
+  const handleAvatarChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatar(reader.result);
-        localStorage.setItem("user_avatar", reader.result);
-        window.dispatchEvent(new Event("storage"));
-      };
-      reader.readAsDataURL(file);
+      const formData = new FormData();
+      formData.append("avatar", file);
+      formData.append("userId", user.id);
+
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/avatar`, {
+          method: "POST",
+          body: formData,
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          setAvatar(data.user.avatar_url);
+          const currentUser = JSON.parse(localStorage.getItem("current_user") || "{}");
+          if(currentUser) {
+            currentUser.avatar_url = data.user.avatar_url;
+            localStorage.setItem("current_user", JSON.stringify(currentUser));
+          }
+          alert("Cập nhật ảnh đại diện thành công!");
+        } else {
+          alert(data.message || "Lỗi khi tải ảnh!");
+        }
+      } catch (err) {
+        alert("Lỗi kết nối máy chủ!");
+      }
     }
   };
 
+  // 👉 ĐÃ SỬA: Nâng cấp hàm lưu cài đặt gọi thẳng xuống Backend để lưu vào Database
   const handleSaveSettings = async () => {
-    if (!user?.id) {
-      alert("Lỗi: Không tìm thấy thông tin người dùng!");
-      return;
-    }
-    
-    setIsSaving(true);
     try {
-      const payload = {
-        userId: user.id,
-        full_name: userInfo.displayName,
-        email: userInfo.email,
-      };
+      const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-      const data = await authAPI.updateProfile(payload);
+      const response = await fetch(`${API_URL}/auth/update-profile`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId: user?.id,
+          full_name: userInfo.displayName,
+          email: userInfo.email,
+          dark_mode: toggles.darkMode,
+          sound_notification: toggles.soundNotification,
+          achievement_notification: toggles.achievementNotification,
+          two_factor_auth: toggles.twoFactorAuth,
+          community_notification: toggles.communityNotification,
+          due_notification: toggles.dueNotification,
+          study_reminder: toggles.studyReminder
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Lưu cài đặt thất bại!");
+      }
 
       if (data.token) {
         localStorage.setItem("token", data.token);
       }
       if (data.user) {
-        loginUser(data.user);
+        if (loginUser) loginUser(data.user);
+        localStorage.setItem("current_user", JSON.stringify(data.user));
       }
 
-      alert("💾 Đã lưu cài đặt vào cơ sở dữ liệu thành công!");
+      alert("💾 Đã lưu thay đổi vào cơ sở dữ liệu thành công!");
     } catch (error) {
-      alert("❌ Lỗi: " + (error.message || "Lưu cài đặt thất bại!"));
-    } finally {
-      setIsSaving(false);
+      alert("❌ Lỗi: " + error.message);
     }
   };
 
@@ -199,11 +265,12 @@ const SettingsPage = ({ onNavigate }) => {
 
         <div className="settings-card">
           <div className="profile-header">
-            <div className="profile-avatar">
+            <div className="profile-avatar" style={{ overflow: "hidden" }}>
               {avatar ? (
                 <img
                   src={avatar}
                   alt="Avatar"
+                  className="avatar-img"
                   style={{
                     width: "100%",
                     height: "100%",
@@ -216,10 +283,10 @@ const SettingsPage = ({ onNavigate }) => {
               )}
             </div>
             <div className="profile-info-content">
-              <h3>{userInfo.displayName || "Người dùng"}</h3>
-              <p className="profile-email">{userInfo.email || "Chưa cập nhật email"}</p>
+              <h3>{userInfo.displayName}</h3>
+              <p className="profile-email">{userInfo.email}</p>
               <p className="profile-date">
-                <i className="fa-solid fa-calendar-days"></i> Tham gia:{" "}
+                <i className="fa-solid fa-table-cells"></i> Tham gia:{" "}
                 {userInfo.joinDate}
               </p>
 
@@ -233,7 +300,7 @@ const SettingsPage = ({ onNavigate }) => {
                 />
                 <button
                   className="btn-outline"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => fileInputRef.current.click()}
                 >
                   <i className="fa-solid fa-camera"></i> Đổi ảnh
                 </button>
@@ -244,7 +311,7 @@ const SettingsPage = ({ onNavigate }) => {
                   <i className="fa-solid fa-key"></i> Đổi mật khẩu
                 </button>
                 <button className="btn-outline">
-                  <i className="fa-solid fa-laptop"></i> Quản lý phiên
+                  <i className="fa-regular fa-window-restore"></i> Quản lý phiên
                 </button>
               </div>
             </div>
@@ -259,20 +326,12 @@ const SettingsPage = ({ onNavigate }) => {
             </div>
             
             <div
-              className={`nav-tab ${activeTab === "notifications" ? "active" : ""}`}
-              onClick={() => setActiveTab("notifications")}
-            >
-              <i className="fa-solid fa-bell"></i> Thông báo
-            </div>
-
-            <div
               className={`nav-tab ${activeTab === "security" ? "active" : ""}`}
               onClick={() => setActiveTab("security")}
             >
               <i className="fa-solid fa-shield-halved"></i>{" "}
               {t.tabSecurity || "Bảo mật"}
             </div>
-            
             <div
               className={`nav-tab ${activeTab === "account" ? "active" : ""}`}
               onClick={() => setActiveTab("account")}
@@ -298,7 +357,8 @@ const SettingsPage = ({ onNavigate }) => {
                       {t.darkMode || "Chế độ tối"}
                     </span>
                     <span className="setting-desc">
-                      {t.darkModeDesc || "Chuyển sang giao diện tối để dễ nhìn hơn ban đêm"}
+                      {t.darkModeDesc ||
+                        "Chuyển sang giao diện tối để dễ nhìn hơn"}
                     </span>
                   </div>
                   <label className="custom-toggle">
@@ -310,6 +370,7 @@ const SettingsPage = ({ onNavigate }) => {
                     <span className="toggle-slider"></span>
                   </label>
                 </div>
+                
               </div>
 
               <div className="settings-section">
@@ -324,7 +385,7 @@ const SettingsPage = ({ onNavigate }) => {
                   <div className="setting-details">
                     <span className="setting-name">Nhắc nhở ôn tập</span>
                     <span className="setting-desc">
-                      Nhận thông báo hàng ngày để duy trì thói quen học tập
+                      Nhận thông báo hàng ngày để ôn tập
                     </span>
                   </div>
                   <label className="custom-toggle">
@@ -354,7 +415,7 @@ const SettingsPage = ({ onNavigate }) => {
                   <div className="setting-details">
                     <span className="setting-name">Thông báo cộng đồng</span>
                     <span className="setting-desc">
-                      Nhận thông báo khi có người nhắn tin hoặc tương tác
+                      Thông báo về hoạt động cộng đồng
                     </span>
                   </div>
                   <label className="custom-toggle">
@@ -387,7 +448,7 @@ const SettingsPage = ({ onNavigate }) => {
                       Xác thực hai yếu tố (2FA)
                     </span>
                     <span className="setting-desc">
-                      Tăng cường bảo mật bằng ứng dụng authenticator hoặc email
+                      Thêm một lớp bảo mật bằng ứng dụng authenticator
                     </span>
                   </div>
                   <label className="custom-toggle">
@@ -404,14 +465,14 @@ const SettingsPage = ({ onNavigate }) => {
                   <div className="setting-details">
                     <span className="setting-name">Đổi mật khẩu</span>
                     <span className="setting-desc">
-                      Cập nhật mật khẩu tài khoản định kỳ để an toàn hơn
+                      Cập nhật mật khẩu tài khoản định kỳ
                     </span>
                   </div>
                   <button
                     className="btn-action-small"
                     onClick={() => setShowPasswordModal(true)}
                   >
-                    <i className="fa-solid fa-key"></i> Thay đổi
+                    <i className="fa-solid fa-key"></i> Đổi
                   </button>
                 </div>
 
@@ -419,7 +480,7 @@ const SettingsPage = ({ onNavigate }) => {
                   <div className="setting-details">
                     <span className="setting-name">Phiên đăng nhập</span>
                     <span className="setting-desc">
-                      Kiểm tra và đăng xuất khỏi các thiết bị khác
+                      Quản lý các phiên đang hoạt động
                     </span>
                   </div>
                   <button className="btn-action-small">
@@ -435,7 +496,7 @@ const SettingsPage = ({ onNavigate }) => {
               <div className="settings-section">
                 <h4 className="section-title">
                   <i
-                    className="fa-solid fa-user-gear"
+                    className="fa-solid fa-user"
                     style={{ color: "#4f46e5" }}
                   ></i>{" "}
                   Thông tin cá nhân
@@ -459,7 +520,7 @@ const SettingsPage = ({ onNavigate }) => {
                   <div className="form-group">
                     <div className="form-label">
                       <strong>Email</strong>
-                      <span>Địa chỉ email dùng để đăng nhập</span>
+                      <span>Địa chỉ email đã đăng ký</span>
                     </div>
                     <input
                       type="email"
@@ -473,7 +534,7 @@ const SettingsPage = ({ onNavigate }) => {
                   <div className="form-group">
                     <div className="form-label">
                       <strong>Ngày tham gia</strong>
-                      <span>Hệ thống ghi nhận ngày bạn tạo tài khoản</span>
+                      <span>Ngày bạn tạo tài khoản</span>
                     </div>
                     <input
                       type="text"
@@ -484,26 +545,20 @@ const SettingsPage = ({ onNavigate }) => {
                   </div>
                 </div>
               </div>
+
+              
             </div>
           )}
 
           <div className="settings-footer">
-            <button 
-              className="btn-save-settings" 
-              onClick={handleSaveSettings}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <><i className="fa-solid fa-spinner fa-spin"></i> Đang lưu...</>
-              ) : (
-                <><i className="fa-solid fa-floppy-disk"></i> {t.saveBtn || "Lưu cài đặt"}</>
-              )}
+            <button className="btn-save-settings" onClick={handleSaveSettings}>
+              <i className="fa-solid fa-floppy-disk"></i>{" "}
+              {t.saveBtn || "Lưu cài đặt"}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Modal 2FA */}
       {show2FAModal && (
         <div
           style={{
@@ -521,13 +576,13 @@ const SettingsPage = ({ onNavigate }) => {
         >
           <div
             style={{
-              background: "#FFFFFF",
+              background: "var(--bg-card)",
               padding: "30px",
-              borderRadius: "16px",
+              borderRadius: "12px",
               width: "90%",
               maxWidth: "450px",
               boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-              color: "#111827",
+              color: "var(--text-dark)",
             }}
           >
             <h3
@@ -541,7 +596,7 @@ const SettingsPage = ({ onNavigate }) => {
             >
               <i
                 className="fa-solid fa-shield-halved"
-                style={{ color: "#4F46E5" }}
+                style={{ color: "var(--primary)" }}
               ></i>
               {toggles.twoFactorAuth
                 ? "Tắt xác thực hai yếu tố?"
@@ -550,9 +605,9 @@ const SettingsPage = ({ onNavigate }) => {
 
             <p
               style={{
-                color: "#6B7280",
+                color: "var(--text-gray)",
                 fontSize: "0.95rem",
-                marginBottom: "25px",
+                marginBottom: "20px",
                 lineHeight: "1.6",
               }}
             >
@@ -566,16 +621,17 @@ const SettingsPage = ({ onNavigate }) => {
                 display: "flex",
                 gap: "12px",
                 justifyContent: "flex-end",
+                marginTop: "25px",
               }}
             >
               <button
                 onClick={() => setShow2FAModal(false)}
                 style={{
-                  padding: "10px 20px",
-                  borderRadius: "10px",
-                  border: "1px solid #D1D5DB",
+                  padding: "10px 18px",
+                  borderRadius: "8px",
+                  border: "1px solid var(--border)",
                   background: "transparent",
-                  color: "#374151",
+                  color: "var(--text-gray)",
                   cursor: "pointer",
                   fontWeight: "600",
                 }}
@@ -585,10 +641,12 @@ const SettingsPage = ({ onNavigate }) => {
               <button
                 onClick={confirm2FA}
                 style={{
-                  padding: "10px 20px",
-                  borderRadius: "10px",
+                  padding: "10px 18px",
+                  borderRadius: "8px",
                   border: "none",
-                  background: toggles.twoFactorAuth ? "#EF4444" : "#4F46E5",
+                  background: toggles.twoFactorAuth
+                    ? "#ef4444"
+                    : "var(--primary)",
                   color: "white",
                   cursor: "pointer",
                   fontWeight: "600",
@@ -601,7 +659,6 @@ const SettingsPage = ({ onNavigate }) => {
         </div>
       )}
 
-      {/* Modal Password */}
       {showPasswordModal && (
         <div
           style={{
@@ -619,16 +676,16 @@ const SettingsPage = ({ onNavigate }) => {
         >
           <div
             style={{
-              background: "#FFFFFF",
+              background: "var(--bg-card)",
               padding: "30px",
-              borderRadius: "16px",
+              borderRadius: "12px",
               width: "90%",
               maxWidth: "400px",
               boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
-              color: "#111827",
+              color: "var(--text-dark)",
             }}
           >
-            <h3 style={{ margin: "0 0 15px 0", fontSize: "1.3rem" }}>
+            <h3 style={{ margin: "0 0 10px 0", fontSize: "1.3rem" }}>
               {passwordStep === "current" && "Xác nhận mật khẩu"}
               {passwordStep === "new" && "Tạo mật khẩu mới"}
               {passwordStep === "forgot" && "Khôi phục mật khẩu"}
@@ -637,13 +694,12 @@ const SettingsPage = ({ onNavigate }) => {
             {passwordError && (
               <div
                 style={{
-                  padding: "12px",
-                  marginBottom: "20px",
-                  borderRadius: "10px",
+                  padding: "10px",
+                  marginBottom: "15px",
+                  borderRadius: "6px",
                   fontSize: "0.9rem",
-                  backgroundColor: "#FEF2F2",
-                  color: "#991B1B",
-                  border: "1px solid #FECACA"
+                  backgroundColor: "#fee2e2",
+                  color: "#991b1b",
                 }}
               >
                 ❌ {passwordError}
@@ -652,13 +708,12 @@ const SettingsPage = ({ onNavigate }) => {
             {passwordSuccess && (
               <div
                 style={{
-                  padding: "12px",
-                  marginBottom: "20px",
-                  borderRadius: "10px",
+                  padding: "10px",
+                  marginBottom: "15px",
+                  borderRadius: "6px",
                   fontSize: "0.9rem",
-                  backgroundColor: "#F0FDF4",
+                  backgroundColor: "#dcfce7",
                   color: "#166534",
-                  border: "1px solid #BBF7D0"
                 }}
               >
                 {passwordSuccess}
@@ -670,12 +725,13 @@ const SettingsPage = ({ onNavigate }) => {
                 <>
                   <p
                     style={{
-                      color: "#6B7280",
+                      color: "var(--text-gray)",
                       fontSize: "0.9rem",
                       marginBottom: "20px",
                     }}
                   >
-                    Vui lòng nhập mật khẩu hiện tại để tiếp tục.
+                    Vui lòng nhập mật khẩu hiện tại để tiếp tục (Mật khẩu thử
+                    nghiệm là: 123456).
                   </p>
                   <input
                     type="password"
@@ -685,17 +741,16 @@ const SettingsPage = ({ onNavigate }) => {
                     required
                     style={{
                       width: "100%",
-                      padding: "12px 16px",
+                      padding: "12px",
                       marginBottom: "10px",
-                      borderRadius: "10px",
-                      border: "1px solid #D1D5DB",
+                      borderRadius: "8px",
+                      border: "1px solid var(--border)",
                       background: "transparent",
-                      color: "#111827",
+                      color: "var(--text-dark)",
                       outline: "none",
-                      boxSizing: "border-box"
                     }}
                   />
-                  <div style={{ textAlign: "right", marginBottom: "25px" }}>
+                  <div style={{ textAlign: "right", marginBottom: "20px" }}>
                     <span
                       onClick={() => {
                         setPasswordStep("forgot");
@@ -703,7 +758,7 @@ const SettingsPage = ({ onNavigate }) => {
                       }}
                       style={{
                         fontSize: "0.85rem",
-                        color: "#4F46E5",
+                        color: "var(--primary)",
                         cursor: "pointer",
                         fontWeight: "600",
                       }}
@@ -718,7 +773,7 @@ const SettingsPage = ({ onNavigate }) => {
                 <>
                   <p
                     style={{
-                      color: "#6B7280",
+                      color: "var(--text-gray)",
                       fontSize: "0.9rem",
                       marginBottom: "20px",
                     }}
@@ -733,14 +788,13 @@ const SettingsPage = ({ onNavigate }) => {
                     required
                     style={{
                       width: "100%",
-                      padding: "12px 16px",
+                      padding: "12px",
                       marginBottom: "25px",
-                      borderRadius: "10px",
-                      border: "1px solid #D1D5DB",
+                      borderRadius: "8px",
+                      border: "1px solid var(--border)",
                       background: "transparent",
-                      color: "#111827",
+                      color: "var(--text-dark)",
                       outline: "none",
-                      boxSizing: "border-box"
                     }}
                   />
                 </>
@@ -750,13 +804,13 @@ const SettingsPage = ({ onNavigate }) => {
                 <>
                   <p
                     style={{
-                      color: "#6B7280",
+                      color: "var(--text-gray)",
                       fontSize: "0.9rem",
                       marginBottom: "20px",
                     }}
                   >
                     Nhập email đăng ký của bạn. Chúng tôi sẽ gửi yêu cầu thay
-                    đổi mật khẩu vào email này.
+                    đổi mật khẩu.
                   </p>
                   <input
                     type="email"
@@ -766,14 +820,13 @@ const SettingsPage = ({ onNavigate }) => {
                     required
                     style={{
                       width: "100%",
-                      padding: "12px 16px",
+                      padding: "12px",
                       marginBottom: "25px",
-                      borderRadius: "10px",
-                      border: "1px solid #D1D5DB",
+                      borderRadius: "8px",
+                      border: "1px solid var(--border)",
                       background: "transparent",
-                      color: "#111827",
+                      color: "var(--text-dark)",
                       outline: "none",
-                      boxSizing: "border-box"
                     }}
                   />
                 </>
@@ -782,7 +835,7 @@ const SettingsPage = ({ onNavigate }) => {
               <div
                 style={{
                   display: "flex",
-                  gap: "12px",
+                  gap: "10px",
                   justifyContent: "flex-end",
                 }}
               >
@@ -790,11 +843,11 @@ const SettingsPage = ({ onNavigate }) => {
                   type="button"
                   onClick={closePasswordModal}
                   style={{
-                    padding: "10px 20px",
-                    borderRadius: "10px",
-                    border: "1px solid #D1D5DB",
+                    padding: "10px 15px",
+                    borderRadius: "6px",
+                    border: "1px solid var(--border)",
                     background: "transparent",
-                    color: "#374151",
+                    color: "var(--text-gray)",
                     cursor: "pointer",
                     fontWeight: "600",
                   }}
@@ -804,10 +857,10 @@ const SettingsPage = ({ onNavigate }) => {
                 <button
                   type="submit"
                   style={{
-                    padding: "10px 20px",
-                    borderRadius: "10px",
+                    padding: "10px 15px",
+                    borderRadius: "6px",
                     border: "none",
-                    background: "#4F46E5",
+                    background: "var(--primary)",
                     color: "white",
                     cursor: "pointer",
                     fontWeight: "600",
