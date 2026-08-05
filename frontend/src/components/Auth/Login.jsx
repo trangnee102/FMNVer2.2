@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import Button from "../common/Button";
 import "./Login.css";
+import { toast, Toaster } from "react-hot-toast"; // Đã thêm Toaster để hiện thông báo đẹp
 
 const Login = () => {
   const navigate = useNavigate();
@@ -13,9 +14,11 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  
+  // States cho modal quên mật khẩu
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
-  const [forgotStatus, setForgotStatus] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -34,7 +37,6 @@ const Login = () => {
       console.log("Phản hồi từ Server khi đăng nhập:", data); 
 
       if (response.ok) {
-        // 🎉 THÀNH CÔNG
         localStorage.setItem("token", data.token);
 
         const userIdentifier = data.user?.email || email;
@@ -46,11 +48,9 @@ const Login = () => {
 
         navigate("/dashboard");
       } else {
-        // ❌ THẤT BẠI TỪ LOGIC BACKEND
         setErrorMessage(data.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại!");
       }
     } catch (error) {
-      // ❌ BẮT LỖI 500 HOẶC SẬP SERVER
       setErrorMessage("Máy chủ Backend đang gặp sự cố (Lỗi 500). Vui lòng kiểm tra Terminal Backend!");
       console.error("Lỗi đăng nhập:", error);
     } finally {
@@ -58,27 +58,42 @@ const Login = () => {
     }
   };
 
-  const handleForgotPasswordSubmit = (e) => {
+  // 👉 ĐÃ CẬP NHẬT: Hàm gọi API quên mật khẩu thật
+  const handleForgotPassword = async (e) => {
     e.preventDefault();
     if (!forgotEmail) {
-      setForgotStatus("⚠️ Vui lòng nhập địa chỉ email!");
+      toast.error("Vui lòng nhập email của bạn.");
       return;
     }
     
-    setForgotStatus("⏳ Đang gửi yêu cầu...");
-    
-    setTimeout(() => {
-      setForgotStatus("✅ Đã gửi hướng dẫn khôi phục vào email của bạn!");
-      setTimeout(() => {
-        setShowForgotModal(false);
-        setForgotStatus("");
-        setForgotEmail("");
-      }, 3000);
-    }, 1500);
+    setIsResetting(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000/api"}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success(data.message || "Đã gửi link khôi phục vào email của bạn!");
+        setTimeout(() => {
+          setShowForgotModal(false);
+          setForgotEmail("");
+        }, 2000);
+      } else {
+        toast.error(data.message || "Lỗi gửi yêu cầu");
+      }
+    } catch (error) {
+      toast.error("Lỗi khi kết nối đến máy chủ.");
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   return (
     <div className="login-page">
+      <Toaster position="top-right" />
       <div className="login-card">
         <div className="login-logo">🧠</div>
         <h2 className="login-title">ForgetMeNot</h2>
@@ -92,7 +107,6 @@ const Login = () => {
         )}
 
         <form onSubmit={handleLogin}>
-          {/* Box Email */}
           <div className="form-group" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%" }}>
             <div className="form-label-wrapper" style={{ width: "100%", textAlign: "left", marginBottom: "8px" }}>
               <label style={{ fontWeight: "600", color: "var(--text-dark)", fontSize: "0.95rem" }}>Email</label>
@@ -107,7 +121,6 @@ const Login = () => {
             />
           </div>
 
-          {/* Box Mật khẩu */}
           <div className="form-group" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", marginTop: "15px" }}>
             <div className="form-label-wrapper" style={{ width: "100%", textAlign: "left", marginBottom: "8px" }}>
               <label style={{ fontWeight: "600", color: "var(--text-dark)", fontSize: "0.95rem" }}>Mật khẩu</label>
@@ -121,7 +134,6 @@ const Login = () => {
               style={{ width: "100%", boxSizing: "border-box" }}
             />
             
-            {/* Nút "Quên mật khẩu?" */}
             <div style={{ width: "100%", display: "flex", justifyContent: "flex-end", marginTop: "8px" }}>
               <span 
                 className="forgot-link" 
@@ -158,9 +170,6 @@ const Login = () => {
         </div>
       </div>
 
-      {/* =========================================================================
-          MODAL QUÊN MẬT KHẨU
-      ========================================================================= */}
       {showForgotModal && (
         <div className="modal-overlay">
           <div className="modal-content">
@@ -169,23 +178,13 @@ const Login = () => {
               Nhập email bạn đã dùng để đăng ký. Chúng tôi sẽ gửi một liên kết để đặt lại mật khẩu.
             </p>
 
-            {forgotStatus && (
-              <div style={{
-                padding: "12px", marginBottom: "15px", borderRadius: "8px", fontSize: "0.9rem", fontWeight: "600",
-                backgroundColor: forgotStatus.includes("✅") ? "rgba(34, 197, 94, 0.1)" : (forgotStatus.includes("⏳") ? "rgba(56, 189, 248, 0.1)" : "rgba(239, 68, 68, 0.1)"),
-                color: forgotStatus.includes("✅") ? "#16a34a" : (forgotStatus.includes("⏳") ? "#0284c7" : "#dc2626"),
-                border: `1px solid ${forgotStatus.includes("✅") ? "rgba(34, 197, 94, 0.2)" : (forgotStatus.includes("⏳") ? "rgba(56, 189, 248, 0.2)" : "rgba(239, 68, 68, 0.2)")}`
-              }}>
-                {forgotStatus}
-              </div>
-            )}
-
-            <form onSubmit={handleForgotPasswordSubmit}>
+            <form onSubmit={handleForgotPassword}>
               <input
                 type="email"
                 placeholder="Nhập email của bạn..."
                 value={forgotEmail}
                 onChange={(e) => setForgotEmail(e.target.value)}
+                required
                 style={{
                   width: "100%", padding: "14px 16px", marginBottom: "25px", boxSizing: "border-box",
                   borderRadius: "10px", border: "1.5px solid var(--border)",
@@ -195,7 +194,7 @@ const Login = () => {
               <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
                 <button
                   type="button"
-                  onClick={() => { setShowForgotModal(false); setForgotStatus(""); setForgotEmail(""); }}
+                  onClick={() => { setShowForgotModal(false); setForgotEmail(""); }}
                   style={{
                     padding: "12px 20px", borderRadius: "8px", border: "1.5px solid var(--border)",
                     background: "transparent", color: "var(--text-gray)", cursor: "pointer", fontWeight: "600"
@@ -205,12 +204,14 @@ const Login = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={isResetting}
                   style={{
                     padding: "12px 20px", borderRadius: "8px", border: "none",
-                    background: "var(--primary)", color: "white", cursor: "pointer", fontWeight: "600"
+                    background: "var(--primary)", color: "white", cursor: "pointer", fontWeight: "600",
+                    opacity: isResetting ? 0.7 : 1
                   }}
                 >
-                  Gửi yêu cầu
+                  {isResetting ? "Đang gửi..." : "Gửi yêu cầu"}
                 </button>
               </div>
             </form>

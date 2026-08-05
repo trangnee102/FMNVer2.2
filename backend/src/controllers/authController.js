@@ -1,6 +1,7 @@
 const prisma = require("../services/prisma");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const sendEmail = require("../utils/sendEmail");
 
 // Chìa khóa bí mật để tạo thẻ thông hành token (bắt buộc phải có trong .env)
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -194,9 +195,74 @@ const updateProfile = async (req, res) => {
   }
 };
 
+// 👉 ĐÃ THÊM: --- CHỨC NĂNG QUÊN MẬT KHẨU ---
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Vui lòng cung cấp email" });
+    }
+
+    const user = await prisma.users.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy tài khoản với email này" });
+    }
+
+    const resetToken = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '15m' });
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+    const message = `Bạn nhận được email này vì bạn (hoặc ai đó) đã yêu cầu khôi phục mật khẩu tài khoản ForgetMeNot.\n\nVui lòng nhấp vào đường dẫn bên dưới để đặt lại mật khẩu (có hiệu lực trong 15 phút):\n\n${resetUrl}\n\nNếu bạn không yêu cầu, hãy bỏ qua email này.`;
+
+    await sendEmail({
+      email: user.email,
+      subject: "Yêu cầu khôi phục mật khẩu - ForgetMeNot",
+      message: message,
+    });
+
+    res.json({ success: true, message: "Đã gửi link khôi phục vào email của bạn!" });
+  } catch (error) {
+    console.error("Lỗi forgotPassword:", error);
+    res.status(500).json({ success: false, message: "Lỗi hệ thống khi gửi email", error: error.message });
+  }
+};
+
+// 👉 ĐÃ THÊM: --- CHỨC NĂNG ĐẶT LẠI MẬT KHẨU ---
+const resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, message: "Token hoặc mật khẩu mới không hợp lệ" });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (error) {
+      return res.status(400).json({ success: false, message: "Đường dẫn không hợp lệ hoặc đã hết hạn" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await prisma.users.update({
+      where: { id: decoded.id },
+      data: { password_hash: hashedPassword }
+    });
+
+    res.json({ success: true, message: "Đặt lại mật khẩu thành công!" });
+  } catch (error) {
+    console.error("Lỗi resetPassword:", error);
+    res.status(500).json({ success: false, message: "Lỗi hệ thống khi đặt lại mật khẩu", error: error.message });
+  }
+};
+
 // XUẤT CÁC HÀM ĐỂ FILE KHÁC XÀI ĐƯỢC
 module.exports = {
   register,
   login,
   updateProfile, // 👉 ĐÃ BỔ SUNG
+  forgotPassword,
+  resetPassword,
 };

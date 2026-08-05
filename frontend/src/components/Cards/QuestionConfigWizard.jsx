@@ -1,4 +1,3 @@
-// frontend/src/components/Cards/QuestionConfigWizard.jsx
 import React from "react";
 import "./QuestionConfigWizard.css";
 
@@ -39,7 +38,17 @@ const QuestionConfigWizard = ({
 
   const handleApplyAll = (field, value) => {
     if (!value && value !== "") return;
-    const newConfig = questionsConfig.map((q) => ({ ...q, [field]: value }));
+    const newConfig = questionsConfig.map((q) => {
+      if (field === "difficulty" && value === "RANDOM") {
+        const diffs = ["EASY", "MEDIUM", "HARD"];
+        return { ...q, difficulty: diffs[Math.floor(Math.random() * diffs.length)] };
+      }
+      if (field === "type" && value === "RANDOM") {
+        const types = ["SINGLE_CHOICE", "MULTIPLE_CHOICE", "TRUE_FALSE", "FILL_BLANK"];
+        return { ...q, type: types[Math.floor(Math.random() * types.length)] };
+      }
+      return { ...q, [field]: value };
+    });
     setQuestionsConfig(newConfig);
   };
 
@@ -230,6 +239,7 @@ const QuestionConfigWizard = ({
                   <option value="default" disabled>
                     -- Quét tất cả thành... --
                   </option>
+                  <option value="RANDOM">Tất cả Ngẫu nhiên</option>
                   <option value="EASY">Tất cả Dễ</option>
                   <option value="MEDIUM">Tất cả Vừa</option>
                   <option value="HARD">Tất cả Khó</option>
@@ -336,6 +346,7 @@ const QuestionConfigWizard = ({
                   <option value="default" disabled>
                     -- Quét tất cả thành... --
                   </option>
+                  <option value="RANDOM">Tất cả Ngẫu nhiên</option>
                   <option value="SINGLE_CHOICE">Tất cả 1 Đáp án</option>
                   <option value="MULTIPLE_CHOICE">Tất cả Nhiều đáp án</option>
                   <option value="TRUE_FALSE">Tất cả Đúng/Sai</option>
