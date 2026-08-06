@@ -608,6 +608,44 @@ const getParticipantDetail = async (req, res) => {
   }
 };
 
+// ==========================================
+// HỦY PHÒNG THI KHI ĐANG Ở PHÒNG CHỜ
+// ==========================================
+const cancelRoom = async (req, res) => {
+  try {
+    const roomCode = String(req.params.roomCode).toUpperCase().trim();
+    const teacherId = req.user.id;
+
+    // 1. Xác thực phòng tồn tại và thuộc về giáo viên này
+    const room = await prisma.quickTestRoom.findUnique({ where: { roomCode } });
+    if (!room) {
+      return res.status(404).json({ success: false, message: "Phòng không tồn tại." });
+    }
+    if (room.teacherId !== teacherId) {
+      return res.status(403).json({ success: false, message: "Bạn không có quyền hủy phòng này." });
+    }
+
+    // 2. Bắn tín hiệu Socket.IO để đá toàn bộ học sinh đang chờ ra khỏi phòng TRƯỚC KHI xóa
+    const io = req.app.get("io");
+    if (io) {
+      io.to(`quicktest_${roomCode}`).emit("room_cancelled", { 
+        message: "Giáo viên đã hủy phòng thi." 
+      });
+    }
+
+    // 3. Xóa vĩnh viễn phòng thi và các học sinh đang chờ (Dùng Transaction để không bị lỗi Khóa ngoại)
+    await prisma.$transaction([
+      prisma.quickTestParticipant.deleteMany({ where: { roomId: room.id } }),
+      prisma.quickTestRoom.delete({ where: { id: room.id } })
+    ]);
+
+    res.status(200).json({ success: true, message: "Hủy phòng thành công!" });
+  } catch (error) {
+    console.error("Lỗi hủy phòng:", error);
+    res.status(500).json({ success: false, message: "Lỗi hệ thống khi hủy phòng." });
+  }
+};
+
 module.exports = {
   createRoom,
   getRoom,
@@ -622,4 +660,5 @@ module.exports = {
   getQuestionStats,
   getAllQuestionStats,
   getParticipantDetail,
+  cancelRoom
 };
