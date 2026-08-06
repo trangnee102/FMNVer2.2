@@ -9,10 +9,6 @@ const {
   verifyQuestionsGrounding,
   flagDifficultyMismatch,
 } = require("../utils/aiHelpers");
-// 👉 flagDifficultyMismatch vẫn được dùng ở generateAdaptiveExam (đề thích ứng vẫn cần
-// difficulty để nhắm điểm yếu học viên) — chỉ generateExam (luồng "Tạo đề bằng AI") bỏ hẳn
-// thuộc tính độ khó, vì đây chính là nơi AI đánh giá không đáng tin cậy.
-
 const generateExam = async (req, res) => {
   try {
     const {
@@ -94,7 +90,7 @@ const generateExam = async (req, res) => {
         matrixRules =
           "MA TRẬN CẤU TRÚC ĐỀ THI (BẮT BUỘC TUÂN THỦ NGHIÊM NGẶT THỨ TỰ NÀY):\n";
         configArray.forEach((q, index) => {
-          matrixRules += `- Câu ${index + 1}: Thể loại: ${q.type}.\n`;
+          matrixRules += `- Câu ${index + 1}: Thể loại: ${q.type}, Độ khó: ${q.difficulty}.\n`;
         });
       } catch (e) {
         console.log("Lỗi parse questionsConfig:", e);
@@ -144,6 +140,7 @@ BẠN PHẢI TRẢ VỀ ĐÚNG 1 OBJECT JSON VỚI CẤU TRÚC SAU:
     {
       "question": "Nội dung câu hỏi",
       "question_type": "SINGLE_CHOICE hoặc MULTIPLE_CHOICE hoặc TRUE_FALSE hoặc FILL_BLANK",
+      "difficulty": "EASY hoặc MEDIUM hoặc HARD",
       "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
       "correct_answers": "A",
       "source_reference": "Đoạn văn trích...",
@@ -380,6 +377,7 @@ BẠN PHẢI TRẢ VỀ ĐÚNG 1 OBJECT JSON ĐÃ ĐƯỢC CHỈNH SỬA (Không
 {
   "question": "...",
   "question_type": "...",
+  "difficulty": "...",
   "options": ["A. ...", "B. ..."],
   "correct_answers": "...",
   "source_reference": "...",

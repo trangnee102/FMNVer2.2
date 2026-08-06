@@ -1,6 +1,12 @@
 // frontend/src/components/Study/ExamResult.jsx
 import React from "react";
 import "./ExamResult.css";
+import {
+  isOptionCorrect,
+  isFillBlankCorrect,
+  getFillBlankAnswerLabel,
+  maskFillBlankQuestion,
+} from "../../utils/examAnswers";
 
 const ExamResult = ({ questions, selectedAnswers, score, onFinish }) => {
   // --- Các hàm Helper nội bộ ---
@@ -11,24 +17,6 @@ const ExamResult = ({ questions, selectedAnswers, score, onFinish }) => {
     } catch {
       return fallback;
     }
-  };
-
-  const getCorrectLetters = (ansStr) => {
-    if (!ansStr) return [];
-    try {
-      const parsed = JSON.parse(ansStr);
-      if (Array.isArray(parsed))
-        return parsed.map((s) => String(s).trim().toUpperCase());
-      return [String(parsed).trim().toUpperCase()];
-    } catch {
-      return ansStr.split(",").map((s) => s.trim().toUpperCase());
-    }
-  };
-
-  const getLetterFromOption = (opt) => {
-    if (!opt) return "";
-    const match = opt.match(/^([A-D])/i);
-    return match ? match[1].toUpperCase() : opt.charAt(0).toUpperCase();
   };
 
   const scorePercentage = questions.length > 0 ? score / questions.length : 0;
@@ -73,7 +61,6 @@ const ExamResult = ({ questions, selectedAnswers, score, onFinish }) => {
       {/* DANH SÁCH CHỮA BÀI TỪNG CÂU */}
       {questions.map((q, idx) => {
         const qOptions = parseSafeJSON(q.options);
-        const correctLetters = getCorrectLetters(q.correct_answers);
         const qIsMultiple = q.question_type === "MULTIPLE_CHOICE";
         const qIsFillBlank = q.question_type === "FILL_BLANK";
         const userAns = selectedAnswers[idx];
@@ -83,12 +70,10 @@ const ExamResult = ({ questions, selectedAnswers, score, onFinish }) => {
           ? !userAns || userAns.length === 0
           : !userAns || String(userAns).trim() === "";
 
-        let isFillBlankCorrect = false;
-        if (qIsFillBlank && !isBlank) {
-          isFillBlankCorrect =
-            String(userAns).trim().toLowerCase() ===
-            String(q.correct_answers).trim().toLowerCase();
-        }
+        const isUserFillBlankCorrect =
+          qIsFillBlank && !isBlank
+            ? isFillBlankCorrect(userAns, q.correct_answers)
+            : false;
 
         return (
           <div
@@ -132,7 +117,9 @@ const ExamResult = ({ questions, selectedAnswers, score, onFinish }) => {
               </div>
             </div>
 
-            <h3 className="review-question-text">{q.question}</h3>
+            <h3 className="review-question-text">
+              {qIsFillBlank ? maskFillBlankQuestion(q.question) : q.question}
+            </h3>
 
             {/* UI CHỮA BÀI CHO CÂU ĐIỀN KHUYẾT */}
             {qIsFillBlank ? (
@@ -143,7 +130,7 @@ const ExamResult = ({ questions, selectedAnswers, score, onFinish }) => {
                     border: `2px solid ${
                       isBlank
                         ? "#f59e0b" // Màu cam nếu bỏ trống
-                        : isFillBlankCorrect
+                        : isUserFillBlankCorrect
                           ? "#10b981"
                           : "#ef4444"
                     }`,
@@ -163,20 +150,20 @@ const ExamResult = ({ questions, selectedAnswers, score, onFinish }) => {
                   {!isBlank && (
                     <i
                       className={`fa-solid ${
-                        isFillBlankCorrect ? "fa-check" : "fa-xmark"
+                        isUserFillBlankCorrect ? "fa-check" : "fa-xmark"
                       }`}
                       style={{
-                        color: isFillBlankCorrect ? "#10b981" : "#ef4444",
+                        color: isUserFillBlankCorrect ? "#10b981" : "#ef4444",
                         fontSize: "1.2rem",
                       }}
                     ></i>
                   )}
                 </div>
 
-                {(!isFillBlankCorrect || isBlank) && (
+                {(!isUserFillBlankCorrect || isBlank) && (
                   <div className="review-fill-correct">
                     <span style={{ color: "#10b981", fontWeight: "bold" }}>
-                      Đáp án đúng: {q.correct_answers}
+                      Đáp án đúng: {getFillBlankAnswerLabel(q.correct_answers)}
                     </span>
                   </div>
                 )}
@@ -185,11 +172,14 @@ const ExamResult = ({ questions, selectedAnswers, score, onFinish }) => {
               /* UI CHỮA BÀI CHO TRẮC NGHIỆM */
               <div className="review-options-group">
                 {qOptions.map((opt, oIdx) => {
-                  const optLetter = getLetterFromOption(opt);
                   const isSelected = qIsMultiple
                     ? (userAns || []).includes(opt)
                     : userAns === opt;
-                  const isCorrect = correctLetters.includes(optLetter);
+                  const isCorrect = isOptionCorrect(
+                    oIdx,
+                    q.correct_answers,
+                    qOptions,
+                  );
 
                   let bg = "var(--bg-main)";
                   let border = "2px solid var(--border)";

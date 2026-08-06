@@ -1,6 +1,13 @@
 // frontend/src/pages/CramReviewPage.jsx
 import React, { useState, useEffect } from "react";
 import useCramMode from "../../hooks/useCramMode";
+import {
+  isOptionCorrect,
+  resolveCorrectIndexes,
+  isFillBlankCorrect,
+  getFillBlankAnswerLabel,
+  maskFillBlankQuestion,
+} from "../../utils/examAnswers";
 import "./ReviewPage.css";
 
 const CramReviewPage = ({ deckId, onFinish }) => {
@@ -24,7 +31,10 @@ const CramReviewPage = ({ deckId, onFinish }) => {
 
   // States hỗ trợ Tự động chấm điểm (Auto-grading)
   const [evaluating, setEvaluating] = useState(false);
-  const [selectedOpt, setSelectedOpt] = useState(null);
+  // 👉 Chọn theo VỊ TRÍ (index) chứ không theo text lựa chọn — text có thể trùng nhau
+  // giữa 2 lựa chọn khác nhau (vd "có" xuất hiện 2 lần), tra theo text sẽ nhầm lựa chọn.
+  const [selectedIndexes, setSelectedIndexes] = useState([]);
+  const [lastAnswerCorrect, setLastAnswerCorrect] = useState(null);
   const [fillText, setFillText] = useState("");
 
   const currentCard = cramQueue[0];
@@ -32,39 +42,44 @@ const CramReviewPage = ({ deckId, onFinish }) => {
   // Reset state mỗi khi chuyển thẻ mới
   useEffect(() => {
     setEvaluating(false);
-    setSelectedOpt(null);
+    setSelectedIndexes([]);
+    setLastAnswerCorrect(null);
     setFillText("");
     setIsFlipped(false);
   }, [currentCard]);
 
-  // Bóc tách đáp án chính xác
-  const getCorrectLetters = (ansStr) => {
-    if (!ansStr) return [];
-    try {
-      const parsed = JSON.parse(ansStr);
-      if (Array.isArray(parsed))
-        return parsed.map((s) => String(s).trim().toUpperCase());
-      return [String(parsed).trim().toUpperCase()];
-    } catch {
-      return ansStr.split(",").map((s) => s.trim().toUpperCase());
-    }
-  };
-
-  const getLetterFromOption = (opt) => {
-    if (!opt) return "";
-    const match = opt.match(/^([A-D])/i);
-    return match ? match[1].toUpperCase() : opt.charAt(0).toUpperCase();
-  };
-
-  // Nút bấm chấm Trắc nghiệm
-  const handleMCQClick = (opt) => {
+  // Nút bấm chấm Trắc nghiệm dạng CHỌN 1 (SINGLE_CHOICE / TRUE_FALSE) — bấm phát chấm luôn
+  const handleSingleSelectClick = (idx, options) => {
     if (evaluating) return;
-    setSelectedOpt(opt);
+    const isCorrect = isOptionCorrect(idx, currentCard.correct_answers, options);
+
+    setSelectedIndexes([idx]);
+    setLastAnswerCorrect(isCorrect);
     setEvaluating(true);
 
-    const correctLetters = getCorrectLetters(currentCard.correct_answers);
-    const userLetter = getLetterFromOption(opt);
-    const isCorrect = correctLetters.includes(userLetter);
+    setTimeout(() => {
+      handleCramRating(isCorrect);
+    }, 1200);
+  };
+
+  // Tích/bỏ tích 1 ô cho dạng CHỌN NHIỀU (MULTIPLE_CHOICE) — chưa chấm ngay, chờ bấm "Kiểm tra"
+  const handleToggleMultiSelect = (idx) => {
+    if (evaluating) return;
+    setSelectedIndexes((prev) =>
+      prev.includes(idx) ? prev.filter((i) => i !== idx) : [...prev, idx],
+    );
+  };
+
+  // Nút "Kiểm tra" cho dạng CHỌN NHIỀU — chỉ đúng khi chọn ĐỦ và ĐÚNG hết các đáp án đúng
+  const handleMultiSelectSubmit = (options) => {
+    if (evaluating || selectedIndexes.length === 0) return;
+    const correctIndexes = resolveCorrectIndexes(currentCard.correct_answers, options);
+    const isCorrect =
+      selectedIndexes.length === correctIndexes.length &&
+      selectedIndexes.every((i) => correctIndexes.includes(i));
+
+    setLastAnswerCorrect(isCorrect);
+    setEvaluating(true);
 
     setTimeout(() => {
       handleCramRating(isCorrect);
@@ -76,11 +91,7 @@ const CramReviewPage = ({ deckId, onFinish }) => {
     if (evaluating || !fillText.trim()) return;
     setEvaluating(true);
 
-    const correct = String(currentCard.correct_answers || "")
-      .trim()
-      .toLowerCase();
-    const user = fillText.trim().toLowerCase();
-    const isCorrect = correct === user;
+    const isCorrect = isFillBlankCorrect(fillText, currentCard.correct_answers);
 
     setTimeout(() => {
       handleCramRating(isCorrect);
@@ -375,15 +386,16 @@ const CramReviewPage = ({ deckId, onFinish }) => {
   ).toUpperCase();
 
   let isFillBlank = rawType === "FILL_BLANK";
-  let isMultipleChoice =
-    rawType === "MULTIPLE_CHOICE" ||
-    rawType === "MULTIPLE_ANSWER" ||
+  // 👉 Dạng CHỌN NHIỀU đáp án đúng thật sự — cần tích chọn + bấm "Kiểm tra", không chấm
+  // ngay khi bấm 1 ô như dạng chọn 1 (khác TRUE_FALSE/SINGLE_CHOICE luôn chỉ có 1 đáp án đúng)
+  let isMultiSelect =
+    rawType === "MULTIPLE_CHOICE" || rawType === "MULTIPLE_ANSWER";
+  let isChoiceBased =
+    isMultiSelect ||
     rawType === "TRUE_FALSE" ||
     (!isFillBlank && Array.isArray(optionsList) && optionsList.length > 0);
 
-  let isFlashcard = !isMultipleChoice && !isFillBlank;
-
-  const correctLetters = getCorrectLetters(currentCard.correct_answers);
+  let isFlashcard = !isChoiceBased && !isFillBlank;
 
   return (
     <div
@@ -419,6 +431,8 @@ const CramReviewPage = ({ deckId, onFinish }) => {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          flexWrap: "wrap",
+          gap: "10px",
           marginBottom: "25px",
           background: "#fffbeb",
           padding: "16px 24px",
@@ -461,13 +475,19 @@ const CramReviewPage = ({ deckId, onFinish }) => {
             marginBottom: "40px",
           }}
         >
-          {currentCard.question ||
-            currentCard.front_content ||
-            currentCard.content}
+          {isFillBlank
+            ? maskFillBlankQuestion(
+                currentCard.question ||
+                  currentCard.front_content ||
+                  currentCard.content,
+              )
+            : currentCard.question ||
+              currentCard.front_content ||
+              currentCard.content}
         </h3>
 
         {/* TRẮC NGHIỆM */}
-        {isMultipleChoice && (
+        {isChoiceBased && (
           <div
             style={{
               display: "flex",
@@ -476,10 +496,52 @@ const CramReviewPage = ({ deckId, onFinish }) => {
               width: "100%",
             }}
           >
+            {isMultiSelect && (
+              <p
+                style={{
+                  margin: "0 0 4px 0",
+                  color: "var(--text-gray)",
+                  fontSize: "0.9rem",
+                  textAlign: "center",
+                }}
+              >
+                <i className="fa-solid fa-list-check"></i> Câu hỏi có thể có nhiều
+                đáp án đúng — tích chọn rồi bấm "Kiểm tra"
+              </p>
+            )}
+
+            {evaluating && lastAnswerCorrect !== null && (
+              <div
+                style={{
+                  padding: "12px 16px",
+                  borderRadius: "10px",
+                  fontWeight: "800",
+                  textAlign: "center",
+                  marginBottom: "4px",
+                  background: lastAnswerCorrect ? "#dcfce7" : "#fee2e2",
+                  color: lastAnswerCorrect ? "#065f46" : "#991b1b",
+                }}
+              >
+                {lastAnswerCorrect ? (
+                  <>
+                    <i className="fa-solid fa-circle-check"></i> Chính xác!
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-circle-xmark"></i> Chưa đúng — đáp
+                    án đúng đang được tô xanh bên dưới
+                  </>
+                )}
+              </div>
+            )}
+
             {optionsList.map((opt, idx) => {
-              const optionLetter = getLetterFromOption(opt);
-              const isThisCorrect = correctLetters.includes(optionLetter);
-              const isThisSelected = selectedOpt === opt;
+              const isThisCorrect = isOptionCorrect(
+                idx,
+                currentCard.correct_answers,
+                optionsList,
+              );
+              const isThisSelected = selectedIndexes.includes(idx);
 
               let bg = "var(--bg-main)";
               let border = "1px solid var(--border)";
@@ -502,9 +564,16 @@ const CramReviewPage = ({ deckId, onFinish }) => {
               return (
                 <button
                   key={idx}
-                  onClick={() => handleMCQClick(opt)}
+                  onClick={() =>
+                    isMultiSelect
+                      ? handleToggleMultiSelect(idx)
+                      : handleSingleSelectClick(idx, optionsList)
+                  }
                   disabled={evaluating}
                   style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
                     padding: "16px",
                     borderRadius: "12px",
                     background: bg,
@@ -517,10 +586,44 @@ const CramReviewPage = ({ deckId, onFinish }) => {
                     transition: "all 0.2s",
                   }}
                 >
-                  {opt}
+                  {isMultiSelect && !evaluating && (
+                    <i
+                      className={`fa-regular ${
+                        isThisSelected ? "fa-square-check" : "fa-square"
+                      }`}
+                      style={{
+                        fontSize: "1.2rem",
+                        color: isThisSelected ? "#f59e0b" : "var(--text-gray)",
+                      }}
+                    ></i>
+                  )}
+                  <span>{opt}</span>
                 </button>
               );
             })}
+
+            {isMultiSelect && !evaluating && (
+              <button
+                onClick={() => handleMultiSelectSubmit(optionsList)}
+                disabled={selectedIndexes.length === 0}
+                style={{
+                  marginTop: "8px",
+                  padding: "14px",
+                  borderRadius: "10px",
+                  border: "none",
+                  background:
+                    selectedIndexes.length === 0
+                      ? "var(--text-gray)"
+                      : "var(--primary)",
+                  color: "white",
+                  fontWeight: "bold",
+                  fontSize: "1.05rem",
+                  cursor: selectedIndexes.length === 0 ? "default" : "pointer",
+                }}
+              >
+                Kiểm tra
+              </button>
+            )}
           </div>
         )}
 
@@ -557,7 +660,7 @@ const CramReviewPage = ({ deckId, onFinish }) => {
                   fontWeight: "bold",
                 }}
               >
-                Đáp án đúng: {currentCard.correct_answers}
+                Đáp án đúng: {getFillBlankAnswerLabel(currentCard.correct_answers)}
               </div>
             )}
             <button

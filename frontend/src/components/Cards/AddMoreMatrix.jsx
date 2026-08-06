@@ -44,6 +44,7 @@ const AddMoreMatrix = ({
           (_, i) => ({
             id: prev.length + i + 1,
             type: "SINGLE_CHOICE",
+            difficulty: "MEDIUM",
           }),
         );
         return [...prev, ...newItems];
@@ -65,6 +66,13 @@ const AddMoreMatrix = ({
     const newType = e.target.value;
     if (!newType) return;
     setAddConfig(addConfig.map((q) => ({ ...q, type: newType })));
+    e.target.value = "";
+  };
+
+  const handleApplyAllDifficulty = (e) => {
+    const newDiff = e.target.value;
+    if (!newDiff) return;
+    setAddConfig(addConfig.map((q) => ({ ...q, difficulty: newDiff })));
     e.target.value = "";
   };
 
@@ -124,7 +132,21 @@ const AddMoreMatrix = ({
       }
 
       formData.append("existingQuestions", JSON.stringify(existingQuestions));
+
+      const totalAddEasy = addConfig.filter(
+        (q) => q.difficulty === "EASY",
+      ).length;
+      const totalAddMed = addConfig.filter(
+        (q) => q.difficulty === "MEDIUM",
+      ).length;
+      const totalAddHard = addConfig.filter(
+        (q) => q.difficulty === "HARD",
+      ).length;
+
       formData.append("totalQuestions", currentAddTotal);
+      formData.append("easyCount", totalAddEasy);
+      formData.append("mediumCount", totalAddMed);
+      formData.append("hardCount", totalAddHard);
 
       let configText = "";
       addConfig.forEach((q, index) => {
@@ -136,7 +158,13 @@ const AddMoreMatrix = ({
               : q.type === "TRUE_FALSE"
                 ? "Đúng/Sai"
                 : "Điền khuyết";
-        configText += `- Câu ${index + 1}: Thể loại: ${typeLabel} (${q.type}).\n`;
+        const diffLabel =
+          q.difficulty === "EASY"
+            ? "DỄ"
+            : q.difficulty === "MEDIUM"
+              ? "VỪA"
+              : "KHÓ";
+        configText += `- Câu ${index + 1}: Thể loại: ${typeLabel} (${q.type}), Độ khó: ${diffLabel}.\n`;
       });
 
       let rules = `
@@ -185,6 +213,16 @@ ${configText}
   };
 
   const currentAddTotal = addConfig.length;
+  const totalAddEasy = addConfig.filter((q) => q.difficulty === "EASY").length;
+  const totalAddMed = addConfig.filter((q) => q.difficulty === "MEDIUM").length;
+  const totalAddHard = addConfig.filter((q) => q.difficulty === "HARD").length;
+
+  const easyPct =
+    currentAddTotal > 0 ? (totalAddEasy / currentAddTotal) * 100 : 0;
+  const medPct =
+    currentAddTotal > 0 ? (totalAddMed / currentAddTotal) * 100 : 0;
+  const hardPct =
+    currentAddTotal > 0 ? (totalAddHard / currentAddTotal) * 100 : 0;
 
   const totalSingle = addConfig.filter(
     (q) => q.type === "SINGLE_CHOICE",
@@ -474,6 +512,69 @@ ${configText}
                     >
                       <span style={{ color: "var(--text-dark)" }}>
                         <i
+                          className="fa-solid fa-chart-simple"
+                          style={{ color: "#8b5cf6", marginRight: "5px" }}
+                        ></i>{" "}
+                        Phân bổ Độ Khó (Bổ sung):
+                      </span>
+                      <div style={{ display: "flex", gap: "12px" }}>
+                        <span style={{ color: "#10b981" }}>
+                          Dễ: {Math.round(easyPct)}% ({totalAddEasy})
+                        </span>
+                        <span style={{ color: "#f59e0b" }}>
+                          Vừa: {Math.round(medPct)}% ({totalAddMed})
+                        </span>
+                        <span style={{ color: "#ef4444" }}>
+                          Khó: {Math.round(hardPct)}% ({totalAddHard})
+                        </span>
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        width: "100%",
+                        height: "8px",
+                        backgroundColor: "#e5e7eb",
+                        borderRadius: "4px",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${easyPct}%`,
+                          backgroundColor: "#10b981",
+                          transition: "width 0.3s ease",
+                        }}
+                      ></div>
+                      <div
+                        style={{
+                          width: `${medPct}%`,
+                          backgroundColor: "#f59e0b",
+                          transition: "width 0.3s ease",
+                        }}
+                      ></div>
+                      <div
+                        style={{
+                          width: `${hardPct}%`,
+                          backgroundColor: "#ef4444",
+                          transition: "width 0.3s ease",
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        fontSize: "0.85rem",
+                        fontWeight: "bold",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      <span style={{ color: "var(--text-dark)" }}>
+                        <i
                           className="fa-solid fa-shapes"
                           style={{ color: "#3b82f6", marginRight: "5px" }}
                         ></i>{" "}
@@ -581,6 +682,22 @@ ${configText}
                       <option value="TRUE_FALSE">Đúng/Sai</option>
                       <option value="FILL_BLANK">Điền khuyết</option>
                     </select>
+                    <select
+                      onChange={handleApplyAllDifficulty}
+                      style={{
+                        padding: "4px 8px",
+                        borderRadius: "4px",
+                        border: "1px solid var(--border)",
+                        outline: "none",
+                        backgroundColor: "var(--bg-card)",
+                        color: "var(--text-dark)",
+                      }}
+                    >
+                      <option value="">-- Đổi mức độ --</option>
+                      <option value="EASY">Tất cả Dễ</option>
+                      <option value="MEDIUM">Tất cả Vừa</option>
+                      <option value="HARD">Tất cả Khó</option>
+                    </select>
                   </div>
                 </div>
 
@@ -621,7 +738,7 @@ ${configText}
                             handleConfigChange(index, "type", e.target.value)
                           }
                           style={{
-                            flex: 1,
+                            flex: 2,
                             padding: "6px",
                             borderRadius: "4px",
                             border: "1px solid var(--border)",
@@ -637,6 +754,36 @@ ${configText}
                           </option>
                           <option value="TRUE_FALSE">⚖️ Đúng/Sai</option>
                           <option value="FILL_BLANK">✍️ Điền khuyết</option>
+                        </select>
+                        <select
+                          value={q.difficulty}
+                          onChange={(e) =>
+                            handleConfigChange(
+                              index,
+                              "difficulty",
+                              e.target.value,
+                            )
+                          }
+                          style={{
+                            flex: 1,
+                            padding: "6px",
+                            borderRadius: "4px",
+                            border: "1px solid var(--border)",
+                            outline: "none",
+                            fontSize: "0.9rem",
+                            backgroundColor: "var(--bg-card)",
+                            color:
+                              q.difficulty === "EASY"
+                                ? "#10b981"
+                                : q.difficulty === "MEDIUM"
+                                  ? "#f59e0b"
+                                  : "#ef4444",
+                            fontWeight: "bold",
+                          }}
+                        >
+                          <option value="EASY">Dễ</option>
+                          <option value="MEDIUM">Vừa</option>
+                          <option value="HARD">Khó</option>
                         </select>
                       </div>
                     ))}

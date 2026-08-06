@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from "react";
 import api from "../../services/api";
 import "./ManageDeckModal.css";
+import {
+  parseOptionsList,
+  resolveCorrectIndexes,
+  getCorrectAnswerLettersLabel,
+} from "../../utils/examAnswers";
 
 const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
   const [deckCards, setDeckCards] = useState([]);
@@ -399,6 +404,23 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
             <div className="split-list-scroll">
               {deckCards.map((card, index) => {
                 const isActive = activeCardId === card.id;
+
+                // 👉 Hiển thị đáp án dạng chữ cái (A, C) dễ đọc thay vì in thẳng dữ liệu
+                // thô đang lưu trong DB (có thể là chỉ số kiểu "[0,1,3]" tuỳ nơi tạo đề)
+                let answerPreview = card.answer || "";
+                if (selectedDeck.is_exam) {
+                  if (card.question_type === "FILL_BLANK") {
+                    answerPreview = card.correct_answers || card.answer || "";
+                  } else {
+                    const cardOptions = parseOptionsList(card.options);
+                    const lettersLabel = getCorrectAnswerLettersLabel(
+                      card.correct_answers || card.answer,
+                      cardOptions,
+                    );
+                    answerPreview = lettersLabel || card.correct_answers || card.answer || "";
+                  }
+                }
+
                 return (
                   <div 
                     key={card.id} 
@@ -421,10 +443,18 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
                         } catch(e) {}
 
                         let parsedCorrect = [];
-                        if (card.correct_answers) {
-                          parsedCorrect = card.correct_answers.split(",").map(s => s.trim()).filter(Boolean);
-                        } else if (card.answer) {
-                          parsedCorrect = card.answer.split(/[|,]/).map(s => s.trim()).filter(Boolean);
+                        if (card.question_type === "FILL_BLANK") {
+                          if (card.correct_answers) {
+                            parsedCorrect = card.correct_answers.split(",").map(s => s.trim()).filter(Boolean);
+                          } else if (card.answer) {
+                            parsedCorrect = card.answer.split(/[|,]/).map(s => s.trim()).filter(Boolean);
+                          }
+                        } else {
+                          // 👉 correct_answers có thể lưu ở nhiều định dạng khác nhau tuỳ nơi tạo đề
+                          // (chỉ số, chữ cái, hoặc nguyên văn) — resolveCorrectIndexes hiểu cả 3, rồi
+                          // quy về đúng nội dung lựa chọn để khớp với state nội bộ của form bên dưới.
+                          const correctIndexes = resolveCorrectIndexes(card.correct_answers || card.answer, parsedOpts);
+                          parsedCorrect = correctIndexes.map(i => parsedOpts[i]).filter(Boolean);
                         }
 
                         setEditForm({
@@ -453,7 +483,7 @@ const ManageDeckModal = ({ isOpen, onClose, selectedDeck, onRefreshDecks }) => {
                         {card.question || card.front_content}
                       </div>
                       <div style={{ color: "var(--text-gray)", fontSize: "0.85rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {selectedDeck.is_exam ? (card.correct_answers || card.answer) : (card.answer || card.back_content)}
+                        {selectedDeck.is_exam ? answerPreview : (card.answer || card.back_content)}
                       </div>
                     </div>
                     {isActive && <div style={{ color: "var(--primary)", display: "flex", alignItems: "center" }}><i className="fa-solid fa-chevron-right"></i></div>}

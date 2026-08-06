@@ -80,7 +80,7 @@ const QuestionCard = ({ q, index, onUpdate, onDelete, onRemoveNew }) => {
                 fontSize: "1.1rem",
               }}
             >
-              Câu {index + 1} [{q.question_type}]:
+              Câu {index + 1} [{q.question_type} - {q.difficulty}]:
             </div>
             <div style={{ display: "flex", gap: "12px" }}>
               <button

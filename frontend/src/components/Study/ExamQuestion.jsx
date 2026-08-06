@@ -1,6 +1,12 @@
 // frontend/src/components/Study/ExamQuestion.jsx
 import React from "react";
 import "./ExamQuestion.css";
+import {
+  isOptionCorrect,
+  isFillBlankCorrect,
+  getFillBlankAnswerLabel,
+  maskFillBlankQuestion,
+} from "../../utils/examAnswers";
 
 const ExamQuestion = ({
   currentQ,
@@ -26,24 +32,6 @@ const ExamQuestion = ({
     }
   };
 
-  const getCorrectLetters = (ansStr) => {
-    if (!ansStr) return [];
-    try {
-      const parsed = JSON.parse(ansStr);
-      if (Array.isArray(parsed))
-        return parsed.map((s) => String(s).trim().toUpperCase());
-      return [String(parsed).trim().toUpperCase()];
-    } catch {
-      return ansStr.split(",").map((s) => s.trim().toUpperCase());
-    }
-  };
-
-  const getLetterFromOption = (opt) => {
-    if (!opt) return "";
-    const match = opt.match(/^([A-D])/i);
-    return match ? match[1].toUpperCase() : opt.charAt(0).toUpperCase();
-  };
-
   // Khởi tạo các biến kiểm tra dạng câu hỏi
   const options = parseSafeJSON(currentQ.options);
   const isMultiple = currentQ.question_type === "MULTIPLE_CHOICE";
@@ -52,11 +40,9 @@ const ExamQuestion = ({
   // Xác định màu viền cho ô điền khuyết (nếu đã kiểm tra)
   const getFillBlankBorder = () => {
     if (!isCurrentQChecked) return "#3b82f6";
-    const userAns = String(selectedAnswer || "")
-      .trim()
-      .toLowerCase();
-    const correctAns = String(currentQ.correct_answers).trim().toLowerCase();
-    return userAns === correctAns ? "#10b981" : "#ef4444";
+    return isFillBlankCorrect(selectedAnswer, currentQ.correct_answers)
+      ? "#10b981"
+      : "#ef4444";
   };
 
   return (
@@ -72,10 +58,17 @@ const ExamQuestion = ({
         </div>
 
         <h3 className="eq-text">
-          {currentQ.question ||
-            currentQ.front ||
-            currentQ.front_text ||
-            "Không có nội dung câu hỏi"}
+          {isFillBlank
+            ? maskFillBlankQuestion(
+                currentQ.question ||
+                  currentQ.front ||
+                  currentQ.front_text ||
+                  "Không có nội dung câu hỏi",
+              )
+            : currentQ.question ||
+              currentQ.front ||
+              currentQ.front_text ||
+              "Không có nội dung câu hỏi"}
         </h3>
 
         {isMultiple && (
@@ -115,10 +108,11 @@ const ExamQuestion = ({
                 ? (selectedAnswer || []).includes(opt)
                 : selectedAnswer === opt;
 
-              const optLetter = getLetterFromOption(opt);
-              const isCorrectAnswer = getCorrectLetters(
+              const isCorrectAnswer = isOptionCorrect(
+                idx,
                 currentQ.correct_answers,
-              ).includes(optLetter);
+                options,
+              );
 
               let bg = "var(--bg-main)";
               let border = "2px solid var(--border)";
@@ -213,7 +207,7 @@ const ExamQuestion = ({
                     }}
                   >
                     <i className="fa-solid fa-check-double"></i> Đáp án đúng:{" "}
-                    {currentQ.correct_answers}
+                    {getFillBlankAnswerLabel(currentQ.correct_answers)}
                   </strong>
                 </div>
               )}

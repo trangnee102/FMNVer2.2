@@ -25,7 +25,7 @@ const CreateExamInput = ({
   const [topicMode, setTopicMode] = useState("NEW");
 
   // 👉 ĐÃ NÂNG CẤP: Quản lý Tab của Wizard tại File Cha
-  const [activeWizardStep, setActiveWizardStep] = useState("TYPE");
+  const [activeWizardStep, setActiveWizardStep] = useState("DIFFICULTY");
 
   const handleCountChange = (e) => {
     let val = e.target.value;
@@ -37,7 +37,9 @@ const CreateExamInput = ({
     !questionCount || questionCount < 1 || questionCount > 50;
 
   const unassignedQuestions = questionsConfig
-    .filter((q) => !q.type || q.type === "")
+    .filter(
+      (q) => !q.difficulty || q.difficulty === "" || !q.type || q.type === "",
+    )
     .map((q) => q.id);
 
   const hasUnassignedConfig = unassignedQuestions.length > 0;
@@ -53,10 +55,22 @@ const CreateExamInput = ({
     if (loading || isInvalidCount) return;
 
     if (hasUnassignedConfig) {
-      // 👉 Câu nào chưa gán Loại câu thì nhảy sang Tab "Chọn Loại Câu Hỏi"
-      setActiveWizardStep("TYPE");
+      // 👉 BƯỚC 1: Phân tích xem câu lỗi đang bị THIẾU CÁI GÌ
+      // Tìm câu hỏi lỗi đầu tiên trong danh sách
+      const firstMissingQ = questionsConfig.find(
+        (q) => !q.difficulty || q.difficulty === "" || !q.type || q.type === "",
+      );
 
-      // 👉 Cuộn màn hình và nháy đỏ (Vì DOM không bị xóa khi đổi Tab nên cuộn luôn vẫn mượt)
+      if (firstMissingQ) {
+        // Ưu tiên check Độ khó trước, nếu Độ khó đủ thì check Loại câu
+        if (!firstMissingQ.difficulty || firstMissingQ.difficulty === "") {
+          setActiveWizardStep("DIFFICULTY"); // Nhảy sang Tab 1
+        } else if (!firstMissingQ.type || firstMissingQ.type === "") {
+          setActiveWizardStep("TYPE"); // Nhảy sang Tab 2
+        }
+      }
+
+      // 👉 BƯỚC 2: Cuộn màn hình và nháy đỏ (Vì DOM không bị xóa khi đổi Tab nên cuộn luôn vẫn mượt)
       const firstUnassignedId = unassignedQuestions[0];
       const targetElement = document.getElementById(
         `config-btn-${firstUnassignedId}`,

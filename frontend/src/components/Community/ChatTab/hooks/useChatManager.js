@@ -756,13 +756,30 @@ const useChatManager = () => {
 
   const handleChatWithFriend = () => {
     if (!searchResult) return;
+
+    // 👉 "contacts" chỉ được đồng bộ qua socket "friend_request_updated" — nếu socket bị lỡ
+    // (tab không mở đúng lúc, đang reconnect...) thì contacts có thể chưa kịp có bạn mới dù
+    // searchResult đã báo friendship_status "accepted". Trước đây bấm "Nhắn tin" trong tình
+    // huống này không làm gì cả (contacts.find thất bại) — giờ dựng thẳng đối tượng chat từ
+    // chính searchResult thay vì bắt buộc phải có sẵn trong contacts.
     const exists = contacts.find((c) => c.id === searchResult.id);
-    if (exists) {
-      setSelectedChat(exists);
-      setChatType("friends");
-      setSearchEmail("");
-      setSearchResult(null);
+    const target = exists || {
+      id: searchResult.id,
+      full_name: searchResult.full_name,
+      email: searchResult.email,
+      avatar_text: searchResult.avatar_text,
+      avatar_color: searchResult.avatar_color,
+      is_online: searchResult.is_online || false,
+    };
+
+    if (!exists) {
+      setContacts((prev) => [target, ...prev]);
     }
+
+    setSelectedChat({ ...target, isGroup: false });
+    setChatType("friends");
+    setSearchEmail("");
+    setSearchResult(null);
   };
 
   const handleCreateGroup = async () => {

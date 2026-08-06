@@ -35,6 +35,9 @@ const CreateExamPreview = ({
     FILL_BLANK: generatedQuestions.filter(
       (q) => q.question_type === "FILL_BLANK",
     ).length,
+    EASY: generatedQuestions.filter((q) => q.difficulty === "EASY").length,
+    MEDIUM: generatedQuestions.filter((q) => q.difficulty === "MEDIUM").length,
+    HARD: generatedQuestions.filter((q) => q.difficulty === "HARD").length,
   };
 
   const handleUpdate = (index, updatedQ) => {
@@ -57,6 +60,7 @@ const CreateExamPreview = ({
     const newBlankQuestion = {
       question: "",
       question_type: "SINGLE_CHOICE",
+      difficulty: "MEDIUM",
       category: "THEORY",
       options: ["A. ", "B. ", "C. ", "D. "],
       correct_answers: "",

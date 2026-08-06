@@ -79,6 +79,7 @@ const CreateExamPage = ({ onNavigate }) => {
           (_, i) => ({
             id: prev.length + i + 1,
             type: "",
+            difficulty: "",
           }),
         );
         return [...prev, ...newItems];
@@ -91,6 +92,9 @@ const CreateExamPage = ({ onNavigate }) => {
   }, [questionCount]);
 
   const totalQuestions = questionsConfig.length;
+  const totalEasy = questionsConfig.filter((q) => q.difficulty === "EASY").length;
+  const totalMed = questionsConfig.filter((q) => q.difficulty === "MEDIUM").length;
+  const totalHard = questionsConfig.filter((q) => q.difficulty === "HARD").length;
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -134,6 +138,9 @@ const CreateExamPage = ({ onNavigate }) => {
       if (file) formData.append("file", file);
 
       formData.append("totalQuestions", totalQuestions);
+      formData.append("easyCount", totalEasy);
+      formData.append("mediumCount", totalMed);
+      formData.append("hardCount", totalHard);
 
       let configText = "";
       questionsConfig.forEach((q, index) => {
@@ -142,7 +149,11 @@ const CreateExamPage = ({ onNavigate }) => {
           q.type === "MULTIPLE_CHOICE" ? "Nhiều đáp án" :
           q.type === "TRUE_FALSE" ? "Đúng/Sai" : "Điền khuyết";
 
-        configText += `- Câu ${index + 1}: Thể loại: ${typeLabel} (${q.type}).\n`;
+        const diffLabel =
+          q.difficulty === "EASY" ? "DỄ" :
+          q.difficulty === "MEDIUM" ? "VỪA" : "KHÓ";
+
+        configText += `- Câu ${index + 1}: Thể loại: ${typeLabel} (${q.type}), Độ khó: ${diffLabel}.\n`;
       });
 
       const antiHallucinationRules = `
@@ -321,7 +332,12 @@ ${configText}
               setGeneratedQuestions={setGeneratedQuestions}
               isSaving={isSaving}
               handleSaveExam={handleSaveExam}
-              targetCounts={{ total: totalQuestions }}
+              targetCounts={{
+                total: totalQuestions,
+                easy: totalEasy,
+                med: totalMed,
+                hard: totalHard,
+              }}
               originalText={text}
               originalFile={file}
               docCapacity={docCapacity}

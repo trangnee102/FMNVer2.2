@@ -8,6 +8,11 @@ import "./ExamPage.css";
 import ExamHeader from "../../components/Study/ExamHeader";
 import ExamResult from "../../components/Study/ExamResult";
 import ExamQuestion from "../../components/Study/ExamQuestion";
+import {
+  parseOptionsList,
+  resolveCorrectIndexes,
+  isFillBlankCorrect,
+} from "../../utils/examAnswers";
 
 const ExamPage = ({ deckId, onNavigate, onFinish }) => {
   const [questions, setQuestions] = useState([]);
@@ -89,24 +94,6 @@ const ExamPage = ({ deckId, onNavigate, onFinish }) => {
   }, [isLoading, isSubmitted, timeLeft, examMode]);
 
   // LOGIC CHẤM ĐIỂM
-  const getCorrectLetters = (ansStr) => {
-    if (!ansStr) return [];
-    try {
-      const parsed = JSON.parse(ansStr);
-      if (Array.isArray(parsed))
-        return parsed.map((s) => String(s).trim().toUpperCase());
-      return [String(parsed).trim().toUpperCase()];
-    } catch {
-      return ansStr.split(",").map((s) => s.trim().toUpperCase());
-    }
-  };
-
-  const getLetterFromOption = (opt) => {
-    if (!opt) return "";
-    const match = opt.match(/^([A-D])/i);
-    return match ? match[1].toUpperCase() : opt.charAt(0).toUpperCase();
-  };
-
   const evaluateExam = useCallback(() => {
     let correctCount = 0;
     const resultsPayload = [];
@@ -118,22 +105,25 @@ const ExamPage = ({ deckId, onNavigate, onFinish }) => {
       if (!userAns || (Array.isArray(userAns) && userAns.length === 0)) {
         isCorrect = false;
       } else if (q.question_type === "FILL_BLANK") {
-        const userText = String(userAns).trim().toLowerCase();
-        const correctText = String(q.correct_answers).trim().toLowerCase();
-        if (userText === correctText) isCorrect = true;
-      } else if (q.question_type === "MULTIPLE_CHOICE") {
-        const correctLetters = getCorrectLetters(q.correct_answers);
-        const userLetters = userAns.map(getLetterFromOption);
-        if (
-          userLetters.length === correctLetters.length &&
-          userLetters.every((l) => correctLetters.includes(l))
-        ) {
-          isCorrect = true;
-        }
+        isCorrect = isFillBlankCorrect(userAns, q.correct_answers);
       } else {
-        const correctLetters = getCorrectLetters(q.correct_answers);
-        const userLetter = getLetterFromOption(userAns);
-        if (correctLetters.includes(userLetter)) isCorrect = true;
+        const options = parseOptionsList(q.options);
+        const correctIndexes = resolveCorrectIndexes(
+          q.correct_answers,
+          options,
+        );
+
+        if (q.question_type === "MULTIPLE_CHOICE") {
+          const userIndexes = userAns
+            .map((opt) => options.indexOf(opt))
+            .filter((i) => i !== -1);
+          isCorrect =
+            userIndexes.length === correctIndexes.length &&
+            userIndexes.every((i) => correctIndexes.includes(i));
+        } else {
+          const userIndex = options.indexOf(userAns);
+          isCorrect = userIndex !== -1 && correctIndexes.includes(userIndex);
+        }
       }
 
       if (isCorrect) correctCount++;
