@@ -17,9 +17,9 @@ import {
   isValidParticipantName,
 } from "./quickTestQuestionUtils";
 
-// 👉 ĐÃ FIX: Cập nhật đường dẫn vào đúng thư mục Dashboard mới của bạn
 import "../../../pages/Dashboard/DashboardPage.css";
 import "./quicktest.css";
+import "./QuickTestModalManager.css"; // 👉 IMPORT FILE CSS MỚI TẠO
 
 const DEFAULT_SETTINGS = {
   questionCount: 20,
@@ -36,8 +36,6 @@ const formatDeckCount = (deck) => {
   return deck?.totalCards || deck?._count?.Flashcards || deck?.cards?.length || deck?.cardCount || deck?.questions?.length || 0;
 };
 
-// 👉 Backend không có field "difficulty" trên deck, chỉ có easyCount/mediumCount/hardCount
-// (xem deckController.getMyDecks) — tự suy ra nhãn độ khó thật từ 3 số đếm này
 const getDeckDifficultyLabel = (deck) => {
   const easy = deck?.easyCount || 0;
   const medium = deck?.mediumCount || 0;
@@ -82,16 +80,12 @@ const QuickTestModalManager = ({
   const [hostActuallyStarted, setHostActuallyStarted] = useState(false);
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
   const [participantId, setParticipantId] = useState(null);
-  // 👉 Điểm/số câu đúng của CHÍNH học sinh này — để hiện tóm tắt ngay khi làm xong bài
-  // (chế độ Tự do), thay vì bắt học sinh phải chờ giáo viên kết thúc mới biết kết quả
   const [myScore, setMyScore] = useState(0);
   const [myCorrectCount, setMyCorrectCount] = useState(0);
-  // 👉 Thống kê phân bố đáp án theo từng câu (chế độ Tự do) — chỉ lấy được sau khi bài thi
-  // đã kết thúc (server chặn nếu phòng chưa FINISHED), hiện trong màn Bảng xếp hạng chung cuộc
   const [questionStatsList, setQuestionStatsList] = useState([]);
-  // 👉 Chi tiết bài làm của 1 học sinh, hiện trong popup khi bấm vào học sinh đó ở bảng xếp hạng
   const [selectedStudentDetail, setSelectedStudentDetail] = useState(null);
   const [studentDetailLoading, setStudentDetailLoading] = useState(false);
+  
   const inputRef = useRef(null);
   const startTimeRef = useRef(null);
   const hasFinishedRef = useRef(false);
@@ -121,9 +115,6 @@ const QuickTestModalManager = ({
     revealQuestion
   } = useQuickTestSocket();
 
-  // 👉 Nguồn sự thật cho việc phòng đang chạy chế độ Đồng bộ hay Tự do là state của hook
-  // (đã được đồng bộ qua socket lúc joinRoom), không phải settings cục bộ — vì học sinh
-  // không tự cấu hình settings, chỉ giáo viên mới có settings "sống" trước khi tạo phòng.
   const isSync = pacingMode === "SYNC";
 
   const currentQuestions = questions?.length > 0 ? questions : roomQuestions;
@@ -132,7 +123,6 @@ const QuickTestModalManager = ({
   const selectedDeck = useMemo(() => decks.find((item) => item.id === Number(selectedDeckId)) || null, [decks, selectedDeckId]);
   const actualTotalTime = totalTime > 0 ? totalTime : (settings.totalTime > 0 ? settings.totalTime : 600);
 
-  // 👉 Dữ liệu biểu đồ phân bố lựa chọn cho màn hình "Công bố đáp án" của giáo viên (chế độ Đồng bộ)
   const answerDistributionChartData = useMemo(() => {
     if (!isRevealed || !questionStats) return [];
     const correctRaw = String(
@@ -145,7 +135,6 @@ const QuickTestModalManager = ({
     }));
   }, [isRevealed, questionStats, currentQuestion]);
 
-  // 👉 Đồng hồ đếm ngược THAM KHẢO cho giáo viên ở chế độ Đồng bộ — không tự động kích hoạt gì cả
   const [hostTickNow, setHostTickNow] = useState(Date.now());
   useEffect(() => {
     if (!isSync || step !== "hostLive" || isRevealed) return undefined;
@@ -160,9 +149,6 @@ const QuickTestModalManager = ({
 
   const selectedDeckTitle = getCleanTitle(selectedDeck?.title || selectedDeck?.name);
 
-  // 👉 Hàm dùng chung (host xem lại phòng / effect đồng bộ trạng thái) — KHÔNG áp dụng cơ chế
-  // "không trộn lại khi tải lại trang" (đó là việc riêng của handleStudentJoin, xem bên dưới),
-  // vì ở đây chỉ cần lấy đúng bộ câu hỏi hiện tại của phòng để hiển thị.
   const fetchQuestionsForRoom = async (code) => {
     try {
       const roomRes = await quickTestAPI.getRoom(code);
@@ -227,8 +213,6 @@ const QuickTestModalManager = ({
     fetchDecks();
   }, [open, role, decks.length]);
 
-  // 👉 Vá lỗi trắng màn hình khi vào thẳng URL /quicktest/host/:roomCode: tải lại đúng
-  // trạng thái phòng (cấu hình + câu hỏi + step thật) thay vì để "hostLobby" treo mãi
   useEffect(() => {
     if (!open || initialStep !== "hostLobby" || !roomCode) return undefined;
     let cancelled = false;
@@ -308,7 +292,6 @@ const QuickTestModalManager = ({
     setQuestionStartTime(Date.now());
   }, [currentQuestionIndex]);
 
-  // 👉 Chế độ Đồng bộ: câu hỏi hiện tại do giáo viên điều khiển qua socket, không tự tăng nữa
   useEffect(() => {
     if (isSync && syncQuestionIndex != null) {
       setCurrentQuestionIndex(syncQuestionIndex);
@@ -316,10 +299,6 @@ const QuickTestModalManager = ({
     }
   }, [isSync, syncQuestionIndex]);
 
-  // 👉 Chế độ Tự do: khi học sinh làm hết câu cuối (currentQuestion về null), báo cho cả
-  // phòng biết "đã nộp bài" — trước đây không có tín hiệu nào cả, khiến giáo viên luôn thấy
-  // "Đang làm..." và "Tỉ lệ nộp bài" tính sai (đếm nhầm số CÂU đã trả lời thay vì số HỌC SINH
-  // đã xong). hasFinishedRef đảm bảo chỉ bắn 1 lần dù component re-render nhiều lần.
   useEffect(() => {
     if (!isSync && role === "STUDENT" && hasJoined && !currentQuestion && currentQuestions.length > 0 && !hasFinishedRef.current) {
       hasFinishedRef.current = true;
@@ -327,9 +306,6 @@ const QuickTestModalManager = ({
     }
   }, [isSync, role, hasJoined, currentQuestion, currentQuestions.length, roomCode, participantId, participantName, finishTest]);
 
-  // 👉 Chỉ lấy thống kê phân bố đáp án theo câu SAU KHI bài thi đã kết thúc (server cũng
-  // tự chặn nếu phòng chưa FINISHED) — tránh học sinh còn đang làm bài lợi dụng số liệu
-  // này để đoán đáp án đúng của những câu chưa làm tới.
   useEffect(() => {
     if (step !== "leaderboard" || !roomCode) return;
     let isMounted = true;
@@ -435,6 +411,23 @@ const QuickTestModalManager = ({
     }
   };
 
+  // 👉 ĐÃ FIX: Sửa thành /rooms/ (có chữ s) để gọi chính xác API Backend
+  const handleCancelRoom = async () => {
+    if (!roomCode) return;
+    const confirmCancel = window.confirm("Bạn có chắc chắn muốn hủy phòng thi này? Toàn bộ học sinh sẽ bị ngắt kết nối và thoát ra ngoài.");
+    if (!confirmCancel) return;
+
+    try {
+      await api.post(`/quicktest/rooms/${roomCode}/cancel`); // <--- Đã thêm chữ "s" vào chữ rooms
+      resetHostSession();
+      setStep("hostStep1_select"); // Quay về màn chọn đề
+      alert("Đã hủy phòng thi thành công!");
+    } catch (err) {
+      console.error("Lỗi khi hủy phòng:", err);
+      alert(err.response?.data?.message || "Lỗi hệ thống khi hủy phòng.");
+    }
+  };
+
   const handleCheckRoom = async (event) => {
     event?.preventDefault();
     const normalizedCode = roomCode.trim().toUpperCase();
@@ -476,8 +469,6 @@ const QuickTestModalManager = ({
         if (!isNaN(dt) && dt > 0) setSettings((prev) => ({ ...prev, totalTime: dt }));
       }
 
-      // 👉 Chế độ Tự do: mỗi học sinh trộn 1 bản thứ tự riêng, và không trộn lại nếu
-      // đã từng tham gia phòng này trước đó (tải lại trang không được "chọn lại" thứ tự dễ hơn)
       let questionOrderForMe = roomData.questionOrder;
       let shouldShuffle = !isRoomSync;
       if (!isRoomSync) {
@@ -500,23 +491,14 @@ const QuickTestModalManager = ({
       }
       setRoomQuestions(prepared);
 
-      // 👉 Giữ nguyên danh tính nếu đã từng vào phòng này (tránh tạo participant mới, mất điểm cũ)
       const cachedIdentity = getStoredIdentity(normalizedCode);
       let myParticipantId = cachedIdentity?.participantId || null;
       if (!myParticipantId) {
         const joinRes = await quickTestAPI.joinRoom(normalizedCode, normalizedName);
-        // 👉 api.js đã unwrap response.data 1 lần rồi (xem interceptor), nên joinRes chính là
-        // { success, data: participant, roomData } — participantId nằm ở joinRes.data.id,
-        // KHÔNG PHẢI joinRes.data.data.id (bug cũ khiến participantId luôn null, mọi lần nộp
-        // bài đều thất bại ngầm ở backend vì participantId null vi phạm khóa ngoại, và phía
-        // client fallback về isCorrect:false bất kể học sinh chọn đúng hay sai)
         myParticipantId = joinRes?.data?.id || null;
         storeIdentity(normalizedCode, { participantId: myParticipantId, participantName: normalizedName });
       }
       setParticipantId(myParticipantId);
-      // 👉 Chốt lại state participantName về đúng bản đã trim (dùng cho join) — tránh lệch
-      // với bản gõ thô nếu người dùng lỡ gõ dư khoảng trắng, vì participantName còn được
-      // dùng lại ở handleStudentAnswer/finishTest về sau (khớp tên với leaderboard)
       setParticipantName(normalizedName);
 
       joinRoom(normalizedCode, "STUDENT", normalizedName, { pacingMode: roomData.pacingMode, participantId: myParticipantId });
@@ -548,10 +530,6 @@ const QuickTestModalManager = ({
         throw new Error("Không có câu hỏi hợp lệ trong bộ đề đã chọn.");
       }
 
-      // 👉 Chế độ Đồng bộ: trộn đáp án MỘT LẦN DUY NHẤT ngay lúc tạo phòng và chốt lại
-      // (resolvedOptions) để cả giáo viên lẫn mọi học sinh cùng thấy đúng 1 thứ tự đáp án —
-      // nếu để mỗi client tự trộn riêng (như chế độ Tự do) thì "đáp án B" của người này sẽ
-      // là nội dung khác với "đáp án B" của người kia, làm bảng thống kê vô nghĩa.
       let resolvedOptions;
       if (settings.pacingMode === "SYNC" && settings.randomAnswers) {
         selectedQuestions = selectedQuestions.map((q) => ({
@@ -561,8 +539,6 @@ const QuickTestModalManager = ({
         resolvedOptions = Object.fromEntries(selectedQuestions.map((q) => [q.id, q.options]));
       }
 
-      // 👉 Chốt thứ tự câu hỏi lúc tạo phòng — nguồn sự thật duy nhất cho chế độ Đồng bộ,
-      // và là "hồ câu hỏi gốc" để mỗi học sinh tự trộn riêng ở chế độ Tự do (xem handleStudentJoin)
       const questionOrder = selectedQuestions.map((q) => q.id);
       const payload = {
         examId: selectedDeckId,
@@ -609,16 +585,11 @@ const QuickTestModalManager = ({
       await api.put(`/quicktest/rooms/${roomCode}/start`);
     } catch (e) {}
     startTest(roomCode, settings.totalTime, roomQuestions);
-    // 👉 Chế độ Đồng bộ: phát câu hỏi đầu tiên (index 0) cho cả phòng ngay khi bắt đầu
     if (settings.pacingMode === "SYNC") {
       advanceQuestion(roomCode, 0);
     }
   };
 
-  // 👉 Chế độ Đồng bộ: cảnh báo trước khi công bố đáp án nếu CHƯA CÓ học sinh nào trả lời
-  // câu này — vẫn để giáo viên toàn quyền quyết định (có thể vẫn muốn công bố để giảng lại,
-  // bỏ qua câu tốn thời gian...), chỉ chặn bấm NHẦM chứ không chặn cứng, vì công bố xong sẽ
-  // khóa luôn việc nộp trễ cho câu đó (xem guard "tooLate" ở backend submitAnswer)
   const handleRevealQuestion = async () => {
     if (!roomCode || !currentQuestion) return;
     try {
@@ -632,8 +603,6 @@ const QuickTestModalManager = ({
     revealQuestion(roomCode, currentQuestion.id);
   };
 
-  // 👉 Bấm vào 1 học sinh ở bảng xếp hạng cuối bài -> mở popup xem chi tiết từng câu học
-  // sinh đó đã chọn gì, đúng/sai so với đáp án đúng
   const handleSelectStudent = async (item) => {
     const targetParticipantId = item?.participantId || item?.id;
     if (!roomCode || !targetParticipantId) return;
@@ -660,7 +629,6 @@ const QuickTestModalManager = ({
   const handleStudentAnswer = async (answer) => {
     if (!currentQuestion) return;
     const timeTaken = Math.floor((Date.now() - questionStartTime) / 1000);
-    // 👉 Dùng đúng kết quả chấm điểm thật từ server (gradeAnswer), không tự đoán lại ở client nữa
     const { isCorrect, tooLate, newScore } = await submitAnswer({
       roomCode,
       participantId,
@@ -671,18 +639,14 @@ const QuickTestModalManager = ({
     });
 
     if (tooLate) {
-      // 👉 Giáo viên đã công bố đáp án trước khi kịp nộp — không tính là đã trả lời
       setAnswerFeedback({ isCorrect: false, answer, tooLate: true });
       return;
     }
 
-    // 👉 Tự lưu điểm/số câu đúng của chính mình để hiện tóm tắt ngay khi làm xong bài,
-    // không phải chờ giáo viên kết thúc mới biết kết quả (newScore là điểm TỔNG server trả về)
     setMyScore(newScore || 0);
     if (isCorrect) setMyCorrectCount((prev) => prev + 1);
 
     if (isSync) {
-      // Chế độ Đồng bộ: không tự chuyển câu, không lộ đúng/sai ngay — chờ giáo viên công bố
       setAnswerFeedback({ isCorrect, answer, waitingForHost: true });
     } else if (resultMode === "SHOW_NOW") {
       setAnswerFeedback({ isCorrect, answer });
@@ -698,19 +662,11 @@ const QuickTestModalManager = ({
 
   if (!open) return null;
 
-  const btnCloseStyle = {
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    width: '56px', height: '56px', borderRadius: '50%',
-    fontSize: '2rem', border: 'none', backgroundColor: '#f1f5f9',
-    color: '#64748b', cursor: 'pointer', transition: 'all 0.2s ease',
-    boxShadow: '0 4px 10px rgba(0,0,0,0.08)'
-  };
-
   const renderModalContent = () => {
     if (step === "hostLobby") {
       return (
-        <div className="quicktest-modal-card" style={{ marginTop: '60px', textAlign: 'center', padding: '60px' }}>
-          <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '3rem', color: '#4f46e5' }}></i>
+        <div className="quicktest-modal-card qt-loader-state">
+          <i className="fa-solid fa-spinner fa-spin qt-icon-lg" style={{ color: '#4f46e5' }}></i>
           <p style={{ marginTop: '20px', color: '#64748b' }}>Đang tải lại phòng của bạn...</p>
           {roomError && <div className="quicktest-inline-error" style={{ marginTop: '16px' }}>{roomError}</div>}
         </div>
@@ -720,7 +676,7 @@ const QuickTestModalManager = ({
     if (step === "role") {
       return (
         <div className="quicktest-modal-card quicktest-role-card" style={{ marginTop: '40px', position: 'relative' }}>
-          <button style={{ ...btnCloseStyle, position: 'absolute', top: '24px', right: '24px' }} onClick={handleClose} onMouseOver={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.borderColor = '#fca5a5'; }} onMouseOut={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = '#cbd5e1'; }}>
+          <button className="qt-btn-close" onClick={handleClose}>
             <i className="fa-solid fa-xmark"></i>
           </button>
           <div className="quicktest-header-group quicktest-center">
@@ -747,14 +703,14 @@ const QuickTestModalManager = ({
     if (step === "join") {
       return (
         <div className="quicktest-modal-card quicktest-compact-card" style={{ marginTop: '60px', position: 'relative' }}>
-          <button style={{ ...btnCloseStyle, position: 'absolute', top: '24px', right: '24px' }} onClick={handleClose} onMouseOver={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.borderColor = '#fca5a5'; }} onMouseOut={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = '#cbd5e1'; }}>
+          <button className="qt-btn-close" onClick={handleClose}>
             <i className="fa-solid fa-xmark"></i>
           </button>
           <div className="quicktest-modal-topbar">
             <button className="quicktest-back-btn" onClick={() => setStep("role")}>← Quay lại</button>
           </div>
           <div className="quicktest-header-group quicktest-center">
-            <div className="quicktest-role-icon" style={{ fontSize: '3rem', marginBottom: '10px' }}>🎮</div>
+            <div className="quicktest-role-icon qt-icon-lg">🎮</div>
             <h2>Tham gia thi</h2>
             <p>Nhập mã phòng do giáo viên cung cấp</p>
           </div>
@@ -766,7 +722,7 @@ const QuickTestModalManager = ({
                 onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
                 placeholder="VD: FMN5821"
                 maxLength={12}
-                style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '0.2em' }}
+                className="qt-input-code"
               />
             </label>
             {joinError && <div className="quicktest-inline-error">{joinError}</div>}
@@ -781,14 +737,14 @@ const QuickTestModalManager = ({
     if (step === "name") {
       return (
         <div className="quicktest-modal-card quicktest-compact-card" style={{ marginTop: '60px', position: 'relative' }}>
-          <button style={{ ...btnCloseStyle, position: 'absolute', top: '24px', right: '24px' }} onClick={handleClose} onMouseOver={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.borderColor = '#fca5a5'; }} onMouseOut={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = '#cbd5e1'; }}>
+          <button className="qt-btn-close" onClick={handleClose}>
             <i className="fa-solid fa-xmark"></i>
           </button>
           <div className="quicktest-modal-topbar">
             <button className="quicktest-back-btn" onClick={() => setStep("join")}>← Quay lại</button>
           </div>
           <div className="quicktest-header-group quicktest-center">
-            <div className="quicktest-role-icon" style={{ fontSize: '3rem', marginBottom: '10px' }}>😉</div>
+            <div className="quicktest-role-icon qt-icon-lg">😉</div>
             <h2>Tên của bạn</h2>
             <p>Tên sẽ hiển thị trên bảng xếp hạng</p>
           </div>
@@ -799,11 +755,11 @@ const QuickTestModalManager = ({
                 value={participantName}
                 onChange={(e) => setParticipantName(e.target.value)}
                 placeholder="Ví dụ: Nguyễn Văn A"
-                style={{ textAlign: 'center', fontSize: '1.2rem' }}
+                className="qt-input-name"
               />
             </label>
             {joinError && <div className="quicktest-inline-error">{joinError}</div>}
-            <button type="submit" className="quicktest-primary-btn" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }} disabled={joinLoading || !isValidParticipantName(participantName)}>
+            <button type="submit" className="quicktest-primary-btn qt-btn-success-gradient" disabled={joinLoading || !isValidParticipantName(participantName)}>
               {joinLoading ? "⏳ Đang tham gia..." : "Vào Phòng Ngay"}
             </button>
           </form>
@@ -814,7 +770,7 @@ const QuickTestModalManager = ({
     if (step === "hostStep1_select") {
       return (
         <div className="quicktest-modal-card quicktest-wide-card" style={{ marginTop: '20px', position: 'relative' }}>
-          <button style={{ ...btnCloseStyle, position: 'absolute', top: '24px', right: '24px' }} onClick={() => setStep("role")} onMouseOver={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.borderColor = '#fca5a5'; }} onMouseOut={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = '#cbd5e1'; }}>
+          <button className="qt-btn-close" onClick={() => setStep("role")}>
             <i className="fa-solid fa-xmark"></i>
           </button>
           <div className="quicktest-modal-topbar" style={{ marginBottom: '24px' }}>
@@ -823,7 +779,7 @@ const QuickTestModalManager = ({
               <p>Dữ liệu được lấy trực tiếp từ kho đề thi của bạn.</p>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px', maxHeight: '55vh', overflowY: 'auto', padding: '10px 4px' }}>
+          <div className="qt-deck-grid">
             {decks.length === 0 ? (
               <div className="quicktest-empty-state" style={{ gridColumn: '1 / -1', padding: '40px' }}>Bạn chưa có đề thi nào trong thư viện.</div>
             ) : (
@@ -839,13 +795,7 @@ const QuickTestModalManager = ({
                       const maxQ = formatDeckCount(deck);
                       setSettings(prev => ({ ...prev, questionCount: Math.min(20, maxQ > 0 ? maxQ : 20) }));
                     }}
-                    style={{
-                      padding: '24px', borderRadius: '20px', cursor: 'pointer', border: '2px solid',
-                      borderColor: selectedDeckId === deck.id ? '#4f46e5' : '#e2e8f0',
-                      backgroundColor: selectedDeckId === deck.id ? '#eef2ff' : '#fff',
-                      transition: 'all 0.2s ease',
-                      boxShadow: selectedDeckId === deck.id ? '0 10px 25px rgba(79, 70, 229, 0.15)' : 'none'
-                    }}
+                    className={`qt-deck-card ${selectedDeckId === deck.id ? 'active' : ''}`}
                   >
                     <h3 style={{ margin: '0 0 8px 0', color: '#0f172a', fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {cleanTitle}
@@ -1002,13 +952,14 @@ const QuickTestModalManager = ({
       return (
         <div className="quicktest-modal-card quicktest-wide-card" style={{ marginTop: '20px' }}>
           <div className="quicktest-modal-topbar">
-            <button className="quicktest-secondary-btn" style={{ color: '#b91c1c' }} onClick={resetHostSession}>Hủy phòng</button>
+            {/* 👉 ĐÃ FIX: Nút Hủy phòng đã được gọi hàm handleCancelRoom để xóa phòng DB & Socket */}
+            <button className="quicktest-secondary-btn qt-cancel-btn" onClick={handleCancelRoom}>Hủy phòng</button>
             <div className="quicktest-pill quicktest-pill-success">Đang chờ học sinh...</div>
           </div>
           <div className="quicktest-header-group quicktest-center" style={{ margin: '30px 0' }}>
             <p style={{ textTransform: 'uppercase', letterSpacing: '0.15em', color: '#4f46e5', fontWeight: 'bold', margin: '0 0 10px 0' }}>Mã phòng tham gia</p>
-            <div style={{ background: '#f8fafc', display: 'inline-block', padding: '20px 60px', borderRadius: '30px', border: '2px solid #e2e8f0', cursor: 'pointer' }} onClick={() => navigator.clipboard.writeText(roomCode)}>
-              <h1 style={{ fontSize: '6rem', margin: 0, color: '#0f172a', letterSpacing: '0.15em', lineHeight: 1 }}>{roomCode}</h1>
+            <div className="qt-room-code-display" onClick={() => navigator.clipboard.writeText(roomCode)}>
+              <h1 className="qt-room-code-text">{roomCode}</h1>
               <p style={{ margin: '10px 0 0 0', color: '#64748b', fontSize: '0.95rem' }}>Nhấp để sao chép mã</p>
             </div>
           </div>
@@ -1097,8 +1048,6 @@ const QuickTestModalManager = ({
                   total={currentQuestions.length}
                   resultMode={isRevealed ? "SHOW_NOW" : "SHOW_END"}
                   onAnswer={() => {}}
-                  // 👉 Chỉ cần truyền một object khác null để panel bật chế độ hiện màu —
-                  // isActuallyCorrectOption tự so khớp đáp án đúng theo nội dung, không cần "answer" cụ thể
                   answerFeedback={isRevealed ? { isCorrect: true } : null}
                   readOnly
                   hideNextButton
@@ -1207,9 +1156,6 @@ const QuickTestModalManager = ({
                     </div>
                   ) : (
                     studentsList.map((st, idx) => {
-                      // 👉 Khớp theo participantId trước (đáng tin cậy, không phụ thuộc tên
-                      // gõ có khoảng trắng/hoa-thường khác nhau giữa lúc join và lúc nộp bài),
-                      // rồi mới fallback khớp theo tên cho các phiên cũ chưa có participantId
                       const lbItem = leaderboard.find(l =>
                         (st.participantId && l.participantId === st.participantId) ||
                         l.userName === st.userName ||
@@ -1275,7 +1221,7 @@ const QuickTestModalManager = ({
     if (step === "waiting") {
       return (
         <div className="quicktest-modal-card quicktest-wide-card" style={{ maxWidth: '600px', marginTop: '60px', position: 'relative' }}>
-          <button style={{ ...btnCloseStyle, position: 'absolute', top: '24px', right: '24px' }} onClick={() => { resetStudentSession(); setStep("join"); }} onMouseOver={(e) => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.borderColor = '#fca5a5'; }} onMouseOut={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = '#cbd5e1'; }}>
+          <button className="qt-btn-close" onClick={() => { resetStudentSession(); setStep("join"); }}>
             <i className="fa-solid fa-xmark"></i>
           </button>
           <div className="quicktest-modal-topbar">
@@ -1400,7 +1346,7 @@ const QuickTestModalManager = ({
       return (
         <>
         <div className="quicktest-modal-card quicktest-wide-card" style={{ marginTop: '20px', position: 'relative' }}>
-          <button style={{ ...btnCloseStyle, position: 'absolute', top: '24px', right: '24px', zIndex: 10 }} onClick={handleClose} onMouseOver={(e) => { e.currentTarget.style.background = '#e2e8f0'; e.currentTarget.style.color = '#0f172a'; }} onMouseOut={(e) => { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#64748b'; }}>
+          <button className="qt-btn-close" onClick={handleClose}>
             <i className="fa-solid fa-xmark"></i>
           </button>
           <div className="quicktest-modal-topbar" style={{ marginBottom: '24px' }}>
@@ -1447,9 +1393,6 @@ const QuickTestModalManager = ({
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                         {qs.distribution.map((d, dIdx) => {
                           const pct = qs.totalAnswered > 0 ? Math.round((d.count / qs.totalAnswered) * 100) : 0;
-                          // 👉 3 trạng thái rõ rệt: đúng (xanh), SAI nhưng có người chọn (đỏ — cần
-                          // nổi bật vì đây mới là thứ giáo viên cần biết để sửa lỗ hổng kiến thức),
-                          // và sai nhưng không ai chọn (xám trung tính, không đáng chú ý)
                           const isWrongChosen = !d.isCorrect && d.count > 0;
                           const accent = d.isCorrect ? '#10b981' : isWrongChosen ? '#ef4444' : '#cbd5e1';
                           const rowBg = d.isCorrect ? '#f0fdf4' : isWrongChosen ? '#fef2f2' : '#f8fafc';
@@ -1488,13 +1431,10 @@ const QuickTestModalManager = ({
         </div>
 
         {selectedStudentDetail && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-            <div style={{ position: 'absolute', inset: 0, background: 'rgba(15, 23, 42, 0.64)', backdropFilter: 'blur(6px)' }} onClick={() => setSelectedStudentDetail(null)} />
-            <div style={{ position: 'relative', zIndex: 1, width: 'min(100%, 720px)', maxHeight: '88vh', overflowY: 'auto', background: '#fff', borderRadius: '24px', padding: '28px', boxShadow: '0 30px 80px rgba(15,23,42,0.3)' }}>
-              <button
-                style={{ position: 'absolute', top: '20px', right: '20px', width: '40px', height: '40px', borderRadius: '50%', border: 'none', background: '#f1f5f9', color: '#64748b', fontSize: '1.2rem', cursor: 'pointer' }}
-                onClick={() => setSelectedStudentDetail(null)}
-              >
+          <div className="qt-student-detail-overlay">
+            <div className="qt-student-detail-backdrop" onClick={() => setSelectedStudentDetail(null)} />
+            <div className="qt-student-detail-modal" onClick={e => e.stopPropagation()}>
+              <button className="qt-modal-close-btn" onClick={() => setSelectedStudentDetail(null)}>
                 <i className="fa-solid fa-xmark"></i>
               </button>
 
@@ -1576,5 +1516,5 @@ const QuickTestModalManager = ({
     </div>
   );
 };
- 
+
 export default QuickTestModalManager;
