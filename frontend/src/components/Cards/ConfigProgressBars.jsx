@@ -5,25 +5,6 @@ const ConfigProgressBars = ({ questionsConfig }) => {
   const totalQuestions = questionsConfig.length;
   if (totalQuestions === 0) return null;
 
-  // --- TÍNH TOÁN ĐỘ KHÓ ---
-  const totalEasy = questionsConfig.filter(
-    (q) => q.difficulty === "EASY",
-  ).length;
-  const totalMed = questionsConfig.filter(
-    (q) => q.difficulty === "MEDIUM",
-  ).length;
-  const totalHard = questionsConfig.filter(
-    (q) => q.difficulty === "HARD",
-  ).length;
-
-  // 👉 ĐÃ THÊM: Tính số lượng Chưa gán (Màu xám)
-  const totalUnassignedDiff = totalQuestions - totalEasy - totalMed - totalHard;
-
-  const easyPct = (totalEasy / totalQuestions) * 100;
-  const medPct = (totalMed / totalQuestions) * 100;
-  const hardPct = (totalHard / totalQuestions) * 100;
-  const unassignedDiffPct = (totalUnassignedDiff / totalQuestions) * 100;
-
   // --- TÍNH TOÁN LOẠI CÂU HỎI ---
   const totalSingle = questionsConfig.filter(
     (q) => q.type === "SINGLE_CHOICE",
@@ -48,70 +29,6 @@ const ConfigProgressBars = ({ questionsConfig }) => {
 
   return (
     <div className="cei-progress-box">
-      {/* Phân bổ Độ khó */}
-      <div>
-        <div className="cei-progress-header">
-          <span style={{ color: "var(--text-dark)" }}>
-            <i
-              className="fa-solid fa-chart-simple"
-              style={{ color: "#8b5cf6", marginRight: "5px" }}
-            ></i>{" "}
-            Phân bổ Độ Khó:
-          </span>
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
-            <span style={{ color: "#10b981" }}>
-              Dễ: {Math.round(easyPct)}% ({totalEasy})
-            </span>
-            <span style={{ color: "#f59e0b" }}>
-              Vừa: {Math.round(medPct)}% ({totalMed})
-            </span>
-            <span style={{ color: "#ef4444" }}>
-              Khó: {Math.round(hardPct)}% ({totalHard})
-            </span>
-            {/* Nhãn cho phần chưa gán */}
-            {totalUnassignedDiff > 0 && (
-              <span style={{ color: "#9ca3af", fontWeight: "bold" }}>
-                Chưa gán: {Math.round(unassignedDiffPct)}% (
-                {totalUnassignedDiff})
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="cei-progress-track">
-          <div
-            style={{
-              width: `${easyPct}%`,
-              backgroundColor: "#10b981",
-              transition: "width 0.3s ease",
-            }}
-          ></div>
-          <div
-            style={{
-              width: `${medPct}%`,
-              backgroundColor: "#f59e0b",
-              transition: "width 0.3s ease",
-            }}
-          ></div>
-          <div
-            style={{
-              width: `${hardPct}%`,
-              backgroundColor: "#ef4444",
-              transition: "width 0.3s ease",
-            }}
-          ></div>
-          {/* Thanh màu xám đứt nét cho phần chưa gán */}
-          <div
-            style={{
-              width: `${unassignedDiffPct}%`,
-              backgroundColor: "#e5e7eb",
-              backgroundImage:
-                "repeating-linear-gradient(45deg, transparent, transparent 10px, #d1d5db 10px, #d1d5db 20px)",
-              transition: "width 0.3s ease",
-            }}
-          ></div>
-        </div>
-      </div>
-
       {/* Phân bổ Loại câu hỏi */}
       <div>
         <div className="cei-progress-header">

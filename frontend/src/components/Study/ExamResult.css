@@ -66,6 +66,18 @@
   color: #10b981;
 }
 
+.score-scaled {
+  font-size: 1rem;
+  color: var(--text-gray);
+  margin: 8px 0 0 0;
+}
+
+.score-scaled-value {
+  font-weight: bold;
+  color: #8b5cf6;
+  font-size: 1.2rem;
+}
+
 .result-message {
   color: var(--text-gray);
   font-size: 1.1rem;

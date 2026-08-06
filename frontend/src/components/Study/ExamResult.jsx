@@ -33,6 +33,7 @@ const ExamResult = ({ questions, selectedAnswers, score, onFinish }) => {
 
   const scorePercentage = questions.length > 0 ? score / questions.length : 0;
   const borderColor = scorePercentage >= 0.5 ? "#10b981" : "#ef4444";
+  const scoreOn10 = (scorePercentage * 10).toFixed(1);
 
   return (
     <div className="exam-result-container">
@@ -53,6 +54,10 @@ const ExamResult = ({ questions, selectedAnswers, score, onFinish }) => {
             <p className="score-value">
               <span className="score-value-correct">{score}</span> /{" "}
               {questions.length}
+            </p>
+            <p className="score-scaled">
+              Điểm quy đổi (thang 10):{" "}
+              <span className="score-scaled-value">{scoreOn10}</span>
             </p>
           </div>
         </div>

@@ -80,7 +80,7 @@ const QuestionCard = ({ q, index, onUpdate, onDelete, onRemoveNew }) => {
                 fontSize: "1.1rem",
               }}
             >
-              Câu {index + 1} [{q.question_type} - {q.difficulty}]:
+              Câu {index + 1} [{q.question_type}]:
             </div>
             <div style={{ display: "flex", gap: "12px" }}>
               <button
@@ -111,6 +111,28 @@ const QuestionCard = ({ q, index, onUpdate, onDelete, onRemoveNew }) => {
               </button>
             </div>
           </div>
+
+          {q.groundingSuspicious && (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "4px 10px",
+                marginBottom: "10px",
+                borderRadius: "999px",
+                background: "rgba(245, 158, 11, 0.12)",
+                color: "#b45309",
+                fontSize: "0.82rem",
+                fontWeight: "700",
+              }}
+              title="Trích dẫn của câu này không khớp rõ với tài liệu gốc — có thể AI đã bịa, hãy kiểm tra lại kỹ trước khi lưu."
+            >
+              <i className="fa-solid fa-triangle-exclamation"></i>
+              Nghi ngờ chưa bám sát tài liệu gốc
+            </div>
+          )}
+
 
           <div
             style={{

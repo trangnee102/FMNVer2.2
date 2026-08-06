@@ -6,6 +6,7 @@ const {
   generateFlashcards,
   saveGeneratedCards,
   refineGeneratedCards,
+  askAIMentor,
 } = require("../controllers/aiController");
 
 const aiExamController = require("../controllers/aiExamController");
@@ -70,6 +71,8 @@ router.post(
 router.post("/save", verifyToken, saveGeneratedCards);
 
 router.post("/refine", verifyToken, refineGeneratedCards);
+
+router.post("/ask-mentor", verifyToken, askAIMentor);
 
 // ==========================================
 // 3. CÁC ROUTES AI - ĐỀ THI TRẮC NGHIỆM (EXAM)

@@ -6,7 +6,12 @@ const {
   safeParseJSON,
   autoWrapMath,
   shuffleArray,
+  verifyQuestionsGrounding,
+  flagDifficultyMismatch,
 } = require("../utils/aiHelpers");
+// 👉 flagDifficultyMismatch vẫn được dùng ở generateAdaptiveExam (đề thích ứng vẫn cần
+// difficulty để nhắm điểm yếu học viên) — chỉ generateExam (luồng "Tạo đề bằng AI") bỏ hẳn
+// thuộc tính độ khó, vì đây chính là nơi AI đánh giá không đáng tin cậy.
 
 const generateExam = async (req, res) => {
   try {
@@ -89,7 +94,7 @@ const generateExam = async (req, res) => {
         matrixRules =
           "MA TRẬN CẤU TRÚC ĐỀ THI (BẮT BUỘC TUÂN THỦ NGHIÊM NGẶT THỨ TỰ NÀY):\n";
         configArray.forEach((q, index) => {
-          matrixRules += `- Câu ${index + 1}: Thể loại: ${q.type}, Độ khó: ${q.difficulty}.\n`;
+          matrixRules += `- Câu ${index + 1}: Thể loại: ${q.type}.\n`;
         });
       } catch (e) {
         console.log("Lỗi parse questionsConfig:", e);
@@ -139,7 +144,6 @@ BẠN PHẢI TRẢ VỀ ĐÚNG 1 OBJECT JSON VỚI CẤU TRÚC SAU:
     {
       "question": "Nội dung câu hỏi",
       "question_type": "SINGLE_CHOICE hoặc MULTIPLE_CHOICE hoặc TRUE_FALSE hoặc FILL_BLANK",
-      "difficulty": "EASY hoặc MEDIUM hoặc HARD",
       "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
       "correct_answers": "A",
       "source_reference": "Đoạn văn trích...",
@@ -183,6 +187,12 @@ BẠN PHẢI TRẢ VỀ ĐÚNG 1 OBJECT JSON VỚI CẤU TRÚC SAU:
       options: (q.options || []).map((opt) => autoWrapMath(opt)),
     }));
 
+    // 👉 Kiểm tra "bám sát tài liệu" bằng string-matching thuần (không tốn thêm lệnh gọi
+    // AI nào) — so source_reference AI trả về với NGUYÊN VĂN tài liệu người dùng cung cấp,
+    // đánh dấu groundingSuspicious cho câu nào trích dẫn không thật sự khớp, để giáo viên
+    // biết đường xem lại trước khi lưu (prompt chỉ NHẮC AI đừng bịa, không RÀNG BUỘC được)
+    generatedQuestions = verifyQuestionsGrounding(generatedQuestions, combinedContent);
+
     if (generatedQuestions.length === 0) {
       return res.status(200).json({
         success: false,
@@ -192,9 +202,14 @@ BẠN PHẢI TRẢ VỀ ĐÚNG 1 OBJECT JSON VỚI CẤU TRÚC SAU:
       });
     }
 
+    const suspiciousCount = generatedQuestions.filter((q) => q.groundingSuspicious).length;
+
     let responseMessage = aiResponse.message || "Đã tạo đề thi thành công!";
     if (generatedQuestions.length < totalQuestions) {
       responseMessage = `Đã tạo được ${generatedQuestions.length}/${totalQuestions} câu. Các câu còn lại đã bị hủy vì tài liệu không đủ dữ kiện học thuật (Nhằm tránh AI bịa đặt kiến thức).`;
+    }
+    if (suspiciousCount > 0) {
+      responseMessage += ` ⚠️ ${suspiciousCount} câu có trích dẫn không khớp rõ với tài liệu gốc, hãy kiểm tra lại trước khi lưu.`;
     }
 
     return res.status(200).json({
@@ -280,8 +295,15 @@ DỮ LIỆU PHÂN TÍCH HỌC TẬP CỦA HỌC VIÊN:
 NHIỆM VỤ THÍCH ỨNG (ADAPTIVE LEARNING):
 Hãy tạo ra một đề thi ôn tập gồm 10 câu hỏi trắc nghiệm tập trung khắc phục điểm yếu của học viên:
 1. Ưu tiên sinh thêm câu hỏi xoáy sâu vào các từ khóa học viên đang yếu.
-2. Điều chỉnh độ khó phù hợp (từ EASY lên MEDIUM) để củng cố kiến thức.
+2. Điều chỉnh độ khó phù hợp (từ EASY lên MEDIUM) để củng cố kiến thức. Phân loại độ khó theo
+   ĐÚNG 3 mức sau, không tự ý phán đoán: EASY = chỉ cần nhớ lại trực tiếp 1 định nghĩa/sự kiện
+   có sẵn nguyên văn; MEDIUM = cần hiểu và liên kết từ 2 chi tiết trở lên; HARD = cần suy luận
+   hoặc áp dụng khái niệm, nhưng vẫn dựa hoàn toàn trên ngân hàng câu hỏi gốc.
 3. Chống ảo giác: Chỉ sử dụng thông tin từ ngân hàng câu hỏi gốc.
+4. TỰ KIỂM TRA (độc lập với "difficulty", không dùng để tự sửa "difficulty"): với mỗi câu, tự
+   hỏi "Nếu bỏ hết tên riêng/số liệu cụ thể đi, câu này có còn cần suy luận không?" và ghi câu
+   trả lời trung thực vào "requires_reasoning" (true/false) — giữ nguyên "difficulty" dù 2
+   trường này không khớp nhau.
 
 Trả về JSON đúng cấu trúc sau:
 {
@@ -291,6 +313,7 @@ Trả về JSON đúng cấu trúc sau:
       "question": "...",
       "question_type": "SINGLE_CHOICE",
       "difficulty": "MEDIUM",
+      "requires_reasoning": true,
       "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
       "correct_answers": "A",
       "source_reference": "...",
@@ -303,11 +326,15 @@ Trả về JSON đúng cấu trúc sau:
 
     const result = await model.generateContent(adaptivePrompt);
     const aiResponse = JSON.parse(result.response.text());
+    // 👉 Đề thích ứng lấy nguồn từ chính ngân hàng câu hỏi của bộ thẻ (sourceMaterial),
+    // không phải tài liệu gốc — kiểm tra bám sát + dò nhãn khó giả tương tự generateExam
+    let groundedQuestions = verifyQuestionsGrounding(aiResponse.questions || [], sourceMaterial);
+    groundedQuestions = flagDifficultyMismatch(groundedQuestions);
 
     return res.status(200).json({
       success: true,
       message: aiResponse.message || "Tạo đề thích ứng thành công!",
-      data: aiResponse.questions || [],
+      data: groundedQuestions,
     });
   } catch (error) {
     console.error("❌ Lỗi Adaptive Exam:", error);
@@ -353,7 +380,6 @@ BẠN PHẢI TRẢ VỀ ĐÚNG 1 OBJECT JSON ĐÃ ĐƯỢC CHỈNH SỬA (Không
 {
   "question": "...",
   "question_type": "...",
-  "difficulty": "...",
   "options": ["A. ...", "B. ..."],
   "correct_answers": "...",
   "source_reference": "...",

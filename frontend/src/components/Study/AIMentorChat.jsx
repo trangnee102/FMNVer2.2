@@ -52,7 +52,7 @@ const AIMentorChat = ({ currentQuestion }) => {
         {
           sender: "ai",
           text:
-            response.data.reply ||
+            response.reply ||
             "Tớ hiểu rồi, nhưng hệ thống trả lời hơi lỗi xíu!",
         },
       ]);

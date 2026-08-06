@@ -81,45 +81,6 @@ const PreviewStats = ({ totalQ, stats }) => {
           </span>
         )}
       </div>
-
-      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-        <span
-          style={{
-            padding: "5px 12px",
-            backgroundColor: "rgba(16, 185, 129, 0.1)",
-            color: "#10b981",
-            borderRadius: "6px",
-            fontWeight: "bold",
-            fontSize: "0.85rem",
-          }}
-        >
-          Dễ: {stats.EASY}
-        </span>
-        <span
-          style={{
-            padding: "5px 12px",
-            backgroundColor: "rgba(245, 158, 11, 0.1)",
-            color: "#f59e0b",
-            borderRadius: "6px",
-            fontWeight: "bold",
-            fontSize: "0.85rem",
-          }}
-        >
-          Vừa: {stats.MEDIUM}
-        </span>
-        <span
-          style={{
-            padding: "5px 12px",
-            backgroundColor: "rgba(239, 68, 68, 0.1)",
-            color: "#ef4444",
-            borderRadius: "6px",
-            fontWeight: "bold",
-            fontSize: "0.85rem",
-          }}
-        >
-          Khó: {stats.HARD}
-        </span>
-      </div>
     </div>
   );
 };

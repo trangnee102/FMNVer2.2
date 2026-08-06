@@ -9,6 +9,8 @@ const AddMoreMatrix = ({
   originalFile,
   existingQuestions,
   onAdded,
+  docCapacity,
+  updateDocCapacity,
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [useOriginalDoc, setUseOriginalDoc] = useState(true);
@@ -42,7 +44,6 @@ const AddMoreMatrix = ({
           (_, i) => ({
             id: prev.length + i + 1,
             type: "SINGLE_CHOICE",
-            difficulty: "MEDIUM",
           }),
         );
         return [...prev, ...newItems];
@@ -67,13 +68,6 @@ const AddMoreMatrix = ({
     e.target.value = "";
   };
 
-  const handleApplyAllDifficulty = (e) => {
-    const newDiff = e.target.value;
-    if (!newDiff) return;
-    setAddConfig(addConfig.map((q) => ({ ...q, difficulty: newDiff })));
-    e.target.value = "";
-  };
-
   const handleAddCountChange = (e) => {
     let val = e.target.value;
     if (val.length > 1 && val.startsWith("0")) {
@@ -82,25 +76,12 @@ const AddMoreMatrix = ({
     setAddCount(Number(val));
   };
 
-  const validateSameDocument = () => {
-    if (useOriginalDoc) return true;
-    if (
-      addText.trim() &&
-      originalText?.trim() &&
-      addText.trim() === originalText.trim()
-    ) {
-      return true;
-    }
-    if (
-      addFile &&
-      originalFile &&
-      addFile.name === originalFile.name &&
-      addFile.size === originalFile.size
-    ) {
-      return true;
-    }
-    return false;
-  };
+  // 👉 File/text gõ ở ô "tài liệu mới" trùng y hệt tài liệu ban đầu — chỉ để BÁO cho người
+  // dùng biết (không chặn): existingQuestions đã lo chống trùng nội dung rồi.
+  const isFileSameAsOriginal =
+    !!addFile && !!originalFile && addFile.name === originalFile.name && addFile.size === originalFile.size;
+  const isTextSameAsOriginal =
+    !!addText.trim() && !!originalText?.trim() && addText.trim() === originalText.trim();
 
   const handleAddMore = async () => {
     const currentAddTotal = addConfig.length;
@@ -115,9 +96,11 @@ const AddMoreMatrix = ({
       return;
     }
 
-    if (missingTotal > 0 && validateSameDocument()) {
+    // 👉 Dùng lại tài liệu gốc + đã BIẾT CHẮC tài liệu không đủ dữ kiện cho từng này câu nữa
+    // (từng thử và bị hụt ở lần trước) — chặn ngay tại đây, KHÔNG gọi AI cho tốn công.
+    if (useOriginalDoc && docCapacity !== null && existingQuestions.length >= docCapacity) {
       setAddError(
-        "Dữ liệu từ tài liệu này đã được hệ thống khai thác tối đa để tránh trùng lặp. Bạn vui lòng cung cấp thêm văn bản hoặc tải lên tài liệu mới để tiếp tục nhé!",
+        `Tài liệu ban đầu đã đạt giới hạn ở khoảng ${docCapacity} câu — không thể tạo thêm nữa từ tài liệu này. Hãy chuyển sang "Tài liệu mới".`,
       );
       return;
     }
@@ -129,6 +112,9 @@ const AddMoreMatrix = ({
       const formData = new FormData();
       formData.append("topic", "Bổ sung câu hỏi");
 
+      // 👉 2 chế độ tách biệt hẳn: "Dùng tài liệu cũ" gửi NGUYÊN VĂN tài liệu ban đầu, không
+      // pha trộn gì thêm (để dữ liệu quan sát "trần năng lực" luôn đúng với đúng 1 tài liệu
+      // cố định); "Tài liệu mới" gửi hẳn nội dung mới do người dùng cung cấp ở ô bên dưới.
       if (useOriginalDoc) {
         if (originalText?.trim()) formData.append("text", originalText.trim());
         if (originalFile) formData.append("file", originalFile);
@@ -138,21 +124,7 @@ const AddMoreMatrix = ({
       }
 
       formData.append("existingQuestions", JSON.stringify(existingQuestions));
-
-      const totalAddEasy = addConfig.filter(
-        (q) => q.difficulty === "EASY",
-      ).length;
-      const totalAddMed = addConfig.filter(
-        (q) => q.difficulty === "MEDIUM",
-      ).length;
-      const totalAddHard = addConfig.filter(
-        (q) => q.difficulty === "HARD",
-      ).length;
-
       formData.append("totalQuestions", currentAddTotal);
-      formData.append("easyCount", totalAddEasy);
-      formData.append("mediumCount", totalAddMed);
-      formData.append("hardCount", totalAddHard);
 
       let configText = "";
       addConfig.forEach((q, index) => {
@@ -164,13 +136,7 @@ const AddMoreMatrix = ({
               : q.type === "TRUE_FALSE"
                 ? "Đúng/Sai"
                 : "Điền khuyết";
-        const diffLabel =
-          q.difficulty === "EASY"
-            ? "DỄ"
-            : q.difficulty === "MEDIUM"
-              ? "VỪA"
-              : "KHÓ";
-        configText += `- Câu ${index + 1}: Thể loại: ${typeLabel} (${q.type}), Độ khó: ${diffLabel}.\n`;
+        configText += `- Câu ${index + 1}: Thể loại: ${typeLabel} (${q.type}).\n`;
       });
 
       let rules = `
@@ -198,6 +164,12 @@ ${configText}
           "Hệ thống không tìm thấy đủ dữ kiện để tạo thêm câu. Bạn thử tài liệu khác nhé!",
         );
       } else {
+        // 👉 Chỉ cập nhật "trần năng lực" khi dùng lại tài liệu gốc — đây là thông tin gắn
+        // riêng với đúng 1 tài liệu cố định, tài liệu mới có năng lực hoàn toàn khác, không
+        // liên quan gì đến trần đã biết của tài liệu cũ.
+        if (useOriginalDoc) {
+          updateDocCapacity(currentAddTotal, newQuestions.length, existingQuestions.length);
+        }
         onAdded(newQuestions);
         setIsAdding(false);
         setAddText("");
@@ -213,16 +185,6 @@ ${configText}
   };
 
   const currentAddTotal = addConfig.length;
-  const totalAddEasy = addConfig.filter((q) => q.difficulty === "EASY").length;
-  const totalAddMed = addConfig.filter((q) => q.difficulty === "MEDIUM").length;
-  const totalAddHard = addConfig.filter((q) => q.difficulty === "HARD").length;
-
-  const easyPct =
-    currentAddTotal > 0 ? (totalAddEasy / currentAddTotal) * 100 : 0;
-  const medPct =
-    currentAddTotal > 0 ? (totalAddMed / currentAddTotal) * 100 : 0;
-  const hardPct =
-    currentAddTotal > 0 ? (totalAddHard / currentAddTotal) * 100 : 0;
 
   const totalSingle = addConfig.filter(
     (q) => q.type === "SINGLE_CHOICE",
@@ -389,16 +351,8 @@ ${configText}
               >
                 Nguồn tài liệu bổ sung:
               </label>
-              <div style={{ display: "flex", gap: "20px" }}>
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    cursor: "pointer",
-                    color: "var(--text-dark)",
-                  }}
-                >
+              <div style={{ display: "flex", gap: "20px", marginBottom: "10px" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", color: "var(--text-dark)" }}>
                   <input
                     type="radio"
                     checked={useOriginalDoc}
@@ -409,15 +363,7 @@ ${configText}
                   />{" "}
                   Dùng lại tài liệu ban đầu
                 </label>
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "5px",
-                    cursor: "pointer",
-                    color: "var(--text-dark)",
-                  }}
-                >
+                <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", color: "var(--text-dark)" }}>
                   <input
                     type="radio"
                     checked={!useOriginalDoc}
@@ -426,48 +372,76 @@ ${configText}
                       setAddError("");
                     }}
                   />{" "}
-                  Cung cấp tài liệu mới
+                  Tài liệu mới
                 </label>
               </div>
-            </div>
 
-            {!useOriginalDoc && (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "10px",
-                  padding: "15px",
-                  backgroundColor: "var(--bg-main)",
-                  borderRadius: "8px",
-                  border: "1px solid var(--border)",
-                }}
-              >
-                <input
-                  type="file"
-                  ref={addFileInputRef}
-                  onChange={(e) => {
-                    setAddFile(e.target.files[0]);
-                    setAddError("");
-                  }}
-                />
-                <textarea
-                  rows="2"
-                  placeholder="Hoặc dán thêm nội dung vào đây..."
-                  value={addText}
-                  onChange={(e) => {
-                    setAddText(e.target.value);
-                    setAddError("");
-                  }}
+              {useOriginalDoc ? (
+                <div
                   style={{
-                    padding: "10px",
+                    fontSize: "0.85rem",
+                    color: "var(--text-gray)",
+                    padding: "12px 15px",
+                    backgroundColor: "var(--bg-main)",
                     borderRadius: "8px",
                     border: "1px solid var(--border)",
-                    outline: "none",
                   }}
-                />
-              </div>
-            )}
+                >
+                  Sẽ dùng nguyên văn tài liệu ban đầu ({originalFile ? `file: ${originalFile.name}` : "văn bản đã dán"}) —
+                  không có ô nhập nào ở đây để tránh lỡ tay gửi lại đúng tài liệu cũ mà tưởng là mới.
+                  Nếu tài liệu này không đủ dữ kiện, hệ thống sẽ báo ngay bên dưới, không cần chờ AI xử lý.
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                    padding: "15px",
+                    backgroundColor: "var(--bg-main)",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  <input
+                    type="file"
+                    ref={addFileInputRef}
+                    onChange={(e) => {
+                      setAddFile(e.target.files[0]);
+                      setAddError("");
+                    }}
+                  />
+                  {addFile && isFileSameAsOriginal && (
+                    <div style={{ fontSize: "0.8rem", color: "#0369a1" }}>
+                      ℹ️ File này giống hệt file đã dùng ở lần tạo trước. Vẫn tạo được câu hỏi
+                      mới nếu cấu hình (loại câu) khác lần trước — hệ thống đã tự chống
+                      trùng nội dung câu hỏi rồi, không cần lo lặp lại.
+                    </div>
+                  )}
+                  <textarea
+                    rows="3"
+                    placeholder="Hoặc dán thêm nội dung vào đây..."
+                    value={addText}
+                    onChange={(e) => {
+                      setAddText(e.target.value);
+                      setAddError("");
+                    }}
+                    style={{
+                      padding: "10px",
+                      borderRadius: "8px",
+                      border: "1px solid var(--border)",
+                      outline: "none",
+                    }}
+                  />
+                  {isTextSameAsOriginal && (
+                    <div style={{ fontSize: "0.8rem", color: "#0369a1" }}>
+                      ℹ️ Đoạn văn bản này giống hệt tài liệu đã dùng ở lần tạo trước. Vẫn tạo được
+                      câu hỏi mới nếu cấu hình khác lần trước, hệ thống đã tự chống trùng nội dung rồi.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {addConfig.length > 0 && (
               <div
@@ -488,69 +462,6 @@ ${configText}
                     marginBottom: "15px",
                   }}
                 >
-                  <div>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        fontSize: "0.85rem",
-                        fontWeight: "bold",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      <span style={{ color: "var(--text-dark)" }}>
-                        <i
-                          className="fa-solid fa-chart-simple"
-                          style={{ color: "#8b5cf6", marginRight: "5px" }}
-                        ></i>{" "}
-                        Phân bổ Độ Khó (Bổ sung):
-                      </span>
-                      <div style={{ display: "flex", gap: "12px" }}>
-                        <span style={{ color: "#10b981" }}>
-                          Dễ: {Math.round(easyPct)}% ({totalAddEasy})
-                        </span>
-                        <span style={{ color: "#f59e0b" }}>
-                          Vừa: {Math.round(medPct)}% ({totalAddMed})
-                        </span>
-                        <span style={{ color: "#ef4444" }}>
-                          Khó: {Math.round(hardPct)}% ({totalAddHard})
-                        </span>
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        width: "100%",
-                        height: "8px",
-                        backgroundColor: "#e5e7eb",
-                        borderRadius: "4px",
-                        overflow: "hidden",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: `${easyPct}%`,
-                          backgroundColor: "#10b981",
-                          transition: "width 0.3s ease",
-                        }}
-                      ></div>
-                      <div
-                        style={{
-                          width: `${medPct}%`,
-                          backgroundColor: "#f59e0b",
-                          transition: "width 0.3s ease",
-                        }}
-                      ></div>
-                      <div
-                        style={{
-                          width: `${hardPct}%`,
-                          backgroundColor: "#ef4444",
-                          transition: "width 0.3s ease",
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-
                   <div>
                     <div
                       style={{
@@ -670,22 +581,6 @@ ${configText}
                       <option value="TRUE_FALSE">Đúng/Sai</option>
                       <option value="FILL_BLANK">Điền khuyết</option>
                     </select>
-                    <select
-                      onChange={handleApplyAllDifficulty}
-                      style={{
-                        padding: "4px 8px",
-                        borderRadius: "4px",
-                        border: "1px solid var(--border)",
-                        outline: "none",
-                        backgroundColor: "var(--bg-card)",
-                        color: "var(--text-dark)",
-                      }}
-                    >
-                      <option value="">-- Đổi mức độ --</option>
-                      <option value="EASY">Tất cả Dễ</option>
-                      <option value="MEDIUM">Tất cả Vừa</option>
-                      <option value="HARD">Tất cả Khó</option>
-                    </select>
                   </div>
                 </div>
 
@@ -726,7 +621,7 @@ ${configText}
                             handleConfigChange(index, "type", e.target.value)
                           }
                           style={{
-                            flex: 2,
+                            flex: 1,
                             padding: "6px",
                             borderRadius: "4px",
                             border: "1px solid var(--border)",
@@ -742,36 +637,6 @@ ${configText}
                           </option>
                           <option value="TRUE_FALSE">⚖️ Đúng/Sai</option>
                           <option value="FILL_BLANK">✍️ Điền khuyết</option>
-                        </select>
-                        <select
-                          value={q.difficulty}
-                          onChange={(e) =>
-                            handleConfigChange(
-                              index,
-                              "difficulty",
-                              e.target.value,
-                            )
-                          }
-                          style={{
-                            flex: 1,
-                            padding: "6px",
-                            borderRadius: "4px",
-                            border: "1px solid var(--border)",
-                            outline: "none",
-                            fontSize: "0.9rem",
-                            backgroundColor: "var(--bg-card)",
-                            color:
-                              q.difficulty === "EASY"
-                                ? "#10b981"
-                                : q.difficulty === "MEDIUM"
-                                  ? "#f59e0b"
-                                  : "#ef4444",
-                            fontWeight: "bold",
-                          }}
-                        >
-                          <option value="EASY">Dễ</option>
-                          <option value="MEDIUM">Vừa</option>
-                          <option value="HARD">Khó</option>
                         </select>
                       </div>
                     ))}
@@ -795,7 +660,7 @@ ${configText}
                 rows="2"
                 placeholder="Vd: Hãy bám sát vào nội dung định nghĩa..."
                 value={addCustomPrompt}
-                onChange={(e) => setAddCustomPrompt(e.target.value)} // ĐÃ FIX Ở ĐÂY
+                onChange={(e) => setAddCustomPrompt(e.target.value)}
                 style={{
                   width: "100%",
                   padding: "10px",

@@ -28,6 +28,22 @@ const CreateExamPage = ({ onNavigate }) => {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
+  // 👉 "Trần năng lực" của tài liệu GỐC — null nghĩa là CHƯA BIẾT giới hạn thật sự nằm ở đâu
+  // (mọi lần xin đều được đáp ứng đủ), một số cụ thể nghĩa là ĐÃ CHỨNG MINH chắc chắn tài liệu
+  // không thể cho ra quá số đó (một lần xin nhiều hơn số thực nhận được).
+  // Dùng để: lúc bổ sung câu ở lượt sau mà chọn "Dùng tài liệu cũ", có thể biết trước chắc chắn
+  // sẽ thất bại (không cần gọi AI tốn công) nếu số đã có + số xin thêm vượt quá trần đã biết.
+  const [docCapacity, setDocCapacity] = useState(null);
+
+  const updateDocCapacity = (requestedCount, receivedCount, alreadyHadCount) => {
+    if (!requestedCount) return;
+    // 👉 CHỈ chốt trần khi nhận ÍT HƠN xin — đó là bằng chứng chắc chắn duy nhất.
+    // Nhận đủ/dư thì chưa hề chứng minh được trần thật sự nằm ở đâu, để nguyên null.
+    if (receivedCount < requestedCount) {
+      setDocCapacity((alreadyHadCount || 0) + receivedCount);
+    }
+  };
+
   const previewRef = useRef(null);
 
   useEffect(() => {
@@ -63,7 +79,6 @@ const CreateExamPage = ({ onNavigate }) => {
           (_, i) => ({
             id: prev.length + i + 1,
             type: "",
-            difficulty: "",
           }),
         );
         return [...prev, ...newItems];
@@ -76,9 +91,6 @@ const CreateExamPage = ({ onNavigate }) => {
   }, [questionCount]);
 
   const totalQuestions = questionsConfig.length;
-  const totalEasy = questionsConfig.filter((q) => q.difficulty === "EASY").length;
-  const totalMed = questionsConfig.filter((q) => q.difficulty === "MEDIUM").length;
-  const totalHard = questionsConfig.filter((q) => q.difficulty === "HARD").length;
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
@@ -122,9 +134,6 @@ const CreateExamPage = ({ onNavigate }) => {
       if (file) formData.append("file", file);
 
       formData.append("totalQuestions", totalQuestions);
-      formData.append("easyCount", totalEasy);
-      formData.append("mediumCount", totalMed);
-      formData.append("hardCount", totalHard);
 
       let configText = "";
       questionsConfig.forEach((q, index) => {
@@ -133,11 +142,7 @@ const CreateExamPage = ({ onNavigate }) => {
           q.type === "MULTIPLE_CHOICE" ? "Nhiều đáp án" :
           q.type === "TRUE_FALSE" ? "Đúng/Sai" : "Điền khuyết";
 
-        const diffLabel =
-          q.difficulty === "EASY" ? "DỄ" :
-          q.difficulty === "MEDIUM" ? "VỪA" : "KHÓ";
-
-        configText += `- Câu ${index + 1}: Thể loại: ${typeLabel} (${q.type}), Độ khó: ${diffLabel}.\n`;
+        configText += `- Câu ${index + 1}: Thể loại: ${typeLabel} (${q.type}).\n`;
       });
 
       const antiHallucinationRules = `
@@ -157,6 +162,8 @@ ${configText}
 
       let rawData = res?.data || res?.questions || res?.result || (Array.isArray(res) ? res : []);
       if (!Array.isArray(rawData)) rawData = [];
+
+      updateDocCapacity(totalQuestions, rawData.length, 0);
 
       if (res?.message && res.message.includes("bị hủy vì tài liệu không đủ dữ kiện")) {
         alert("Thông báo từ AI: \n\n" + res.message);
@@ -314,14 +321,11 @@ ${configText}
               setGeneratedQuestions={setGeneratedQuestions}
               isSaving={isSaving}
               handleSaveExam={handleSaveExam}
-              targetCounts={{
-                total: totalQuestions,
-                easy: totalEasy,
-                med: totalMed,
-                hard: totalHard,
-              }}
+              targetCounts={{ total: totalQuestions }}
               originalText={text}
               originalFile={file}
+              docCapacity={docCapacity}
+              updateDocCapacity={updateDocCapacity}
             />
           </div>
         </div>

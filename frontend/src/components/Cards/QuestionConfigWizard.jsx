@@ -9,21 +9,12 @@ const QuestionConfigWizard = ({
   setActiveStep,
 }) => {
   const [activeTypeBrush, setActiveTypeBrush] = React.useState("");
-  const [activeDiffBrush, setActiveDiffBrush] = React.useState("");
 
   if (questionsConfig.length === 0) return null;
 
   const handlePaintItem = (index) => {
     const newConfig = [...questionsConfig];
     const currentQ = newConfig[index];
-
-    if (activeStep === "DIFFICULTY" && activeDiffBrush) {
-      if (currentQ.difficulty === activeDiffBrush) {
-        newConfig[index].difficulty = "";
-      } else {
-        newConfig[index].difficulty = activeDiffBrush;
-      }
-    }
 
     if (activeStep === "TYPE" && activeTypeBrush) {
       if (currentQ.type === activeTypeBrush) {
@@ -39,10 +30,6 @@ const QuestionConfigWizard = ({
   const handleApplyAll = (field, value) => {
     if (!value && value !== "") return;
     const newConfig = questionsConfig.map((q) => {
-      if (field === "difficulty" && value === "RANDOM") {
-        const diffs = ["EASY", "MEDIUM", "HARD"];
-        return { ...q, difficulty: diffs[Math.floor(Math.random() * diffs.length)] };
-      }
       if (field === "type" && value === "RANDOM") {
         const types = ["SINGLE_CHOICE", "MULTIPLE_CHOICE", "TRUE_FALSE", "FILL_BLANK"];
         return { ...q, type: types[Math.floor(Math.random() * types.length)] };
@@ -50,13 +37,6 @@ const QuestionConfigWizard = ({
       return { ...q, [field]: value };
     });
     setQuestionsConfig(newConfig);
-  };
-
-  const getDifficultyColor = (diff) => {
-    if (diff === "EASY") return "#10b981";
-    if (diff === "MEDIUM") return "#f59e0b";
-    if (diff === "HARD") return "#ef4444";
-    return "#d1d5db";
   };
 
   const getTypeStyle = (type) => {
@@ -91,17 +71,10 @@ const QuestionConfigWizard = ({
     return { icon: "⬜", bg: "#f3f4f6", label: "Chưa gán", color: "#9ca3af" };
   };
 
-  const getDiffLabel = (diff) => {
-    if (diff === "EASY") return "Dễ";
-    if (diff === "MEDIUM") return "Vừa";
-    if (diff === "HARD") return "Khó";
-    return "Chưa gán";
-  };
-
   const generateMatrixSummary = () => {
     const matrix = {};
     questionsConfig.forEach((q) => {
-      const key = `${q.difficulty}|${q.type}`;
+      const key = q.type;
       if (!matrix[key]) matrix[key] = [];
       matrix[key].push(q.id);
     });
@@ -114,28 +87,7 @@ const QuestionConfigWizard = ({
       <div className="cei-wizard-tabs">
         <button
           className="cei-tab-btn"
-          onClick={() => {
-            setActiveStep("DIFFICULTY");
-            setActiveTypeBrush("");
-          }}
-          style={{
-            borderBottomColor:
-              activeStep === "DIFFICULTY" ? "#8b5cf6" : "transparent",
-            backgroundColor:
-              activeStep === "DIFFICULTY"
-                ? "rgba(139, 92, 246, 0.05)"
-                : "transparent",
-            color: activeStep === "DIFFICULTY" ? "#8b5cf6" : "var(--text-gray)",
-          }}
-        >
-          1. Chọn Độ Khó
-        </button>
-        <button
-          className="cei-tab-btn"
-          onClick={() => {
-            setActiveStep("TYPE");
-            setActiveDiffBrush("");
-          }}
+          onClick={() => setActiveStep("TYPE")}
           style={{
             borderBottomColor:
               activeStep === "TYPE" ? "#8b5cf6" : "transparent",
@@ -146,14 +98,13 @@ const QuestionConfigWizard = ({
             color: activeStep === "TYPE" ? "#8b5cf6" : "var(--text-gray)",
           }}
         >
-          2. Chọn Loại Câu Hỏi
+          1. Chọn Loại Câu Hỏi
         </button>
         <button
           className="cei-tab-btn"
           onClick={() => {
             setActiveStep("SUMMARY");
             setActiveTypeBrush("");
-            setActiveDiffBrush("");
           }}
           style={{
             borderBottomColor:
@@ -165,213 +116,126 @@ const QuestionConfigWizard = ({
             color: activeStep === "SUMMARY" ? "#10b981" : "var(--text-gray)",
           }}
         >
-          3. Xem Ma Trận <i className="fa-solid fa-check-double"></i>
+          2. Xem Ma Trận <i className="fa-solid fa-check-double"></i>
         </button>
       </div>
 
       {/* Toolbar & Grid */}
-      {(activeStep === "DIFFICULTY" || activeStep === "TYPE") && (
+      {activeStep === "TYPE" && (
         <div style={{ padding: "20px" }}>
           <div className="cei-toolbar">
-            {/* Toolbar Độ Khó */}
-            {activeStep === "DIFFICULTY" && (
-              <div className="qcw-toolbar-group">
-                <span className="qcw-toolbar-label">
-                  <i
-                    className="fa-solid fa-paintbrush"
-                    style={{ color: "#8b5cf6" }}
-                  ></i>{" "}
-                  Cọ Độ Khó:
-                </span>
-                <button
-                  className="cei-brush-btn"
-                  onClick={() =>
-                    setActiveDiffBrush(activeDiffBrush === "EASY" ? "" : "EASY")
-                  }
-                  style={{
-                    border: "1px solid #10b981",
-                    backgroundColor:
-                      activeDiffBrush === "EASY" ? "#10b981" : "white",
-                    color: activeDiffBrush === "EASY" ? "white" : "#10b981",
-                  }}
-                >
-                  Dễ
-                </button>
-                <button
-                  className="cei-brush-btn"
-                  onClick={() =>
-                    setActiveDiffBrush(
-                      activeDiffBrush === "MEDIUM" ? "" : "MEDIUM",
-                    )
-                  }
-                  style={{
-                    border: "1px solid #f59e0b",
-                    backgroundColor:
-                      activeDiffBrush === "MEDIUM" ? "#f59e0b" : "white",
-                    color: activeDiffBrush === "MEDIUM" ? "white" : "#f59e0b",
-                  }}
-                >
-                  Vừa
-                </button>
-                <button
-                  className="cei-brush-btn"
-                  onClick={() =>
-                    setActiveDiffBrush(activeDiffBrush === "HARD" ? "" : "HARD")
-                  }
-                  style={{
-                    border: "1px solid #ef4444",
-                    backgroundColor:
-                      activeDiffBrush === "HARD" ? "#ef4444" : "white",
-                    color: activeDiffBrush === "HARD" ? "white" : "#ef4444",
-                  }}
-                >
-                  Khó
-                </button>
+            <div className="qcw-toolbar-group">
+              <span className="qcw-toolbar-label">
+                <i
+                  className="fa-solid fa-paintbrush"
+                  style={{ color: "#8b5cf6" }}
+                ></i>{" "}
+                Cọ Loại Câu:
+              </span>
+              <button
+                className="cei-brush-btn"
+                onClick={() =>
+                  setActiveTypeBrush(
+                    activeTypeBrush === "SINGLE_CHOICE"
+                      ? ""
+                      : "SINGLE_CHOICE",
+                  )
+                }
+                style={{
+                  border: "1px solid #3b82f6",
+                  backgroundColor:
+                    activeTypeBrush === "SINGLE_CHOICE" ? "#3b82f6" : "white",
+                  color:
+                    activeTypeBrush === "SINGLE_CHOICE" ? "white" : "#3b82f6",
+                }}
+              >
+                🔘 1 ĐA
+              </button>
+              <button
+                className="cei-brush-btn"
+                onClick={() =>
+                  setActiveTypeBrush(
+                    activeTypeBrush === "MULTIPLE_CHOICE"
+                      ? ""
+                      : "MULTIPLE_CHOICE",
+                  )
+                }
+                style={{
+                  border: "1px solid #8b5cf6",
+                  backgroundColor:
+                    activeTypeBrush === "MULTIPLE_CHOICE"
+                      ? "#8b5cf6"
+                      : "white",
+                  color:
+                    activeTypeBrush === "MULTIPLE_CHOICE"
+                      ? "white"
+                      : "#8b5cf6",
+                }}
+              >
+                ☑️ Nhiều ĐA
+              </button>
+              <button
+                className="cei-brush-btn"
+                onClick={() =>
+                  setActiveTypeBrush(
+                    activeTypeBrush === "TRUE_FALSE" ? "" : "TRUE_FALSE",
+                  )
+                }
+                style={{
+                  border: "1px solid #14b8a6",
+                  backgroundColor:
+                    activeTypeBrush === "TRUE_FALSE" ? "#14b8a6" : "white",
+                  color:
+                    activeTypeBrush === "TRUE_FALSE" ? "white" : "#14b8a6",
+                }}
+              >
+                ⚖️ Đ/S
+              </button>
+              <button
+                className="cei-brush-btn"
+                onClick={() =>
+                  setActiveTypeBrush(
+                    activeTypeBrush === "FILL_BLANK" ? "" : "FILL_BLANK",
+                  )
+                }
+                style={{
+                  border: "1px solid #f43f5e",
+                  backgroundColor:
+                    activeTypeBrush === "FILL_BLANK" ? "#f43f5e" : "white",
+                  color:
+                    activeTypeBrush === "FILL_BLANK" ? "white" : "#f43f5e",
+                }}
+              >
+                ✍️ Điền
+              </button>
 
-                <select
-                  className="qcw-select-all"
-                  onChange={(e) => {
-                    handleApplyAll("difficulty", e.target.value);
-                    e.target.value = "default";
-                  }}
-                  defaultValue="default"
-                >
-                  <option value="default" disabled>
-                    -- Quét tất cả thành... --
-                  </option>
-                  <option value="RANDOM">Tất cả Ngẫu nhiên</option>
-                  <option value="EASY">Tất cả Dễ</option>
-                  <option value="MEDIUM">Tất cả Vừa</option>
-                  <option value="HARD">Tất cả Khó</option>
-                  <option value="">Tẩy tất cả (Trống)</option>
-                </select>
-              </div>
-            )}
-
-            {/* Toolbar Loại Câu */}
-            {activeStep === "TYPE" && (
-              <div className="qcw-toolbar-group">
-                <span className="qcw-toolbar-label">
-                  <i
-                    className="fa-solid fa-paintbrush"
-                    style={{ color: "#8b5cf6" }}
-                  ></i>{" "}
-                  Cọ Loại Câu:
-                </span>
-                <button
-                  className="cei-brush-btn"
-                  onClick={() =>
-                    setActiveTypeBrush(
-                      activeTypeBrush === "SINGLE_CHOICE"
-                        ? ""
-                        : "SINGLE_CHOICE",
-                    )
-                  }
-                  style={{
-                    border: "1px solid #3b82f6",
-                    backgroundColor:
-                      activeTypeBrush === "SINGLE_CHOICE" ? "#3b82f6" : "white",
-                    color:
-                      activeTypeBrush === "SINGLE_CHOICE" ? "white" : "#3b82f6",
-                  }}
-                >
-                  🔘 1 ĐA
-                </button>
-                <button
-                  className="cei-brush-btn"
-                  onClick={() =>
-                    setActiveTypeBrush(
-                      activeTypeBrush === "MULTIPLE_CHOICE"
-                        ? ""
-                        : "MULTIPLE_CHOICE",
-                    )
-                  }
-                  style={{
-                    border: "1px solid #8b5cf6",
-                    backgroundColor:
-                      activeTypeBrush === "MULTIPLE_CHOICE"
-                        ? "#8b5cf6"
-                        : "white",
-                    color:
-                      activeTypeBrush === "MULTIPLE_CHOICE"
-                        ? "white"
-                        : "#8b5cf6",
-                  }}
-                >
-                  ☑️ Nhiều ĐA
-                </button>
-                <button
-                  className="cei-brush-btn"
-                  onClick={() =>
-                    setActiveTypeBrush(
-                      activeTypeBrush === "TRUE_FALSE" ? "" : "TRUE_FALSE",
-                    )
-                  }
-                  style={{
-                    border: "1px solid #14b8a6",
-                    backgroundColor:
-                      activeTypeBrush === "TRUE_FALSE" ? "#14b8a6" : "white",
-                    color:
-                      activeTypeBrush === "TRUE_FALSE" ? "white" : "#14b8a6",
-                  }}
-                >
-                  ⚖️ Đ/S
-                </button>
-                <button
-                  className="cei-brush-btn"
-                  onClick={() =>
-                    setActiveTypeBrush(
-                      activeTypeBrush === "FILL_BLANK" ? "" : "FILL_BLANK",
-                    )
-                  }
-                  style={{
-                    border: "1px solid #f43f5e",
-                    backgroundColor:
-                      activeTypeBrush === "FILL_BLANK" ? "#f43f5e" : "white",
-                    color:
-                      activeTypeBrush === "FILL_BLANK" ? "white" : "#f43f5e",
-                  }}
-                >
-                  ✍️ Điền
-                </button>
-
-                <select
-                  className="qcw-select-all"
-                  onChange={(e) => {
-                    handleApplyAll("type", e.target.value);
-                    e.target.value = "default";
-                  }}
-                  defaultValue="default"
-                >
-                  <option value="default" disabled>
-                    -- Quét tất cả thành... --
-                  </option>
-                  <option value="RANDOM">Tất cả Ngẫu nhiên</option>
-                  <option value="SINGLE_CHOICE">Tất cả 1 Đáp án</option>
-                  <option value="MULTIPLE_CHOICE">Tất cả Nhiều đáp án</option>
-                  <option value="TRUE_FALSE">Tất cả Đúng/Sai</option>
-                  <option value="FILL_BLANK">Tất cả Điền khuyết</option>
-                  <option value="">Tẩy tất cả (Trống)</option>
-                </select>
-              </div>
-            )}
+              <select
+                className="qcw-select-all"
+                onChange={(e) => {
+                  handleApplyAll("type", e.target.value);
+                  e.target.value = "default";
+                }}
+                defaultValue="default"
+              >
+                <option value="default" disabled>
+                  -- Quét tất cả thành... --
+                </option>
+                <option value="RANDOM">Tất cả Ngẫu nhiên</option>
+                <option value="SINGLE_CHOICE">Tất cả 1 Đáp án</option>
+                <option value="MULTIPLE_CHOICE">Tất cả Nhiều đáp án</option>
+                <option value="TRUE_FALSE">Tất cả Đúng/Sai</option>
+                <option value="FILL_BLANK">Tất cả Điền khuyết</option>
+                <option value="">Tẩy tất cả (Trống)</option>
+              </select>
+            </div>
           </div>
 
           {/* Lưới câu hỏi */}
           <div className="cei-grid-container">
             {questionsConfig.map((q, index) => {
-              const isBrushing =
-                (activeStep === "DIFFICULTY" && activeDiffBrush) ||
-                (activeStep === "TYPE" && activeTypeBrush);
+              const isBrushing = !!activeTypeBrush;
               const typeInfo = getTypeStyle(q.type);
-              const diffColor = getDifficultyColor(q.difficulty);
-              const diffLabel = getDiffLabel(q.difficulty);
-
-              const opacity =
-                activeStep === "DIFFICULTY" || !q.difficulty ? 1 : 0.6;
-              const iconOpacity = activeStep === "TYPE" || !q.type ? 1 : 0.4;
               const isUnassignedType = !q.type || q.type === "";
-              const isUnassignedDiff = !q.difficulty || q.difficulty === "";
 
               return (
                 <button
@@ -379,25 +243,14 @@ const QuestionConfigWizard = ({
                   id={`config-btn-${q.id}`}
                   className="cei-grid-item"
                   onClick={() => (isBrushing ? handlePaintItem(index) : null)}
-                  title={`Câu ${q.id} | ${typeInfo.label} | Độ khó: ${diffLabel}`}
+                  title={`Câu ${q.id} | ${typeInfo.label}`}
                   style={{
                     borderWidth: "2px",
-                    borderStyle:
-                      activeStep === "DIFFICULTY" && isUnassignedDiff
-                        ? "dashed"
-                        : "solid",
-                    borderColor:
-                      activeStep === "DIFFICULTY"
-                        ? diffColor
-                        : isUnassignedDiff
-                          ? "#d1d5db"
-                          : "#e5e7eb",
-                    backgroundColor:
-                      activeStep === "TYPE"
-                        ? typeInfo.bg
-                        : isUnassignedType
-                          ? "#f3f4f6"
-                          : "var(--bg-main)",
+                    borderStyle: isUnassignedType ? "dashed" : "solid",
+                    borderColor: isUnassignedType ? "#d1d5db" : "#e5e7eb",
+                    backgroundColor: isUnassignedType
+                      ? "#f3f4f6"
+                      : typeInfo.bg,
                     cursor: isBrushing ? "crosshair" : "default",
                     position: "relative",
                     transition: "all 0.3s ease",
@@ -411,20 +264,11 @@ const QuestionConfigWizard = ({
                       e.currentTarget.style.transform = "scale(1)";
                   }}
                 >
-                  <span style={{ fontSize: "0.85rem", opacity: iconOpacity }}>
-                    {typeInfo.icon}
-                  </span>
+                  <span style={{ fontSize: "0.85rem" }}>{typeInfo.icon}</span>
                   <span
                     style={{
-                      opacity: opacity,
-                      fontWeight:
-                        isUnassignedDiff && isUnassignedType
-                          ? "normal"
-                          : "bold",
-                      color:
-                        isUnassignedDiff && isUnassignedType
-                          ? "#9ca3af"
-                          : "inherit",
+                      fontWeight: isUnassignedType ? "normal" : "bold",
+                      color: isUnassignedType ? "#9ca3af" : "inherit",
                     }}
                   >
                     {q.id}
@@ -444,17 +288,14 @@ const QuestionConfigWizard = ({
             tiết
           </h3>
           <div className="qcw-matrix-list">
-            {Object.entries(generateMatrixSummary()).map(([key, ids]) => {
-              const [diff, type] = key.split("|");
-              const diffLabel = getDiffLabel(diff);
-              const diffColor = getDifficultyColor(diff);
+            {Object.entries(generateMatrixSummary()).map(([type, ids]) => {
               const typeInfo = getTypeStyle(type);
 
               return (
                 <div
-                  key={key}
+                  key={type}
                   className="cei-matrix-item"
-                  style={{ borderLeft: `4px solid ${diffColor}` }}
+                  style={{ borderLeft: `4px solid ${typeInfo.color}` }}
                 >
                   <div className="qcw-matrix-header">
                     <strong
@@ -464,7 +305,6 @@ const QuestionConfigWizard = ({
                         gap: "8px",
                       }}
                     >
-                      <span style={{ color: diffColor }}>{diffLabel}</span> +{" "}
                       <span style={{ color: typeInfo.color }}>
                         {typeInfo.icon} {typeInfo.label}
                       </span>

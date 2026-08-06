@@ -5,7 +5,6 @@ import { studyAPI } from "../../services/api";
 import "./ExamPage.css";
 
 // Import Component AI & Giao diện
-import AIMentorChat from "../../components/Study/AIMentorChat";
 import ExamHeader from "../../components/Study/ExamHeader";
 import ExamResult from "../../components/Study/ExamResult";
 import ExamQuestion from "../../components/Study/ExamQuestion";
@@ -359,8 +358,6 @@ const ExamPage = ({ deckId, onNavigate, onFinish }) => {
           </>
         )}
       </main>
-
-      {!isSubmitted && <AIMentorChat currentQuestion={currentQ} />}
     </div>
   );
 };
