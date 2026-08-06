@@ -1,7 +1,3 @@
-Vì giới hạn của nền tảng chat, mình không thể trực tiếp tạo và gửi file tải về đuôi .docx cho bạn. Tuy nhiên, mình đã loại bỏ các ký hiệu code Markdown và trình bày lại thành văn bản chuẩn ngay bên dưới.
-
-👉 Cách xử lý nhanh nhất: Bạn chỉ cần bôi đen toàn bộ nội dung từ đường kẻ ngang trở xuống -> Copy (Ctrl + C) -> Mở Microsoft Word hoặc Google Docs -> Paste (Ctrl + V). Toàn bộ định dạng (tiêu đề, in đậm, gạch đầu dòng) sẽ được giữ nguyên hoàn hảo để bạn lưu lại ngay lập tức!
-
 ForgetMeNot - Nền tảng Học tập & Ghi nhớ Thông minh
 ForgetMeNot là một ứng dụng web học tập toàn diện được thiết kế để tối ưu hóa quá trình ghi nhớ kiến thức. Hệ thống kết hợp phương pháp Lặp lại ngắt quãng (Spaced Repetition), Trí tuệ nhân tạo (AI) và các tính năng tương tác cộng đồng thời gian thực, mang đến trải nghiệm học tập hiện đại, trực quan và hiệu quả.
 
