@@ -115,6 +115,49 @@ const useChatManager = () => {
     return existing ? existing.id : null;
   };
 
+  // 👉 Tách riêng để dùng lại được ở 2 chỗ: (1) khi vừa chọn 1 cuộc chat, (2) khi socket
+  // vừa kết nối lại sau khi bị rớt — vì tin nhắn đến ĐÚNG LÚC mất kết nối sẽ không có
+  // socket nào bắt được (server chỉ đẩy real-time lúc đang kết nối), nên cần chủ động tải
+  // lại một lượt để không bị thiếu tin nhắn cho tới khi người dùng tự thoát ra vào lại.
+  const refreshMessagesForSelectedChat = async () => {
+    const chat = selectedChatRef.current;
+    if (!chat || isFetchingMessages.current) return;
+    isFetchingMessages.current = true;
+
+    try {
+      let res;
+      const friendId = getReceiverId(chat);
+      const isGroup = chat.isGroup || chat.is_group;
+
+      if (isGroup) {
+        res = await communityAPI.getGroupMessages(chat.id);
+      } else {
+        res = await communityAPI.getMessages(friendId);
+      }
+
+      const safeMessages = extractData(res);
+      setMessages(Array.isArray(safeMessages) ? safeMessages : []);
+
+      const firstMsgConvoId = safeMessages[0]?.conversation_id;
+      if (firstMsgConvoId && !chat?.conversation_id) {
+        setSelectedChat((prev) =>
+          prev ? { ...prev, conversation_id: firstMsgConvoId } : null,
+        );
+      }
+
+      const convoId = getConvoId(chat);
+      if (convoId) {
+        communityAPI
+          .markAsRead(convoId)
+          .catch((err) => console.error("Lỗi xóa chấm đỏ:", err));
+      }
+    } catch (error) {
+      console.error("Lỗi tải tin nhắn:", error);
+    } finally {
+      isFetchingMessages.current = false;
+    }
+  };
+
   const moveConversationToTop = (conversationId, latestMessage) => {
     setGroups((prevGroups) => {
       const idx = prevGroups.findIndex((g) => g.id === conversationId);
@@ -157,10 +200,39 @@ const useChatManager = () => {
         secure: true,
       });
 
+      let isFirstConnect = true;
       socketRef.current.on("connect", () => {
         console.log(
           `🟢 [THÀNH CÔNG] Đã cắm ăng-ten Socket! ID Của Tôi: ${socketRef.current.id}`,
         );
+
+        // 👉 "connect" bắn lại mỗi lần rớt-mạng-rồi-tự-nối-lại (không chỉ lần đầu). Bỏ qua
+        // lần đầu vì fetchInitialData() đã lo rồi — chỉ cần đồng bộ lại ở NHỮNG LẦN SAU, để
+        // vá đúng khoảng thời gian mất kết nối (tin nhắn/lời mời kết bạn đến lúc đó sẽ
+        // không có socket nào bắt được, và trước đây chỉ tải lại trang mới thấy đủ).
+        if (isFirstConnect) {
+          isFirstConnect = false;
+          return;
+        }
+
+        communityAPI
+          .getContacts()
+          .then((res) => {
+            const actualContacts = extractData(res);
+            setContacts(
+              Array.from(
+                new Map(actualContacts.map((item) => [item.id, item])).values(),
+              ),
+            );
+          })
+          .catch((err) => console.error("Lỗi đồng bộ bạn bè sau khi mất kết nối:", err));
+
+        communityAPI
+          .getPendingRequests()
+          .then((res) => setPendingRequests(extractData(res)))
+          .catch(() => {});
+
+        refreshMessagesForSelectedChat();
       });
 
       socketRef.current.on("connect_error", (error) => {
@@ -380,45 +452,7 @@ const useChatManager = () => {
       return;
     }
 
-    const fetchMessagesAndMarkRead = async () => {
-      if (isFetchingMessages.current) return;
-      isFetchingMessages.current = true;
-
-      try {
-        let res;
-        const friendId = getReceiverId(selectedChat);
-        const isGroup = selectedChat.isGroup || selectedChat.is_group;
-
-        if (isGroup) {
-          res = await communityAPI.getGroupMessages(selectedChat.id);
-        } else {
-          res = await communityAPI.getMessages(friendId);
-        }
-
-        const safeMessages = extractData(res);
-        setMessages(Array.isArray(safeMessages) ? safeMessages : []);
-
-        const firstMsgConvoId = safeMessages[0]?.conversation_id;
-        if (firstMsgConvoId && !selectedChat?.conversation_id) {
-          setSelectedChat((prev) =>
-            prev ? { ...prev, conversation_id: firstMsgConvoId } : null,
-          );
-        }
-
-        const convoId = getConvoId(selectedChat);
-        if (convoId) {
-          communityAPI
-            .markAsRead(convoId)
-            .catch((err) => console.error("Lỗi xóa chấm đỏ:", err));
-        }
-      } catch (error) {
-        console.error("Lỗi tải tin nhắn:", error);
-      } finally {
-        isFetchingMessages.current = false;
-      }
-    };
-
-    fetchMessagesAndMarkRead();
+    refreshMessagesForSelectedChat();
 
     const convoIdForSocket = getConvoId(selectedChat);
     if (socketRef.current && convoIdForSocket) {
@@ -672,7 +706,7 @@ const useChatManager = () => {
     if (!window.confirm("Rời nhóm này?")) return;
     try {
       const res = await communityAPI.leaveGroup(selectedChat.id);
-      if (res.res) {
+      if (res.success) {
         alert("Đã rời nhóm.");
         setGroups((prev) => prev.filter((g) => g.id !== selectedChat.id));
         setSelectedChat(null);
