@@ -326,7 +326,6 @@ const ChatWindow = ({ logic }) => {
                     alignItems: "flex-end",
                     gap: "10px",
                     margin: isGroupedWithNext ? "2px 0" : "8px 0",
-                    flexDirection: isMyMessage ? "row-reverse" : "row",
                     opacity: msg.isSending ? 0.6 : 1,
                   }}
                 >

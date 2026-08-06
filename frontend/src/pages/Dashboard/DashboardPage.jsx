@@ -289,9 +289,7 @@ const DashboardPage = ({ dynamicName, onNavigate, onStudy }) => {
   );
 
   const totalExamsCount = exams.length;
-  const totalDueExamsCount = exams.filter(
-    (exam) => exam.calculatedDue > 0,
-  ).length;
+  const totalDueExamsCount = exams.length;
 
   const handleStudyClick = async (deckId) => {
     try {
